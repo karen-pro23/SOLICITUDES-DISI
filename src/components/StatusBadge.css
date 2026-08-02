@@ -1,0 +1,41 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 0.375rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: transform var(--transition);
+}
+
+.status-badge:hover {
+  transform: scale(1.03);
+}
+
+.status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-badge[data-status="PENDIENTE"]::before {
+  background: #d97706;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-badge[data-status="RECHAZADA"]::before { background: #dc2626; }
+.status-badge[data-status="EN_PROCESO"]::before {
+  background: #6366f1;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-badge[data-status="EN_PRUEBAS"]::before {
+  background: #8b5cf6;
+  animation: pulse-dot 2.5s ease-in-out infinite;
+}
+.status-badge[data-status="RESUELTA"]::before { background: #059669; }

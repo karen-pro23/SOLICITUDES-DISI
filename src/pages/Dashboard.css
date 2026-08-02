@@ -1,0 +1,213 @@
+/* ═══════════════════════════════════════════════════════
+   Dashboard — Developer Control Center
+   ═══════════════════════════════════════════════════════ */
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.page-header h1 {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.02em;
+}
+
+/* ── Developer Metrics Bar ───────────────── */
+
+.dev-metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.dev-metric-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.dev-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.dev-metric-val {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.dev-metric-lbl {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dev-metric-card.metric-total .dev-metric-val { color: var(--color-primary); }
+.dev-metric-card.metric-resolved .dev-metric-val { color: var(--color-success); }
+.dev-metric-card.metric-in-progress .dev-metric-val { color: var(--color-primary-light); }
+.dev-metric-card.metric-pending .dev-metric-val { color: var(--color-warning); }
+.dev-metric-card.metric-rejected .dev-metric-val { color: var(--color-danger); }
+
+/* ── Toolbar & Tabs ──────────────────────── */
+
+.dev-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.status-tabs {
+  display: flex;
+  background: var(--color-gray-100);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: var(--color-gray-900);
+}
+
+.tab-btn.active {
+  background: white;
+  color: var(--color-primary-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-form {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 220px;
+}
+
+.search-form input {
+  flex: 1;
+  padding: 0.5625rem 0.875rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  background: white;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-form input:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Table ───────────────────────────────── */
+
+.table-responsive {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  background: white;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: linear-gradient(180deg, var(--color-gray-50) 0%, #f5f7fa 100%);
+}
+
+.table th {
+  text-align: left;
+  padding: 0.8125rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-gray-500);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.table td {
+  padding: 0.8125rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--color-gray-100);
+  color: var(--color-gray-700);
+  transition: background var(--transition);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr {
+  transition: all 0.15s ease;
+}
+
+.table tbody tr:hover td {
+  background: var(--color-primary-bg);
+}
+
+/* ── Empty State ─────────────────────────── */
+
+.empty-state {
+  text-align: center;
+  padding: 5rem 1rem;
+  color: var(--color-gray-400);
+  animation: fadeInUp 0.4s ease;
+}
+
+.empty-state p {
+  margin-bottom: 1.25rem;
+  font-size: 1rem;
+}
+
+/* ── Pagination ──────────────────────────── */
+
+.pagination-actions {
+  text-align: center;
+  padding: 1.25rem 0;
+}
+
+/* ── Utilities ───────────────────────────── */
+
+.text-muted {
+  color: var(--color-gray-500);
+}
+
+.btn-block {
+  width: 100%;
+}

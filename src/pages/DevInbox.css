@@ -1,0 +1,321 @@
+/* ── Inbox Page ──────────────────────────── */
+
+.inbox-page {
+  max-width: 1200px;
+}
+
+/* ── Tabs ────────────────────────────────── */
+
+.inbox-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-gray-200);
+  padding-bottom: 0;
+}
+
+.inbox-tab {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: -1px;
+}
+
+.inbox-tab:hover {
+  color: var(--color-gray-700);
+  border-bottom-color: var(--color-gray-300);
+}
+
+.inbox-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.inbox-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--color-primary-lightest);
+  color: var(--color-primary-dark);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.inbox-tab.active .inbox-tab-count {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* ── Grid ────────────────────────────────── */
+
+.inbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .inbox-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Card ────────────────────────────────── */
+
+.inbox-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-gray-200);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-lightest);
+  transform: translateY(-2px);
+}
+
+.inbox-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.inbox-card-ticket {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.inbox-card-ticket:hover {
+  text-decoration: underline;
+}
+
+.inbox-card-body {
+  padding: 1rem;
+  flex: 1;
+}
+
+.inbox-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.inbox-card-label {
+  color: var(--color-gray-500);
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.inbox-card-value {
+  color: var(--color-gray-800);
+  font-weight: 600;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inbox-card-desc {
+  margin-top: 0.75rem;
+  padding: 0.625rem;
+  background: var(--color-gray-50);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--color-gray-600);
+  line-height: 1.5;
+  border: 1px solid var(--color-gray-100);
+}
+
+.inbox-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.inbox-card-date {
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+}
+
+.inbox-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* ── Module Badge ────────────────────────── */
+
+.module-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+}
+
+.module-badge-systems {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.module-badge-other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* ── Priority ────────────────────────────── */
+
+.priority-pill {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.priority-alta {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.priority-media {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.priority-baja {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ── Loading ─────────────────────────────── */
+
+.inbox-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  color: var(--color-gray-500);
+  gap: 1rem;
+}
+
+.inbox-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-gray-200);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error ───────────────────────────────── */
+
+.inbox-error {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-danger);
+}
+
+.inbox-error p {
+  margin-bottom: 1rem;
+}
+
+/* ── Empty State ─────────────────────────── */
+
+.inbox-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.inbox-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.inbox-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  margin-bottom: 0.5rem;
+}
+
+.inbox-empty-desc {
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ── Modal (confirm no-sistemas) ─────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+}
+
+.modal-card h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: var(--color-gray-900);
+}
+
+.modal-card p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
