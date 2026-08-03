@@ -69,7 +69,6 @@ const requesterLinks = [
 const developerLinks = [
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
   { to: '/dashboard', label: 'Todas las Solicitudes', icon: icons.requests },
-  { to: '/', label: 'Portal Público', icon: icons.publicPortal },
 ];
 
 const adminLinks = [
@@ -79,7 +78,6 @@ const adminLinks = [
   { to: '/admin/users', label: 'Usuarios', icon: icons.users },
   { to: '/admin/modules', label: 'Módulos', icon: icons.modules },
   { to: '/admin/metrics', label: 'Métricas', icon: icons.metrics },
-  { to: '/', label: 'Portal Público', icon: icons.publicPortal },
 ];
 
 const linkMap = {
