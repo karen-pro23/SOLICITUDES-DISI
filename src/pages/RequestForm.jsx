@@ -294,14 +294,6 @@ export default function RequestForm() {
                       ))}
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Prioridad</label>
-                    <select name="priority" value={form.priority} onChange={handleChange}>
-                      <option value="baja">Baja</option>
-                      <option value="media">Media</option>
-                      <option value="alta">Alta</option>
-                    </select>
-                  </div>
                 </div>
               </section>
 
@@ -314,7 +306,7 @@ export default function RequestForm() {
                   <label>¿Qué proceso administrativo/contable se está realizando? *</label>
                   <textarea
                     name="processDescription"
-                    value={form.processDescription}
+                    value={form.processDescription.toLocaleUpperCase()}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "Cierre de ejercicio fiscal para el pago de orden N° 4500"...'
@@ -326,7 +318,7 @@ export default function RequestForm() {
                   <label>Comportamiento Actual (¿Qué hace el sistema ahora?) *</label>
                   <textarea
                     name="currentBehavior"
-                    value={form.currentBehavior}
+                    value={form.currentBehavior.toLocaleUpperCase()}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "Al intentar aprobar la orden de pago, muestra saldo insuficiente..."'
@@ -338,7 +330,7 @@ export default function RequestForm() {
                   <label>Comportamiento Esperado (¿Qué DEBERÍA hacer?) *</label>
                   <textarea
                     name="expectedBehavior"
-                    value={form.expectedBehavior}
+                    value={form.expectedBehavior.toLocaleUpperCase()}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "El sistema debe permitir consolidar el saldo de la partida previa..."'
