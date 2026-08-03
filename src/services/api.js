@@ -117,6 +117,11 @@ export async function updateRequestStatus(id, status, rejectionReason) {
   return data;
 }
 
+export async function updateRequestPriority(id, priority) {
+  const { data } = await api.patch(`/requests/${id}/priority`, { priority });
+  return data;
+}
+
 export async function assignRequest(id, assigneeId) {
   const { data } = await api.patch(`/requests/${id}/assign`, { assigneeId });
   return data;

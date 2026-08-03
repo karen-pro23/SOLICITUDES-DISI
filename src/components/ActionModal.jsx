@@ -86,7 +86,7 @@ export default function ActionModal({
                 ? 'Guardando...'
                 : isReject
                 ? 'Confirmar Rechazo'
-                : 'Marcar como Resuelta'}
+                : 'Marcar como Completada'}
             </button>
           </div>
         </form>

@@ -17,7 +17,7 @@ export default function MetricsDashboard() {
   if (loading) return <p className="text-muted">Cargando reportes de gestión...</p>;
   if (!metrics) return <p className="alert alert-error">Error al cargar métricas</p>;
 
-  const resolvedCount = metrics.byStatus.find((s) => s.status === 'RESUELTA')?.count || 0;
+  const resolvedCount = metrics.byStatus.find((s) => s.status === 'COMPLETADA')?.count || 0;
   const inProgressCount = metrics.byStatus.find((s) => s.status === 'EN_PROCESO')?.count || 0;
   const pendingCount = metrics.byStatus.find((s) => s.status === 'PENDIENTE')?.count || 0;
   const resolutionRate = metrics.total > 0 ? ((resolvedCount / metrics.total) * 100).toFixed(1) : '0';

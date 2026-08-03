@@ -38,4 +38,4 @@
   background: #8b5cf6;
   animation: pulse-dot 2.5s ease-in-out infinite;
 }
-.status-badge[data-status="RESUELTA"]::before { background: #059669; }
+.status-badge[data-status="COMPLETADA"]::before { background: #059669; }

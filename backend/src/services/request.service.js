@@ -4,9 +4,11 @@ const VALID_TRANSITIONS = {
   PENDIENTE:  ['EN_PROCESO', 'RECHAZADA'],
   RECHAZADA:  ['PENDIENTE'],
   EN_PROCESO: ['EN_PRUEBAS'],
-  EN_PRUEBAS: ['RESUELTA', 'EN_PROCESO'],
-  RESUELTA:   [],
+  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO'],
+  COMPLETADA: [],
 };
+
+const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
 async function findAll(filters, userId, userRole, userDeptId) {
   let sql = `SELECT r.*, 
@@ -152,8 +154,8 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     );
   }
 
-  // RESUELTA marca completed_at
-  const completedAt = newStatus === 'RESUELTA' ? new Date() : null;
+  // COMPLETADA marca completed_at
+  const completedAt = newStatus === 'COMPLETADA' ? new Date() : null;
 
   // Optimistic locking con version_number
   const result = await pool.query(
@@ -169,6 +171,33 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
   }
 
   // Registrar el cambio en el historial vía trigger de BD
+
+  return result.rows[0];
+}
+
+async function updatePriority(requestId, priority, userRole, userDeptId) {
+  // Verificar que la solicitud existe y es accesible
+  const request = await findById(requestId, userRole, userDeptId);
+  if (!request) {
+    throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
+  }
+
+  // Validar prioridad (se almacena en minúsculas: baja/media/alta)
+  if (!VALID_PRIORITIES.includes(priority)) {
+    throw Object.assign(new Error('Prioridad inválida'), { status: 400 });
+  }
+
+  // Optimistic locking con version_number
+  const result = await pool.query(
+    `UPDATE requests SET priority = $1, version_number = version_number + 1
+     WHERE request_id = $2 AND version_number = $3
+     RETURNING *`,
+    [priority, requestId, request.version_number]
+  );
+
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error('Conflicto de concurrencia'), { status: 409 });
+  }
 
   return result.rows[0];
 }
@@ -221,4 +250,4 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-module.exports = { findAll, findById, create, updateStatus, assign, getAttachments, getHistory };
+module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory };

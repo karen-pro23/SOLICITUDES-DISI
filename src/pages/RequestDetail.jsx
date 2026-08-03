@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRequest, updateRequestStatus, addComment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
+import { STATUS_TRANSITIONS } from '../constants/requestOptions';
 import './RequestDetail.css';
 
 export default function RequestDetail() {
@@ -25,25 +26,30 @@ export default function RequestDetail() {
   const { request, attachments, history, comments } = data;
   const canChangeStatus = user.role !== 'requester';
 
-  const statusActions = {
-    PENDIENTE: [
-      { status: 'EN_PROCESO', label: 'Aceptar', className: 'btn-success' },
-      { status: 'RECHAZADA', label: 'Rechazar', className: 'btn-danger' },
-    ],
-    RECHAZADA: [
-      { status: 'PENDIENTE', label: 'Reabrir', className: 'btn-primary' },
-    ],
-    EN_PROCESO: [
-      { status: 'EN_PRUEBAS', label: 'Pasar a Pruebas', className: 'btn-primary' },
-    ],
-    EN_PRUEBAS: [
-      { status: 'RESUELTA', label: 'Resolver', className: 'btn-success' },
-      { status: 'EN_PROCESO', label: 'Devolver a Proceso', className: 'btn-outline' },
-    ],
-    RESUELTA: [],
+  // Etiquetas y estilos locales para las transiciones permitidas
+  // (las transiciones válidas salen de STATUS_TRANSITIONS, fuente única).
+  const STATUS_ACTION_STYLES = {
+    PENDIENTE: {
+      EN_PROCESO: { label: 'Aceptar', className: 'btn-success' },
+      RECHAZADA: { label: 'Rechazar', className: 'btn-danger' },
+    },
+    RECHAZADA: {
+      PENDIENTE: { label: 'Reabrir', className: 'btn-primary' },
+    },
+    EN_PROCESO: {
+      EN_PRUEBAS: { label: 'Pasar a Pruebas', className: 'btn-primary' },
+    },
+    EN_PRUEBAS: {
+      COMPLETADA: { label: 'Resolver', className: 'btn-success' },
+      EN_PROCESO: { label: 'Devolver a Proceso', className: 'btn-outline' },
+    },
+    COMPLETADA: {},
   };
 
-  const actions = statusActions[request.status] || [];
+  const actions = (STATUS_TRANSITIONS[request.status] || []).map((status) => ({
+    status,
+    ...(STATUS_ACTION_STYLES[request.status]?.[status] || { label: status, className: 'btn-primary' }),
+  }));
 
   async function handleStatusChange(newStatus) {
     let rejectionReason = null;

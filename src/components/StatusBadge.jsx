@@ -5,7 +5,7 @@ const STATUS_STYLES = {
   RECHAZADA: { bg: '#fee2e2', color: '#991b1b', label: 'Rechazada' },
   EN_PROCESO: { bg: '#dbeafe', color: '#1e40af', label: 'En Proceso' },
   EN_PRUEBAS: { bg: '#e0e7ff', color: '#3730a3', label: 'En Pruebas' },
-  RESUELTA: { bg: '#d1fae5', color: '#065f46', label: 'Resuelta' },
+  COMPLETADA: { bg: '#d1fae5', color: '#065f46', label: 'Completada' },
 };
 
 export default function StatusBadge({ status }) {
