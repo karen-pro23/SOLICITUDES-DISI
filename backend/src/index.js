@@ -1,6 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
 const pool = require('./db/pool');
@@ -15,13 +16,25 @@ const app = express();
 
 // Security
 app.use(helmet());
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Origen no permitido por CORS'));
+  },
   credentials: true,
 }));
 
 // Body parsing
 app.use(express.json());
+app.use(cookieParser());
 
 // Health check
 app.get('/api/health', async (req, res) => {
