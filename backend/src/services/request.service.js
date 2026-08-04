@@ -72,7 +72,7 @@ async function findAll(filters, userId, userRole, userDeptId) {
     values.push(filters.cursor);
   }
 
-  sql += ' ORDER BY r.created_at DESC LIMIT $' + idx;
+  sql += ' ORDER BY\n    CASE r.priority\n      WHEN \'alta\' THEN 3\n      WHEN \'media\' THEN 2\n      WHEN \'baja\' THEN 1\n      ELSE 0\n    END DESC,\n    r.created_at DESC LIMIT $' + idx;
   values.push(limit + 1);
 
   const result = await pool.query(sql, values);

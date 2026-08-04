@@ -169,6 +169,77 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* ── Priority Pill Styles ────────────────────── */
+
+.priority-pill {
+  position: relative;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.375rem 0.75rem;
+  border-radius: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  border: 1.5px solid;
+}
+
+.priority-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.priority-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.priority-pill.priority-alta {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.priority-pill.priority-alta::before {
+  background: linear-gradient(to bottom, #dc2626, #ef4444);
+}
+
+.priority-pill.priority-media {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  color: #d97706;
+  border-color: #fcd34d;
+}
+
+.priority-pill.priority-media::before {
+  background: linear-gradient(to bottom, #d97706, #f59e0b);
+}
+
+.priority-pill.priority-baja {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #16a34a;
+  border-color: #86efac;
+}
+
+.priority-pill.priority-baja::before {
+  background: linear-gradient(to bottom, #16a34a, #22c55e);
+}
+
+.priority-pill.priority-baja {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+.priority-pill.priority-baja::before {
+  background: linear-gradient(to bottom, #64748b, #94a3b8);
+}
+
 /* ── Table ───────────────────────────────── */
 
 .table-responsive {
