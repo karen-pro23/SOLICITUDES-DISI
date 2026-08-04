@@ -311,32 +311,50 @@ export default function Dashboard() {
                     <td>
                       <StatusBadge status={req.status} />
                     </td>
-                    <td>
-                      <span
-                        className={`priority-pill priority-${req.priority}`}
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '99px',
-                          textTransform: 'uppercase',
-                          background:
-                            req.priority === 'alta'
-                              ? '#fee2e2'
-                              : req.priority === 'media'
-                              ? '#fef3c7'
-                              : '#f1f5f9',
-                          color:
-                            req.priority === 'alta'
-                              ? '#991b1b'
-                              : req.priority === 'media'
-                              ? '#92400e'
-                              : '#475569',
-                        }}
-                      >
-                        {req.priority}
-                      </span>
-                    </td>
+                     <td>
+                       <span
+                         className={`priority-pill priority-${req.priority}`}
+                         style={{
+                           fontSize: '0.75rem',
+                           fontWeight: 700,
+                           padding: '0.375rem 0.75rem',
+                           borderRadius: '24px',
+                           textTransform: 'uppercase',
+                           letterSpacing: '0.05em',
+                           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+                           transition: 'all 0.2s ease',
+                           background:
+                             req.priority === 'alta'
+                               ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
+                               : req.priority === 'media'
+                               ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
+                               : req.priority === 'baja'
+                               ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
+                               : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
+                            color:
+                              req.priority === 'alta'
+                                ? '#dc2626'
+                                : req.priority === 'media'
+                                ? '#d97706'
+                                : req.priority === 'baja'
+                                ? '#16a34a'
+                                : '#64748b',
+                            border: `1.5px solid ${req.priority === 'alta' ? '#fca5a5' : req.priority === 'media' ? '#fcd34d' : req.priority === 'baja' ? '#86efac' : '#cbd5e1'}`,
+                            position: 'relative',
+                            overflow: 'hidden',
+                            backgroundImage:
+                              req.priority === 'alta'
+                                ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
+                                : req.priority === 'media'
+                                ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
+                                : req.priority === 'baja'
+                                ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
+                                : 'linear-gradient(135deg, #f8fafc, #e2e8f0)',
+                          }}
+                       >
+                         {req.priority}
+                       </span>
+                     </td>
                     <td>{new Date(req.created_at).toLocaleDateString()}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '0.375rem' }}>
