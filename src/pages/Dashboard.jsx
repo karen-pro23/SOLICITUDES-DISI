@@ -23,7 +23,7 @@ export default function Dashboard() {
   const [requests, setRequests] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', search: '' });
+  const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
   const [metrics, setMetrics] = useState(null);
 
   // Modal State
@@ -43,6 +43,7 @@ export default function Dashboard() {
       const params = { limit: 25 };
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
+      if (filters.priority) params.priority = filters.priority;
       if (cursor) params.cursor = cursor;
 
       const [data, metricsData] = await Promise.all([
@@ -250,6 +251,20 @@ export default function Dashboard() {
           />
           <button type="submit" className="btn btn-outline">Buscar</button>
         </form>
+
+        {/* Filtro de Prioridad */}
+        <div className="priority-filter">
+          <select
+            value={filters.priority}
+            onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
+            className="priority-select"
+          >
+            <option value="">Todas las prioridades</option>
+            {PRIORITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Tabla de Bandeja de Solicitudes */}
