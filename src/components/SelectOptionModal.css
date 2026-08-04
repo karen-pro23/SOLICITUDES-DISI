@@ -1,0 +1,53 @@
+/* ═══════════════════════════════════════════════════════
+   SelectOptionModal — Lista de opciones + nota opcional
+   Reutiliza las clases base de ActionModal.css
+   ═══════════════════════════════════════════════════════ */
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius);
+  background: var(--surface-bg, #ffffff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-800);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.option-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.option-btn.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.option-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.option-note {
+  margin-top: 1.25rem;
+}
+
+.option-note label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  margin-bottom: 0.375rem;
+}

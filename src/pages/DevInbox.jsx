@@ -9,7 +9,7 @@ import './DevInbox.css';
 const TABS = [
   { key: 'pending', label: 'Pendientes', status: 'PENDIENTE' },
   { key: 'active', label: 'En Atención', status: 'EN_PROCESO,EN_PRUEBAS' },
-  { key: 'done', label: 'Resueltas / Rechazadas', status: 'RESUELTA,RECHAZADA' },
+  { key: 'done', label: 'Completadas / Rechazadas', status: 'COMPLETADA,RECHAZADA' },
 ];
 
 export default function DevInbox() {
@@ -83,7 +83,7 @@ export default function DevInbox() {
       if (type === 'reject') {
         await updateRequestStatus(request.request_id, 'RECHAZADA', text);
       } else if (type === 'resolve') {
-        await updateRequestStatus(request.request_id, 'RESUELTA');
+        await updateRequestStatus(request.request_id, 'COMPLETADA');
         if (text.trim()) {
           await addComment(request.request_id, text, false);
         }

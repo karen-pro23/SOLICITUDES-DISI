@@ -90,6 +90,24 @@ async function updateStatus(req, res, next) {
   }
 }
 
+async function updatePriority(req, res, next) {
+  try {
+    const { priority } = req.body;
+    if (!priority) return res.status(400).json({ error: 'Prioridad requerida' });
+
+    const request = await requestService.updatePriority(
+      parseInt(req.params.id, 10),
+      priority,
+      req.user.role,
+      req.user.departmentId
+    );
+    res.json({ request });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+}
+
 async function assign(req, res, next) {
   try {
     const { assigneeId } = req.body;
@@ -147,4 +165,4 @@ async function deleteAttachment(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getAll, getById, create, updateStatus, assign, getAttachmentDownload, deleteAttachment };
+module.exports = { getAll, getById, create, updateStatus, updatePriority, assign, getAttachmentDownload, deleteAttachment };

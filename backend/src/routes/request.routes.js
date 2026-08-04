@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const config = require('../config/env');
 const {
-  getAll, getById, create, updateStatus, assign,
+  getAll, getById, create, updateStatus, updatePriority, assign,
   getAttachmentDownload, deleteAttachment,
 } = require('../controllers/request.controller');
 const commentRoutes = require('./comment.routes');
@@ -47,6 +47,7 @@ router.post('/',
   create
 );
 router.patch('/:id/status', updateStatus);
+router.patch('/:id/priority', updatePriority);
 router.patch('/:id/assign', assign);
 
 // Adjuntos

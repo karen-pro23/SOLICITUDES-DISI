@@ -3,6 +3,6 @@
 -- para el triaje automático en la bandeja de recepción del equipo de desarrollo.
 
 ALTER TABLE modules
-  ADD COLUMN is_systems BOOLEAN NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS is_systems BOOLEAN NOT NULL DEFAULT false;
 
-CREATE INDEX idx_modules_is_systems ON modules (is_systems);
+CREATE INDEX IF NOT EXISTS idx_modules_is_systems ON modules (is_systems);

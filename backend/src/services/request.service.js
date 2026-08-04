@@ -4,9 +4,11 @@ const VALID_TRANSITIONS = {
   PENDIENTE:  ['EN_PROCESO', 'RECHAZADA'],
   RECHAZADA:  ['PENDIENTE'],
   EN_PROCESO: ['EN_PRUEBAS'],
-  EN_PRUEBAS: ['RESUELTA', 'EN_PROCESO'],
-  RESUELTA:   [],
+  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO'],
+  COMPLETADA: [],
 };
+
+const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
 async function findAll(filters, userId, userRole, userDeptId) {
   let sql = `SELECT r.*, 
@@ -152,23 +154,65 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     );
   }
 
-  // RESUELTA marca completed_at
-  const completedAt = newStatus === 'RESUELTA' ? new Date() : null;
+  // COMPLETADA marca completed_at
+  const completedAt = newStatus === 'COMPLETADA' ? new Date() : null;
+
+  // Registrar el cambio en el historial vía trigger de BD:
+  // el trigger lee el actor real de la variable de sesión app.current_user_id,
+  // seteada dentro de esta transacción (set_config con is_local=true la
+  // descarta automáticamente al hacer COMMIT/ROLLBACK).
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
+
+    // Optimistic locking con version_number
+    const result = await client.query(
+      `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
+              version_number = version_number + 1
+       WHERE request_id = $4 AND version_number = $5
+       RETURNING *`,
+      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw Object.assign(new Error('Conflicto de concurrencia. Intentá de nuevo.'), { status: 409 });
+    }
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* ya terminada */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function updatePriority(requestId, priority, userRole, userDeptId) {
+  // Verificar que la solicitud existe y es accesible
+  const request = await findById(requestId, userRole, userDeptId);
+  if (!request) {
+    throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
+  }
+
+  // Validar prioridad (se almacena en minúsculas: baja/media/alta)
+  if (!VALID_PRIORITIES.includes(priority)) {
+    throw Object.assign(new Error('Prioridad inválida'), { status: 400 });
+  }
 
   // Optimistic locking con version_number
   const result = await pool.query(
-    `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
-            version_number = version_number + 1
-     WHERE request_id = $4 AND version_number = $5
+    `UPDATE requests SET priority = $1, version_number = version_number + 1
+     WHERE request_id = $2 AND version_number = $3
      RETURNING *`,
-    [newStatus, rejectionReason || null, completedAt, requestId, request.version_number]
+    [priority, requestId, request.version_number]
   );
 
   if (result.rows.length === 0) {
-    throw Object.assign(new Error('Conflicto de concurrencia. Intentá de nuevo.'), { status: 409 });
+    throw Object.assign(new Error('Conflicto de concurrencia'), { status: 409 });
   }
-
-  // Registrar el cambio en el historial vía trigger de BD
 
   return result.rows[0];
 }
@@ -221,4 +265,4 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-module.exports = { findAll, findById, create, updateStatus, assign, getAttachments, getHistory };
+module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory };

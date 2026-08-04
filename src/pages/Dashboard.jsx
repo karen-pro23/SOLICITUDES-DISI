@@ -4,12 +4,18 @@ import {
   getRequests,
   getModules,
   updateRequestStatus,
+  updateRequestPriority,
   addComment,
   getMetrics,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
-import ActionModal from '../components/ActionModal';
+import SelectOptionModal from '../components/SelectOptionModal';
+import {
+  STATUS_OPTIONS,
+  STATUS_TRANSITIONS,
+  PRIORITY_OPTIONS,
+} from '../constants/requestOptions';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -21,8 +27,15 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
 
   // Modal State
-  const [activeModal, setActiveModal] = useState(null); // { type: 'resolve'|'reject', request: req }
+  const [activeStatusReq, setActiveStatusReq] = useState(null); // solicitud cuyo estado se edita
+  const [activePriorityReq, setActivePriorityReq] = useState(null); // solicitud cuya prioridad se edita
+  const [pendingStatus, setPendingStatus] = useState(null); // estado elegido pendiente de confirmar (nota)
   const [modalSubmitting, setModalSubmitting] = useState(false);
+
+  // Al abrir el modal de estado, reiniciar la selección pendiente
+  useEffect(() => {
+    if (activeStatusReq) setPendingStatus(null);
+  }, [activeStatusReq]);
 
   const fetchRequests = useCallback(async (cursor) => {
     setLoading(true);
@@ -65,34 +78,19 @@ export default function Dashboard() {
   }
 
   // Acciones Rápidas
-  async function handleAccept(req) {
-    try {
-      await updateRequestStatus(req.request_id, 'EN_PROCESO');
-      fetchRequests();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Error al aceptar la solicitud');
-    }
-  }
-
-  function openActionModal(type, req) {
-    setActiveModal({ type, request: req });
-  }
-
-  async function handleModalSubmit(text) {
-    if (!activeModal) return;
-    const { type, request } = activeModal;
+  async function submitStatus(req, value, note) {
+    if (!req) return;
     setModalSubmitting(true);
-
     try {
-      if (type === 'reject') {
-        await updateRequestStatus(request.request_id, 'RECHAZADA', text);
-      } else if (type === 'resolve') {
-        await updateRequestStatus(request.request_id, 'RESUELTA');
-        if (text.trim()) {
-          await addComment(request.request_id, text, false);
+      if (value === 'RECHAZADA') {
+        await updateRequestStatus(req.request_id, 'RECHAZADA', note);
+      } else {
+        await updateRequestStatus(req.request_id, value);
+        if (value === 'COMPLETADA' && note && note.trim()) {
+          await addComment(req.request_id, note, false);
         }
       }
-      setActiveModal(null);
+      setActiveStatusReq(null);
       fetchRequests();
     } catch (err) {
       alert(err.response?.data?.error || 'Error al actualizar la solicitud');
@@ -100,6 +98,57 @@ export default function Dashboard() {
       setModalSubmitting(false);
     }
   }
+
+  async function submitPriority(req, value) {
+    if (!req) return;
+    setModalSubmitting(true);
+    try {
+      await updateRequestPriority(req.request_id, value);
+      setActivePriorityReq(null);
+      fetchRequests();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+    } finally {
+      setModalSubmitting(false);
+    }
+  }
+
+  // Flujo "seleccionar y luego notar":
+  // - Si viene una nota (flujo CONFIRMAR del modal), se envía directo.
+  // - Si no viene nota y el estado no requiere nota, se envía directo.
+  // - Si el estado requiere nota (RECHAZADA/COMPLETADA), solo se registra
+  //   pendingStatus para que el modal muestre el área de texto.
+  function handleStatusSelect(value, note) {
+    const req = activeStatusReq;
+    if (!req) return;
+    setPendingStatus(value);
+    if (note !== null && note !== undefined) {
+      submitStatus(req, value, note);
+      return;
+    }
+    if (value !== 'RECHAZADA' && value !== 'COMPLETADA') {
+      submitStatus(req, value, null);
+    }
+  }
+
+  // Config de nota del modal de estado según la opción elegida
+  const statusNoteConfig = (() => {
+    if (pendingStatus === 'RECHAZADA') {
+      return {
+        label: 'MOTIVO DEL RECHAZO',
+        placeholder: 'Indicá el motivo (obligatorio)...',
+        required: true,
+      };
+    }
+    if (pendingStatus === 'COMPLETADA') {
+      return {
+        label: 'NOTA DE SOLUCIÓN (OPCIONAL)',
+        placeholder: 'Solución aplicada...',
+        required: false,
+      };
+    }
+    return null;
+  })();
 
   return (
     <div className="dashboard">
@@ -125,9 +174,9 @@ export default function Dashboard() {
 
           <div className="dev-metric-card metric-resolved">
             <div className="dev-metric-val">
-              {metrics.byStatus.find((s) => s.status === 'RESUELTA')?.count || 0}
+              {metrics.byStatus.find((s) => s.status === 'COMPLETADA')?.count || 0}
             </div>
-            <div className="dev-metric-lbl">Atendidas / Resueltas</div>
+            <div className="dev-metric-lbl">Atendidas / Completadas</div>
           </div>
 
           <div className="dev-metric-card metric-in-progress">
@@ -179,10 +228,10 @@ export default function Dashboard() {
             En Pruebas
           </button>
           <button
-            className={`tab-btn ${filters.status === 'RESUELTA' ? 'active' : ''}`}
-            onClick={() => handleStatusTab('RESUELTA')}
+            className={`tab-btn ${filters.status === 'COMPLETADA' ? 'active' : ''}`}
+            onClick={() => handleStatusTab('COMPLETADA')}
           >
-            Resueltas
+            Completadas
           </button>
           <button
             className={`tab-btn ${filters.status === 'RECHAZADA' ? 'active' : ''}`}
@@ -255,7 +304,7 @@ export default function Dashboard() {
                           fontWeight: 600,
                           padding: '0.125rem 0.5rem',
                           borderRadius: '99px',
-                          textTransform: 'capitalize',
+                          textTransform: 'uppercase',
                           background:
                             req.priority === 'alta'
                               ? '#fee2e2'
@@ -276,41 +325,22 @@ export default function Dashboard() {
                     <td>{new Date(req.created_at).toLocaleDateString()}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '0.375rem' }}>
-                        {/* Botón Aceptar si está PENDIENTE */}
-                        {req.status === 'PENDIENTE' && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleAccept(req)}
-                            title="Aceptar solicitud y comenzar atención"
-                          >
-                            ✓ Aceptar
-                          </button>
-                        )}
-
-                        {/* Botón Resolver si está EN_PROCESO o EN_PRUEBAS */}
-                        {(req.status === 'EN_PROCESO' || req.status === 'EN_PRUEBAS') && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => openActionModal('resolve', req)}
-                            title="Responder y marcar como resuelta"
-                          >
-                            ✓ Resolver
-                          </button>
-                        )}
-
-                        {/* Botón Rechazar si está PENDIENTE o EN_PROCESO */}
-                        {(req.status === 'PENDIENTE' || req.status === 'EN_PROCESO') && (
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => openActionModal('reject', req)}
-                            title="Rechazar solicitud indicando motivo"
-                          >
-                            ✕ Rechazar
-                          </button>
-                        )}
-
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => setActiveStatusReq(req)}
+                          title="Cambiar estado de la solicitud"
+                        >
+                          ESTADO
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() => setActivePriorityReq(req)}
+                          title="Cambiar prioridad de la solicitud"
+                        >
+                          PRIORIDAD
+                        </button>
                         <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-outline">
-                          Ver Detalle
+                          VER DETALLE
                         </Link>
                       </div>
                     </td>
@@ -334,24 +364,35 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Modal de Acción (Resolver / Rechazar) */}
-      <ActionModal
-        isOpen={Boolean(activeModal)}
-        onClose={() => setActiveModal(null)}
-        onSubmit={handleModalSubmit}
+      {/* Modal de Estado */}
+      <SelectOptionModal
+        isOpen={Boolean(activeStatusReq)}
+        onClose={() => setActiveStatusReq(null)}
+        title="CAMBIAR ESTADO"
+        description={activeStatusReq ? `Ticket ${activeStatusReq.ticket_code}` : undefined}
+        options={STATUS_OPTIONS.map((opt) => ({
+          ...opt,
+          disabled: !STATUS_TRANSITIONS[activeStatusReq?.status]?.includes(opt.value),
+          active: opt.value === activeStatusReq?.status,
+        }))}
+        noteConfig={statusNoteConfig}
+        onSelect={handleStatusSelect}
         submitting={modalSubmitting}
-        ticketCode={activeModal?.request?.ticket_code}
-        actionType={activeModal?.type}
-        title={
-          activeModal?.type === 'reject'
-            ? 'Rechazar Solicitud'
-            : 'Resolver y Responder Solicitud'
-        }
-        description={
-          activeModal?.type === 'reject'
-            ? 'Ingresá la explicación del motivo de rechazo. Esta justificación será visible para el departamento solicitante.'
-            : 'Podés ingresar notas de respuesta o la solución aplicada para dejar registro en el ticket.'
-        }
+      />
+
+      {/* Modal de Prioridad */}
+      <SelectOptionModal
+        isOpen={Boolean(activePriorityReq)}
+        onClose={() => setActivePriorityReq(null)}
+        title="CAMBIAR PRIORIDAD"
+        description={activePriorityReq ? `Ticket ${activePriorityReq.ticket_code}` : undefined}
+        options={PRIORITY_OPTIONS.map((opt) => ({
+          ...opt,
+          active: opt.value === activePriorityReq?.priority,
+        }))}
+        onSelect={(value) => submitPriority(activePriorityReq, value)}
+        noteConfig={null}
+        submitting={modalSubmitting}
       />
     </div>
   );
