@@ -131,6 +131,44 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* ── Priority Filter ───────────────────────── */
+
+.priority-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.priority-filter label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.priority-select {
+  padding: 0.4375rem 0.75rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: white;
+  color: var(--color-gray-700);
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+  min-width: 160px;
+}
+
+.priority-select:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 /* ── Table ───────────────────────────────── */
 
 .table-responsive {
