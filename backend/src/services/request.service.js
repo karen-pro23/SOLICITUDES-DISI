@@ -157,22 +157,37 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
   // COMPLETADA marca completed_at
   const completedAt = newStatus === 'COMPLETADA' ? new Date() : null;
 
-  // Optimistic locking con version_number
-  const result = await pool.query(
-    `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
-            version_number = version_number + 1
-     WHERE request_id = $4 AND version_number = $5
-     RETURNING *`,
-    [newStatus, rejectionReason || null, completedAt, requestId, request.version_number]
-  );
+  // Registrar el cambio en el historial vía trigger de BD:
+  // el trigger lee el actor real de la variable de sesión app.current_user_id,
+  // seteada dentro de esta transacción (set_config con is_local=true la
+  // descarta automáticamente al hacer COMMIT/ROLLBACK).
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
 
-  if (result.rows.length === 0) {
-    throw Object.assign(new Error('Conflicto de concurrencia. Intentá de nuevo.'), { status: 409 });
+    // Optimistic locking con version_number
+    const result = await client.query(
+      `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
+              version_number = version_number + 1
+       WHERE request_id = $4 AND version_number = $5
+       RETURNING *`,
+      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw Object.assign(new Error('Conflicto de concurrencia. Intentá de nuevo.'), { status: 409 });
+    }
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* ya terminada */ }
+    throw err;
+  } finally {
+    client.release();
   }
-
-  // Registrar el cambio en el historial vía trigger de BD
-
-  return result.rows[0];
 }
 
 async function updatePriority(requestId, priority, userRole, userDeptId) {
