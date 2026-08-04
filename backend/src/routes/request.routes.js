@@ -6,7 +6,7 @@ const {
   getAll, getById, create, updateStatus, updatePriority, assign,
   getAttachmentDownload, deleteAttachment,
 } = require('../controllers/request.controller');
-const commentRoutes = require('./comment.routes');
+const commentController = require('../controllers/comment.controller');
 
 const router = Router();
 
@@ -54,7 +54,8 @@ router.patch('/:id/assign', assign);
 router.get('/:id/attachments/:fileId/download', getAttachmentDownload);
 router.delete('/:id/attachments/:fileId', deleteAttachment);
 
-// Comentarios (subruta)
-router.use('/:id/comments', commentRoutes);
+// Comentarios (rutas explícitas)
+router.get('/:id/comments', commentController.getAll);
+router.post('/:id/comments', commentController.create);
 
 module.exports = router;

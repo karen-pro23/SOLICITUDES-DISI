@@ -10,20 +10,32 @@ const userRoutes = require('./routes/user.routes');
 const requestRoutes = require('./routes/request.routes');
 const adminRoutes = require('./routes/admin.routes');
 const publicRoutes = require('./routes/public.routes');
+const aiRoutes = require('./routes/ai.routes');
 const { authenticate } = require('./middleware/auth.middleware');
 
 const app = express();
 
 // Security
 app.use(helmet());
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174,http://localhost:5270')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permitir requests sin origin (server-to-server, mobile apps, etc.)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    // Permitir cualquier IP de red local
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    // Permitir orígenes en la lista configurada
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
@@ -52,6 +64,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin/users', authenticate, userRoutes);
 app.use('/api/requests', authenticate, requestRoutes);
 app.use('/api/admin', authenticate, adminRoutes);
+app.use('/api/ai', authenticate, aiRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

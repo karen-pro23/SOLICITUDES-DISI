@@ -247,7 +247,7 @@ export default function Dashboard() {
             type="text"
             placeholder="Buscar ticket o descripción..."
             value={filters.search}
-            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value.toLocaleUpperCase() }))}
           />
           <button type="submit" className="btn btn-outline">Buscar</button>
         </form>

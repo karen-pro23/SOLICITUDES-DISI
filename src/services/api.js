@@ -65,10 +65,30 @@ export async function getPublicDepartments() {
   return data.departments;
 }
 
+export async function getPersona(cedula) {
+  const { data } = await api.get(`/public/persona/${encodeURIComponent(cedula)}`);
+  return data.persona;
+}
+
+export async function createPersona(personaData) {
+  const { data } = await api.post('/public/persona', personaData);
+  return data.persona;
+}
+
 export async function createPublicRequest(formData) {
   const { data } = await api.post('/public/requests', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return data;
+}
+
+export async function searchPublicRequests(query) {
+  const { data } = await api.get('/public/search', { params: { q: query } });
+  return data.requests;
+}
+
+export async function getPublicRequest(id) {
+  const { data } = await api.get(`/public/requests/${id}`);
   return data;
 }
 
@@ -169,6 +189,21 @@ export async function deleteUser(id) {
 export async function getMetrics() {
   const { data } = await api.get('/admin/metrics');
   return data.metrics;
+}
+
+// AI endpoints
+export async function classifyRequest(requestId) {
+  const { data } = await api.post('/ai/classify', { requestId });
+  return data.clasificacion;
+}
+
+export async function generateResponse(requestId, tipoRespuesta, observaciones) {
+  const { data } = await api.post('/ai/generate-response', {
+    requestId,
+    tipoRespuesta,
+    observaciones,
+  });
+  return data.respuesta;
 }
 
 export default api;

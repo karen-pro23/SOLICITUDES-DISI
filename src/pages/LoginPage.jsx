@@ -16,7 +16,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     if (!email || !password) {
-      setError('Completá todos los campos');
+      setError('Complete todos los campos');
       return;
     }
     setSubmitting(true);
@@ -34,7 +34,7 @@ export default function LoginPage() {
       <div className="login-card">
         <div className="login-header">
           <h1>Portal de Solicitudes</h1>
-          <p>Ingresá con tus credenciales</p>
+          <p>Ingrese con sus credenciales</p>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={handleSubmit}>
@@ -43,7 +43,7 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.toLocaleLowerCase())}
               placeholder="tu@email.com"
               autoFocus
             />

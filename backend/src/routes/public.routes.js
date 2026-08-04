@@ -6,7 +6,11 @@ const {
   getModules,
   getRequestTypes,
   getDepartments,
+  getPersona,
+  createOrGetPersona,
   createRequest,
+  searchRequests,
+  getRequestPublic,
 } = require('../controllers/public.controller');
 
 const router = Router();
@@ -39,6 +43,10 @@ const upload = multer({
 router.get('/modules', getModules);
 router.get('/types', getRequestTypes);
 router.get('/departments', getDepartments);
+router.get('/search', searchRequests);
+router.get('/requests/:id', getRequestPublic);
+router.get('/persona/:cedula', getPersona);
+router.post('/persona', createOrGetPersona);
 router.post(
   '/requests',
   upload.fields([

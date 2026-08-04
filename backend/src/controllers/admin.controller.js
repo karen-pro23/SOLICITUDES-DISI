@@ -1,5 +1,14 @@
 const pool = require('../db/pool');
 
+// Normaliza texto: elimina acentos y convierte a mayúsculas
+function normalizeText(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
 // Módulos CRUD
 async function getModules(req, res, next) {
   try {
@@ -13,7 +22,7 @@ async function createModule(req, res, next) {
     const { name, description } = req.body;
     const result = await pool.query(
       'INSERT INTO modules (name, description) VALUES ($1, $2) RETURNING *',
-      [name, description]
+      [normalizeText(name), description ? normalizeText(description) : null]
     );
     res.status(201).json({ module: result.rows[0] });
   } catch (err) {
@@ -32,7 +41,7 @@ async function updateModule(req, res, next) {
            is_active = COALESCE($3, is_active),
            is_systems = COALESCE($4, is_systems)
        WHERE module_id = $5 RETURNING *`,
-      [name, description, isActive ?? null, isSystems ?? null, parseInt(req.params.id, 10)]
+      [name ? normalizeText(name) : null, description ? normalizeText(description) : null, isActive ?? null, isSystems ?? null, parseInt(req.params.id, 10)]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Módulo no encontrado' });
     res.json({ module: result.rows[0] });
@@ -62,7 +71,7 @@ async function createRequestType(req, res, next) {
     const result = await pool.query(
       `INSERT INTO request_types (name, code, requires_screenshot, requires_document)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, code, requiresScreenshot ?? true, requiresDocument ?? true]
+      [normalizeText(name), normalizeText(code), requiresScreenshot ?? true, requiresDocument ?? true]
     );
     res.status(201).json({ requestType: result.rows[0] });
   } catch (err) {
@@ -79,7 +88,7 @@ async function updateRequestType(req, res, next) {
        requires_screenshot = COALESCE($3, requires_screenshot),
        requires_document = COALESCE($4, requires_document)
        WHERE request_type_id = $5 RETURNING *`,
-      [name, code, requiresScreenshot, requiresDocument, parseInt(req.params.id, 10)]
+      [name ? normalizeText(name) : null, code ? normalizeText(code) : null, requiresScreenshot, requiresDocument, parseInt(req.params.id, 10)]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tipo no encontrado' });
     res.json({ requestType: result.rows[0] });

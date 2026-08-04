@@ -1,6 +1,15 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 
+// Normaliza texto: elimina acentos y convierte a mayúsculas
+function normalizeText(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
 async function findAll() {
   const result = await pool.query(
     `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
@@ -30,7 +39,7 @@ async function create(data) {
     `INSERT INTO users (full_name, email, password_hash, role, department_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING user_id, full_name, email, role, department_id, is_active, created_at`,
-    [data.fullName, data.email, passwordHash, data.role, data.departmentId]
+    [normalizeText(data.fullName), data.email.toLowerCase().trim(), passwordHash, data.role, data.departmentId]
   );
   return result.rows[0];
 }
@@ -40,8 +49,8 @@ async function update(userId, data) {
   const values = [];
   let idx = 1;
 
-  if (data.fullName) { fields.push(`full_name = $${idx++}`); values.push(data.fullName); }
-  if (data.email) { fields.push(`email = $${idx++}`); values.push(data.email); }
+  if (data.fullName) { fields.push(`full_name = $${idx++}`); values.push(normalizeText(data.fullName)); }
+  if (data.email) { fields.push(`email = $${idx++}`); values.push(data.email.toLowerCase().trim()); }
   if (data.role) { fields.push(`role = $${idx++}`); values.push(data.role); }
   if (data.departmentId) { fields.push(`department_id = $${idx++}`); values.push(data.departmentId); }
   if (data.isActive !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.isActive); }

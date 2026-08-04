@@ -27,7 +27,7 @@ async function findAll(filters, userId, userRole, userDeptId) {
   let idx = 1;
 
   // Admin y developer ven todo; requester solo su departamento
-  if (userRole === 'requester') {
+  if (userRole === 'requester' && userDeptId) {
     conditions.push(`r.department_id = $${idx++}`);
     values.push(userDeptId);
   }
@@ -106,7 +106,7 @@ async function findById(requestId, userRole, userDeptId) {
              WHERE r.request_id = $1`;
   const values = [requestId];
 
-  if (userRole === 'requester') {
+  if (userRole === 'requester' && userDeptId) {
     sql += ' AND r.department_id = $2';
     values.push(userDeptId);
   }

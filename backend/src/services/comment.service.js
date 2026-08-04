@@ -20,15 +20,14 @@ async function getByRequest(requestId, userRole) {
 }
 
 async function create(requestId, authorId, content, isInternal) {
-  if (!content || content.trim().length === 0) {
-    throw Object.assign(new Error('El comentario no puede estar vacío'), { status: 400 });
-  }
+  // Permitir comentario vacío (solo cambia estado sin comentario)
+  const cleanContent = (content || '').trim();
 
   const result = await pool.query(
     `INSERT INTO request_comments (request_id, author_id, content, is_internal)
      VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [requestId, authorId, content, isInternal || false]
+    [requestId, authorId, cleanContent || null, isInternal || false]
   );
 
   // Devolver con nombre del autor

@@ -11,11 +11,14 @@ function authenticate(req, res, next) {
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     req.user = {
-      userId: decoded.userId,
+      userId: Number(decoded.userId),
       email: decoded.email,
       role: decoded.role,
-      departmentId: decoded.departmentId,
+      departmentId: decoded.departmentId ? Number(decoded.departmentId) : null,
     };
+    if (Number.isNaN(req.user.userId)) {
+      return res.status(401).json({ error: 'Token inválido: userId' });
+    }
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Token inválido o expirado' });

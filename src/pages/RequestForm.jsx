@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  createRequest,
   getModules,
   getRequestTypes,
   getDepartments,
@@ -10,6 +9,7 @@ import {
   getPublicRequestTypes,
   getPublicDepartments,
   createPublicRequest,
+  getPersona,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import PublicHeader from '../components/PublicHeader';
@@ -30,9 +30,12 @@ export default function RequestForm() {
   const [submittedTicket, setSubmittedTicket] = useState(null);
 
   const [form, setForm] = useState({
-    applicantName: '',
+    cedula: '',
+    nombre: '',
+    apellido: '',
     applicantEmail: '',
     departmentId: '',
+    telefono: '',
     moduleId: '',
     requestTypeId: '',
     priority: 'media',
@@ -40,6 +43,8 @@ export default function RequestForm() {
     currentBehavior: '',
     expectedBehavior: '',
   });
+  const [personaFound, setPersonaFound] = useState(false);
+  const [personaLoading, setPersonaLoading] = useState(false);
   const [screenshots, setScreenshots] = useState([]);
   const [documents, setDocuments] = useState([]);
 
@@ -58,25 +63,27 @@ export default function RequestForm() {
       getRequest(id).then((data) => {
         const r = data.request;
         setForm({
-          applicantName: r.created_by_name || '',
+          cedula: '',
+          nombre: '',
+          apellido: '',
           applicantEmail: '',
           departmentId: r.department_id || '',
           moduleId: r.module_id,
           requestTypeId: r.request_type_id,
           priority: r.priority,
-          processDescription: r.process_description,
-          currentBehavior: r.current_behavior,
-          expectedBehavior: r.expected_behavior,
+          processDescription: r.process_description || '',
+          currentBehavior: r.current_behavior || '',
+          expectedBehavior: r.expected_behavior || '',
         });
-      }).catch(() => navigate('/'));
+      }).catch(() => navigate('/solicitud'));
     }
   }, [id, isPublic, user, navigate]);
 
-  const isApplicantValid = isPublic
-    ? form.applicantName.trim() !== '' &&
-      form.applicantEmail.trim() !== '' &&
-      Boolean(form.departmentId)
-    : true;
+  const isApplicantValid =
+    form.cedula.trim() !== '' &&
+    form.nombre.trim() !== '' &&
+    form.applicantEmail.trim() !== '' &&
+    Boolean(form.departmentId);
 
   const isValid =
     isApplicantValid &&
@@ -88,7 +95,37 @@ export default function RequestForm() {
     !isEditing;
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const val = e.target.type === 'email'
+      ? e.target.value.toLocaleLowerCase()
+      : e.target.value.toLocaleUpperCase();
+    setForm((prev) => ({ ...prev, [e.target.name]: val }));
+  }
+
+  async function handleCedulaBlur(e) {
+    const cedula = e.target.value.trim().toUpperCase();
+    if (!cedula) return;
+    setPersonaLoading(true);
+    try {
+      const persona = await getPersona(cedula);
+      if (persona) {
+        setForm((prev) => ({
+          ...prev,
+          cedula: persona.cedula || cedula,
+          nombre: persona.nombre || '',
+          apellido: persona.apellido || '',
+          applicantEmail: persona.email || prev.applicantEmail,
+        }));
+        setPersonaFound(true);
+      } else {
+        setForm((prev) => ({ ...prev, cedula, nombre: '', apellido: '' }));
+        setPersonaFound(false);
+      }
+    } catch {
+      setForm((prev) => ({ ...prev, cedula, nombre: '', apellido: '' }));
+      setPersonaFound(false);
+    } finally {
+      setPersonaLoading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -99,11 +136,11 @@ export default function RequestForm() {
 
     try {
       const fd = new FormData();
-      if (isPublic) {
-        fd.append('applicantName', form.applicantName);
-        fd.append('applicantEmail', form.applicantEmail);
-        fd.append('departmentId', form.departmentId);
-      }
+      fd.append('cedula', form.cedula);
+      fd.append('nombre', form.nombre);
+      fd.append('apellido', form.apellido);
+      fd.append('applicantEmail', form.applicantEmail);
+      fd.append('departmentId', form.departmentId);
       fd.append('moduleId', form.moduleId);
       fd.append('requestTypeId', form.requestTypeId);
       fd.append('priority', form.priority);
@@ -114,11 +151,10 @@ export default function RequestForm() {
       for (const file of screenshots) fd.append('screenshots', file);
       for (const file of documents) fd.append('documents', file);
 
+      const result = await createPublicRequest(fd);
       if (isPublic) {
-        const result = await createPublicRequest(fd);
         setSubmittedTicket(result.request);
       } else {
-        const result = await createRequest(fd);
         navigate(`/requests/${result.request.request_id}`);
       }
     } catch (err) {
@@ -132,9 +168,10 @@ export default function RequestForm() {
 
   // Para debug visual
   const validChecks = {
-    nombre: isPublic ? form.applicantName.trim().length > 0 : true,
-    email: isPublic ? form.applicantEmail.trim().length > 0 : true,
-    depto: isPublic ? Boolean(form.departmentId) : true,
+    cedula: form.cedula.trim().length > 0,
+    nombre: form.nombre.trim().length > 0,
+    email: form.applicantEmail.trim().length > 0,
+    depto: Boolean(form.departmentId),
     modulo: Boolean(form.moduleId),
     tipo: Boolean(form.requestTypeId),
     descripcion: form.processDescription.trim().length >= 10,
@@ -145,9 +182,12 @@ export default function RequestForm() {
   function handleResetNew() {
     setSubmittedTicket(null);
     setForm({
-      applicantName: '',
+      cedula: '',
+      nombre: '',
+      apellido: '',
       applicantEmail: '',
       departmentId: '',
+      telefono: '',
       moduleId: '',
       requestTypeId: '',
       priority: 'media',
@@ -155,6 +195,7 @@ export default function RequestForm() {
       currentBehavior: '',
       expectedBehavior: '',
     });
+    setPersonaFound(false);
     setScreenshots([]);
     setDocuments([]);
   }
@@ -215,8 +256,8 @@ export default function RequestForm() {
                 <h1>{isEditing ? 'Editar Solicitud' : 'Nueva Solicitud de Sistema'}</h1>
                 <p className="page-subtitle" style={{ margin: 0 }}>
                   {isPublic
-                    ? 'Completá este formulario para enviar una solicitud o reporte de error al Departamento de Sistemas.'
-                    : 'Ingresá el detalle técnico del ticket.'}
+                    ? 'Complete este formulario para enviar una solicitud o reporte de error al Departamento de Sistemas.'
+                    : 'Ingrese el detalle técnico del ticket.'}
                 </p>
               </div>
             </div>
@@ -224,35 +265,76 @@ export default function RequestForm() {
             {error && <div className="alert alert-error">{error}</div>}
 
             <form onSubmit={handleSubmit} className="request-form">
-              {isPublic && (
-                <section className="form-section">
-                  <h2>Datos del Solicitante</h2>
-                  <p className="section-desc">
-                    Identificate para poder ponernos en contacto sobre el estado de tu solicitud.
-                  </p>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Nombre Completo *</label>
+              <section className="form-section">
+                <h2>Datos del Solicitante</h2>
+                <p className="section-desc">
+                  Identifíquese para poder ponernos en contacto sobre el estado de su solicitud.
+                </p>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Cédula de Identidad *</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <input
                         type="text"
-                        name="applicantName"
-                        value={form.applicantName}
+                        name="cedula"
+                        value={form.cedula}
                         onChange={handleChange}
-                        placeholder="Ej: María González"
+                        onBlur={handleCedulaBlur}
+                        placeholder="Ej: V-12345678"
                         required
+                        style={{ flex: 1 }}
                       />
+                      {personaLoading && (
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Buscando...</span>
+                      )}
+                      {!personaLoading && personaFound && (
+                        <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, background: '#d1fae5', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>✓ Encontrada</span>
+                      )}
+                      {!personaLoading && !personaFound && form.cedula && (
+                        <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600, background: '#fef3c7', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>Nueva persona</span>
+                      )}
                     </div>
-                    <div className="form-group">
-                      <label>Correo Electrónico *</label>
-                      <input
-                        type="email"
-                        name="applicantEmail"
-                        value={form.applicantEmail}
-                        onChange={handleChange}
-                        placeholder="tu@email.gov"
-                        required
-                      />
-                    </div>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Nombre *</label>
+                    <input
+                      type="text"
+                      name="nombre"
+                      value={form.nombre}
+                      onChange={handleChange}
+                      placeholder="Nombre"
+                      required
+                      readOnly={personaFound}
+                      style={{ background: personaFound ? '#f1f5f9' : undefined }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Apellido *</label>
+                    <input
+                      type="text"
+                      name="apellido"
+                      value={form.apellido}
+                      onChange={handleChange}
+                      placeholder="Apellido"
+                      required
+                      readOnly={personaFound}
+                      style={{ background: personaFound ? '#f1f5f9' : undefined }}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Correo Electrónico *</label>
+                    <input
+                      type="email"
+                      name="applicantEmail"
+                      value={form.applicantEmail}
+                      onChange={handleChange}
+                      placeholder="su@email.com"
+                      required
+                    />
                   </div>
                   <div className="form-group">
                     <label>Departamento / Área *</label>
@@ -270,8 +352,8 @@ export default function RequestForm() {
                       ))}
                     </select>
                   </div>
-                </section>
-              )}
+                </div>
+              </section>
 
               <section className="form-section">
                 <h2>Datos de la Solicitud</h2>
@@ -300,13 +382,13 @@ export default function RequestForm() {
               <section className="form-section">
                 <h2>Contexto Funcional</h2>
                 <p className="section-desc">
-                  Explicá el proceso administrativo o contable asociado. Esta información es obligatoria para que el equipo de sistemas entienda el contexto.
+                  Explique el proceso administrativo o contable asociado. Esta información es obligatoria para que el equipo de sistemas entienda el contexto.
                 </p>
                 <div className="form-group">
                   <label>¿Qué proceso administrativo/contable se está realizando? *</label>
                   <textarea
                     name="processDescription"
-                    value={form.processDescription.toLocaleUpperCase()}
+                    value={form.processDescription}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "Cierre de ejercicio fiscal para el pago de orden N° 4500"...'
@@ -318,7 +400,7 @@ export default function RequestForm() {
                   <label>Comportamiento Actual (¿Qué hace el sistema ahora?) *</label>
                   <textarea
                     name="currentBehavior"
-                    value={form.currentBehavior.toLocaleUpperCase()}
+                    value={form.currentBehavior}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "Al intentar aprobar la orden de pago, muestra saldo insuficiente..."'
@@ -330,7 +412,7 @@ export default function RequestForm() {
                   <label>Comportamiento Esperado (¿Qué DEBERÍA hacer?) *</label>
                   <textarea
                     name="expectedBehavior"
-                    value={form.expectedBehavior.toLocaleUpperCase()}
+                    value={form.expectedBehavior}
                     onChange={handleChange}
                     rows={3}
                     placeholder='Ej: "El sistema debe permitir consolidar el saldo de la partida previa..."'
@@ -396,7 +478,7 @@ export default function RequestForm() {
                     type="submit"
                     className="btn btn-primary"
                     disabled={!canSubmit}
-                    title={!isValid ? 'Completá todos los campos obligatorios' : ''}
+                    title={!isValid ? 'Complete todos los campos obligatorios' : ''}
                   >
                     {submitting ? 'Enviando...' : 'Enviar Solicitud'}
                   </button>

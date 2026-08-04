@@ -63,8 +63,8 @@ export default function ActionModal({
                 onChange={(e) => setText(e.target.value)}
                 placeholder={
                   isReject
-                    ? 'Explicá el motivo por el cual no es posible atender la solicitud...'
-                    : 'Detallá los cambios realizados o la solución brindada...'
+                    ? 'Explique el motivo por el cual no es posible atender la solicitud...'
+                    : 'Detallé los cambios realizados o la solución brindada...'
                 }
                 rows={4}
                 required={isReject}
