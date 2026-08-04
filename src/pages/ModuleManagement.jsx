@@ -80,11 +80,11 @@ export default function ModuleManagement() {
               <form onSubmit={handleModuleSubmit} className="admin-form">
                 <div className="form-group">
                   <label>Nombre</label>
-                  <input value={moduleForm.name} onChange={(e) => setModuleForm({...moduleForm, name: e.target.value})} required />
+                  <input value={moduleForm.name} onChange={(e) => setModuleForm({...moduleForm, name: e.target.value.toLocaleUpperCase()})} required />
                 </div>
                 <div className="form-group">
                   <label>Descripción</label>
-                  <input value={moduleForm.description} onChange={(e) => setModuleForm({...moduleForm, description: e.target.value})} />
+                  <input value={moduleForm.description} onChange={(e) => setModuleForm({...moduleForm, description: e.target.value.toLocaleUpperCase()})} />
                 </div>
                 <div className="form-group">
                   <label className="checkbox-label">
@@ -127,11 +127,11 @@ export default function ModuleManagement() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Nombre</label>
-                  <input value={typeForm.name} onChange={(e) => setTypeForm({...typeForm, name: e.target.value})} required />
+                  <input value={typeForm.name} onChange={(e) => setTypeForm({...typeForm, name: e.target.value.toLocaleUpperCase()})} required />
                 </div>
                 <div className="form-group">
                   <label>Código</label>
-                  <input value={typeForm.code} onChange={(e) => setTypeForm({...typeForm, code: e.target.value.toUpperCase()})} required />
+                  <input value={typeForm.code} onChange={(e) => setTypeForm({...typeForm, code: e.target.value.toLocaleUpperCase().toUpperCase()})} required />
                 </div>
               </div>
               <div className="form-row">

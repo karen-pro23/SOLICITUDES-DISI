@@ -72,11 +72,11 @@ export default function UserManagement() {
           <div className="form-row">
             <div className="form-group">
               <label>Nombre</label>
-              <input value={form.fullName} onChange={(e) => setForm({...form, fullName: e.target.value})} required />
+              <input value={form.fullName} onChange={(e) => setForm({...form, fullName: e.target.value.toLocaleUpperCase()})} required />
             </div>
             <div className="form-group">
               <label>Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} required />
+              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value.toLocaleUpperCase()})} required />
             </div>
           </div>
           <div className="form-row">
@@ -87,16 +87,16 @@ export default function UserManagement() {
             </div>
             <div className="form-group">
               <label>Rol</label>
-              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
-                <option value="requester">Solicitante</option>
-                <option value="developer">Desarrollador</option>
-                <option value="admin">Administrador</option>
+              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value.toLocaleUpperCase()})}>
+                <option value="requester">SOLICITANTE</option>
+                <option value="developer">DESARROLLADOR</option>
+                <option value="admin">ADMINISTRADOR</option>
               </select>
             </div>
           </div>
           <div className="form-group">
             <label>Departamento</label>
-            <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value})} required>
+            <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value.toLocaleUpperCase()})} required>
               <option value="">Seleccionar...</option>
               {departments.map((d) => (
                 <option key={d.department_id} value={d.department_id}>{d.name}</option>
