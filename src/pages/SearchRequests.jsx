@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { searchPublicRequests, getPublicRequest } from '../services/api';
+import toast from 'react-hot-toast';
 import PublicHeader from '../components/PublicHeader';
 import StatusBadge from '../components/StatusBadge';
 
@@ -59,7 +60,7 @@ export default function SearchRequests() {
       const data = await getPublicRequest(requestId);
       setSelectedRequest(data);
     } catch (err) {
-      alert('No se pudo cargar el detalle');
+      toast.error('No se pudo cargar el detalle');
     } finally {
       setDetailLoading(false);
     }

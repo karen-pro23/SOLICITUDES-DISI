@@ -8,6 +8,7 @@ import {
   addComment,
   getMetrics,
 } from '../services/api';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
@@ -94,7 +95,7 @@ export default function Dashboard() {
       setActiveStatusReq(null);
       fetchRequests();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+      toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
     } finally {
       setModalSubmitting(false);
     }
@@ -108,7 +109,7 @@ export default function Dashboard() {
       setActivePriorityReq(null);
       fetchRequests();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+      toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
     } finally {
       setModalSubmitting(false);
     }

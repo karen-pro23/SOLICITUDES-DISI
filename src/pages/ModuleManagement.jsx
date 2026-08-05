@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getModules as fetchModules, getRequestTypes as fetchTypes } from '../services/api';
 import api from '../services/api';
+import toast from 'react-hot-toast';
 import './AdminPage.css';
 
 export default function ModuleManagement() {
@@ -35,7 +36,7 @@ export default function ModuleManagement() {
         setModules((prev) => [...prev, data.module]);
       }
       setModuleForm({ name: '', description: '', isSystems: false });
-    } catch (err) { alert(err.response?.data?.error || 'Error'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   }
 
   async function handleTypeSubmit(e) {
@@ -50,19 +51,19 @@ export default function ModuleManagement() {
         setTypes((prev) => [...prev, data.requestType]);
       }
       setTypeForm({ name: '', code: '', requiresScreenshot: true, requiresDocument: true });
-    } catch (err) { alert(err.response?.data?.error || 'Error'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   }
 
   async function handleDeleteModule(id) {
     if (!confirm('¿Eliminar módulo?')) return;
     try { await api.delete(`/admin/modules/${id}`); setModules((prev) => prev.filter((m) => m.module_id !== id)); }
-    catch (err) { alert(err.response?.data?.error || 'Error'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   }
 
   async function handleDeleteType(id) {
     if (!confirm('¿Eliminar tipo?')) return;
     try { await api.delete(`/admin/request-types/${id}`); setTypes((prev) => prev.filter((t) => t.request_type_id !== id)); }
-    catch (err) { alert(err.response?.data?.error || 'Error'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   }
 
   if (loading) return <p>Cargando...</p>;

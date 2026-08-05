@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRequest, updateRequestStatus, addComment, classifyRequest, generateResponse } from '../services/api';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import { STATUS_TRANSITIONS } from '../constants/requestOptions';
@@ -93,7 +94,7 @@ export default function RequestDetail() {
       const updated = await getRequest(id);
       setData(updated);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al cambiar estado');
+      toast.error(err.response?.data?.error || 'Error al cambiar estado');
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +113,7 @@ export default function RequestDetail() {
       setComment('');
       setIsInternal(false);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al enviar comentario');
+      toast.error(err.response?.data?.error || 'Error al enviar comentario');
     } finally {
       setSubmitting(false);
     }
@@ -152,9 +153,9 @@ export default function RequestDetail() {
 
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-      alert('Respuesta copiada al portapapeles');
+      toast.success('Respuesta copiada al portapapeles');
     }).catch(() => {
-      alert('No se pudo copiar');
+      toast.error('No se pudo copiar');
     });
   }
 
@@ -168,9 +169,9 @@ export default function RequestDetail() {
         comments: [...prev.comments, result.comment],
       }));
       setGeneratedResponse('');
-      alert('Respuesta enviada como comentario');
+      toast.success('Respuesta enviada como comentario');
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al enviar comentario');
+      toast.error(err.response?.data?.error || 'Error al enviar comentario');
     } finally {
       setSubmitting(false);
     }
