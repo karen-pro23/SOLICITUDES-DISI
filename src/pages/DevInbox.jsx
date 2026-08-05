@@ -37,11 +37,11 @@ const STATUS_TRANSITIONS = {
 };
 
 const COLUMN_CONFIG = [
-  { key: 'PENDIENTE', label: 'Pendientes', icon: '⏳', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
-  { key: 'EN_PROCESO', label: 'En Proceso', icon: '⚙️', color: 'var(--color-primary)', bg: 'var(--color-primary-bg)' },
-  { key: 'EN_PRUEBAS', label: 'En Pruebas', icon: '🧪', color: 'var(--color-accent)', bg: 'var(--color-accent-bg)' },
-  { key: 'COMPLETADA', label: 'Completadas', icon: '✅', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
-  { key: 'RECHAZADA', label: 'Rechazadas', icon: '❌', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
+  { key: 'PENDIENTE', label: 'Pendientes', icon: '', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+  { key: 'EN_PROCESO', label: 'En Proceso', icon: '', color: 'var(--color-primary)', bg: 'var(--color-primary-bg)' },
+  { key: 'EN_PRUEBAS', label: 'En Pruebas', icon: '', color: 'var(--color-accent)', bg: 'var(--color-accent-bg)' },
+  { key: 'COMPLETADA', label: 'Completadas', icon: '', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
+  { key: 'RECHAZADA', label: 'Rechazadas', icon: '', color: 'var(--color-danger)', bg: 'var(--color-danger-bg)' },
 ];
 
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTIONS.map(o => [o.value, o.label]));
@@ -118,7 +118,7 @@ function KanbanCardView({
               aria-haspopup="listbox"
               aria-label="Cambiar estado"
             >
-              📋 Estado
+              Estado
             </button>
             {openStatusDropdown === req.request_id && (
               <div className="status-dropdown-menu" role="listbox">
