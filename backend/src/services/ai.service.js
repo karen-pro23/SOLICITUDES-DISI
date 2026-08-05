@@ -91,11 +91,16 @@ async function generateResponse(data) {
 
   const prioridades = { alta: 'urgente', media: 'en curso', baja: 'baja prioridad' };
 
+  // Firma institucional de la Dirección de Sistemas e Informática (DISI)
+  const FIRMA = `Firma el mensaje al final como:
+**DIRECCIÓN DE SISTEMAS E INFORMÁTICA**
+GOBERNACIÓN`;
+
   let prompt = '';
 
   switch (tipoRespuesta) {
     case 'acuse':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta un acuse de recibo formal en español neutro para una solicitud de sistema.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta un acuse de recibo formal en español neutro para una solicitud de sistema.
 
 El acuse debe ser:
 - Profesional y cálido
@@ -108,11 +113,13 @@ Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
 - Tipo de solicitud: ${requestType}
-- Prioridad asignada: ${prioridades[priority] || 'media'}`;
+- Prioridad asignada: ${prioridades[priority] || 'media'}
+
+${FIRMA}`;
       break;
 
     case 'avance':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta una comunicación de avance sobre una solicitud de sistema en español neutro.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta una comunicación de avance sobre una solicitud de sistema en español neutro.
 
 Requisitos:
 - Profesional y cortés
@@ -126,11 +133,13 @@ Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
 - Tipo de solicitud: ${requestType}
-- Prioridad: ${prioridades[priority] || 'media'}`;
+- Prioridad: ${prioridades[priority] || 'media'}
+
+${FIRMA}`;
       break;
 
     case 'info_adicional':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta una solicitud de información adicional para una solicitud de sistema en español neutro.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta una solicitud de información adicional para una solicitud de sistema en español neutro.
 
 Requisitos:
 - Profesional y claro
@@ -144,11 +153,13 @@ Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
 - Solicitud original: ${processDescription}
-- Observaciones del equipo: ${observaciones || 'verificar detalles con el solicitante'}`;
+- Observaciones del equipo: ${observaciones || 'verificar detalles con el solicitante'}
+
+${FIRMA}`;
       break;
 
     case 'resuelta':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta una notificación de resolución para una solicitud de sistema en español neutro.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta una notificación de resolución para una solicitud de sistema en español neutro.
 
 Requisitos:
 - Profesional y satisfactorio
@@ -161,11 +172,13 @@ Requisitos:
 Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
-- Tipo de solicitud: ${requestType}`;
+- Tipo de solicitud: ${requestType}
+
+${FIRMA}`;
       break;
 
     case 'rechazada':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta una notificación de rechazo o no viabilidad para una solicitud de sistema en español neutro.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta una notificación de rechazo o no viabilidad para una solicitud de sistema en español neutro.
 
 Requisitos:
 - Profesional y empático
@@ -179,11 +192,13 @@ Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
 - Tipo de solicitud: ${requestType}
-- Motivo: ${observaciones || 'no Reunía los requisitos para ser procesada'}`;
+- Motivo: ${observaciones || 'no Reunía los requisitos para ser procesada'}
+
+${FIRMA}`;
       break;
 
     case 'observaciones':
-      prompt = `Eres un asistente administrativo de una gobernación. Redacta una comunicación con observaciones técnicas para una solicitud de sistema en español neutro.
+      prompt = `Eres un asistente de la Dirección de Sistemas e Informática (DISI) de una gobernación. Redacta una comunicación con observaciones técnicas para una solicitud de sistema en español neutro.
 
 Requisitos:
 - Profesional y detallado
@@ -197,7 +212,9 @@ Datos:
 - Código de ticket: ${requestCode}
 - Solicitante: ${applicantName}
 - Solicitud: ${processDescription}
-- Observaciones del equipo técnico: ${observaciones || 'revisar detalles técnicos con el área'}`;
+- Observaciones del equipo técnico: ${observaciones || 'revisar detalles técnicos con el área'}
+
+${FIRMA}`;
       break;
 
     default:
