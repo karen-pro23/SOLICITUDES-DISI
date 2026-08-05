@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedLayout from './components/ProtectedLayout';
 import HomePage from './pages/HomePage';
@@ -16,6 +17,7 @@ import MetricsDashboard from './pages/MetricsDashboard';
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-right" />
       <Routes>
         {/* Página de inicio pública */}
         <Route path="/" element={<HomePage />} />

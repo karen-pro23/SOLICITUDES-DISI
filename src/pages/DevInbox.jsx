@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getRequests, updateRequestStatus, addComment } from '../services/api';
+import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import ActionModal from '../components/ActionModal';
 import {
@@ -256,7 +257,7 @@ export default function DevInbox() {
       setNonSystemsConfirm(null);
       fetchAllRequests();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al cambiar el estado');
+      toast.error(err.response?.data?.error || 'Error al cambiar el estado');
       fetchAllRequests();
     }
   }
@@ -285,7 +286,7 @@ export default function DevInbox() {
     // Validar transición permitida
     const allowed = STATUS_TRANSITIONS[request.status] || [];
     if (!allowed.includes(targetStatus)) {
-      alert(`No se puede mover de "${STATUS_LABELS[request.status]}" a "${STATUS_LABELS[targetStatus]}" directamente.`);
+      toast(`No se puede mover de "${STATUS_LABELS[request.status]}" a "${STATUS_LABELS[targetStatus]}" directamente.`);
       return;
     }
 
@@ -327,7 +328,7 @@ export default function DevInbox() {
       setActiveModal(null);
       fetchAllRequests();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al actualizar la solicitud');
+      toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
       fetchAllRequests();
     } finally {
       setModalSubmitting(false);

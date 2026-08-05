@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, deleteUser, getDepartments } from '../services/api';
+import toast from 'react-hot-toast';
 import './AdminPage.css';
 
 export default function UserManagement() {
@@ -33,7 +34,7 @@ export default function UserManagement() {
       }
       resetForm();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al guardar usuario');
+      toast.error(err.response?.data?.error || 'Error al guardar usuario');
     }
   }
 
@@ -43,7 +44,7 @@ export default function UserManagement() {
       await deleteUser(id);
       setUsers((prev) => prev.filter((u) => u.user_id !== id));
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al eliminar');
+      toast.error(err.response?.data?.error || 'Error al eliminar');
     }
   }
 
