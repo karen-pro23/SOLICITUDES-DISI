@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getModules,
@@ -13,7 +13,87 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import PublicHeader from '../components/PublicHeader';
+import ImagePreviewModal from '../components/ImagePreviewModal';
+import PdfPreviewModal from '../components/PdfPreviewModal';
 import './RequestForm.css';
+
+// ── Client-side WebP conversion (images only) ───────────────
+// WebP encoding support is detected ONCE per module load.
+let webpSupported = null;
+
+function isWebpSupported() {
+  if (webpSupported === null) {
+    try {
+      const canvas = document.createElement('canvas');
+      webpSupported = canvas
+        .toDataURL('image/webp')
+        .startsWith('data:image/webp');
+    } catch {
+      webpSupported = false;
+    }
+  }
+  return webpSupported;
+}
+
+async function decodeImage(file) {
+  if (typeof createImageBitmap === 'function') {
+    return createImageBitmap(file);
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('Could not load image'));
+    });
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function convertToWebP(file) {
+  // Keep the file untouched when encoding is unsupported or the file is
+  // not an image (e.g. Safari < 17 cannot encode WebP).
+  if (
+    !isWebpSupported() ||
+    !file ||
+    !file.type ||
+    !file.type.startsWith('image/')
+  ) {
+    return file;
+  }
+  try {
+    const source = await decodeImage(file);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = source.width;
+      canvas.height = source.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(source, 0, 0);
+      // Race toBlob against a timeout so a canvas that never invokes its
+      // callback cannot hang the conversion forever. On timeout, resolve
+      // with null and fall back to the original file.
+      const blob = await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), 10000);
+        canvas.toBlob((b) => {
+          clearTimeout(timer);
+          resolve(b);
+        }, 'image/webp', 0.82);
+      });
+      if (!blob || blob.type !== 'image/webp') return file;
+      const baseName = file.name.replace(/\.[^.]+$/, '') || file.name;
+      return new File([blob], `${baseName}.webp`, { type: 'image/webp' });
+    } finally {
+      if (typeof source.close === 'function') source.close();
+    }
+  } catch {
+    // Any conversion failure falls back to the original file so the
+    // attach flow is never broken.
+    return file;
+  }
+}
 
 export default function RequestForm() {
   const { id } = useParams();
@@ -45,8 +125,18 @@ export default function RequestForm() {
   });
   const [personaFound, setPersonaFound] = useState(false);
   const [personaLoading, setPersonaLoading] = useState(false);
+
+  // Guardarán objetos { file, previewUrl, name, size, type }
   const [screenshots, setScreenshots] = useState([]);
   const [documents, setDocuments] = useState([]);
+  // Screenshots still being converted to WebP (submit is blocked meanwhile)
+  const [convertingCount, setConvertingCount] = useState(0);
+  // Registry of live object URLs so all of them can be revoked on unmount
+  const liveUrlsRef = useRef(new Set());
+
+  // Estados para los visores modales de vista previa en grande
+  const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
+  const [imagePreviewModal, setImagePreviewModal] = useState(null);
 
   useEffect(() => {
     if (isPublic) {
@@ -60,24 +150,37 @@ export default function RequestForm() {
     }
 
     if (id && user) {
-      getRequest(id).then((data) => {
-        const r = data.request;
-        setForm({
-          cedula: '',
-          nombre: '',
-          apellido: '',
-          applicantEmail: '',
-          departmentId: r.department_id || '',
-          moduleId: r.module_id,
-          requestTypeId: r.request_type_id,
-          priority: r.priority,
-          processDescription: r.process_description || '',
-          currentBehavior: r.current_behavior || '',
-          expectedBehavior: r.expected_behavior || '',
-        });
-      }).catch(() => navigate('/solicitud'));
+      getRequest(id)
+        .then((data) => {
+          const r = data.request;
+          setForm({
+            cedula: '',
+            nombre: '',
+            apellido: '',
+            applicantEmail: '',
+            departmentId: r.department_id || '',
+            moduleId: r.module_id,
+            requestTypeId: r.request_type_id,
+            priority: r.priority,
+            processDescription: r.process_description || '',
+            currentBehavior: r.current_behavior || '',
+            expectedBehavior: r.expected_behavior || '',
+          });
+        })
+        .catch(() => navigate('/solicitud'));
     }
   }, [id, isPublic, user, navigate]);
+
+  // Revoke every live preview object URL when the form unmounts, including
+  // URLs created for files that are still being converted. URLs removed via
+  // the per-item remove/reset paths are deleted from the registry when they
+  // are revoked, so the cleanup never revokes a URL twice.
+  useEffect(() => {
+    return () => {
+      liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      liveUrlsRef.current.clear();
+    };
+  }, []);
 
   const isApplicantValid =
     form.cedula.trim() !== '' &&
@@ -95,9 +198,10 @@ export default function RequestForm() {
     !isEditing;
 
   function handleChange(e) {
-    const val = e.target.type === 'email'
-      ? e.target.value.toLocaleLowerCase()
-      : e.target.value.toLocaleUpperCase();
+    const val =
+      e.target.type === 'email'
+        ? e.target.value.toLocaleLowerCase()
+        : e.target.value.toLocaleUpperCase();
     setForm((prev) => ({ ...prev, [e.target.name]: val }));
   }
 
@@ -128,9 +232,98 @@ export default function RequestForm() {
     }
   }
 
+  // Manejo de adjuntos de Capturas (Imágenes)
+  const handleScreenshotChange = (e) => {
+    const input = e.target;
+    const files = Array.from(input.files);
+    try {
+      // Add items to state IMMEDIATELY (synchronously) using the original
+      // file, so the grid updates at once and there is never a window where
+      // selected evidence is missing from state or unsendable.
+      const newItems = files.map((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        liveUrlsRef.current.add(previewUrl);
+        return {
+          file,
+          previewUrl,
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          type: file.type,
+        };
+      });
+      setScreenshots((prev) => [...prev, ...newItems]);
+
+      // Convert each image asynchronously and swap `item.file` in place when
+      // ready; previewUrl/name/size/type stay bound to the original file so
+      // the preview never flickers. The swap is matched by the original File
+      // reference, so a file removed while converting is not resurrected and
+      // a removed item is never updated.
+      files.forEach((file) => {
+        setConvertingCount((count) => count + 1);
+        convertToWebP(file)
+          .then((converted) => {
+            setScreenshots((prev) =>
+              prev.some((item) => item.file === file)
+                ? prev.map((item) =>
+                    item.file === file ? { ...item, file: converted } : item
+                  )
+                : prev
+            );
+          })
+          .catch(() => {
+            // Conversion error keeps the original file in place.
+          })
+          .finally(() => {
+            setConvertingCount((count) => Math.max(0, count - 1));
+          });
+      });
+    } finally {
+      input.value = ''; // Reset input
+    }
+  };
+
+  const removeScreenshot = (index) => {
+    setScreenshots((prev) => {
+      const { previewUrl } = prev[index];
+      liveUrlsRef.current.delete(previewUrl);
+      URL.revokeObjectURL(previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  // Manejo de adjuntos de Documentos (PDFs, Excel, CSV, etc.)
+  const handleDocumentChange = (e) => {
+    const files = Array.from(e.target.files);
+    const newItems = files.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      liveUrlsRef.current.add(previewUrl);
+      return {
+        file,
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        type: file.type,
+        previewUrl,
+      };
+    });
+    setDocuments((prev) => [...prev, ...newItems]);
+    e.target.value = ''; // Reset input
+  };
+
+  const removeDocument = (index) => {
+    setDocuments((prev) => {
+      const { previewUrl } = prev[index];
+      liveUrlsRef.current.delete(previewUrl);
+      URL.revokeObjectURL(previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!isValid && !isEditing) return;
+    // Edit mode must never POST to the public create endpoint.
+    if (isEditing) return;
+    if (!isValid) return;
+    if (convertingCount > 0) return; // Screenshots still converting to WebP
     setSubmitting(true);
     setError('');
 
@@ -148,8 +341,9 @@ export default function RequestForm() {
       fd.append('currentBehavior', form.currentBehavior);
       fd.append('expectedBehavior', form.expectedBehavior);
 
-      for (const file of screenshots) fd.append('screenshots', file);
-      for (const file of documents) fd.append('documents', file);
+      // Extraemos el file real binario del estado
+      for (const item of screenshots) fd.append('screenshots', item.file);
+      for (const item of documents) fd.append('documents', item.file);
 
       const result = await createPublicRequest(fd);
       if (isPublic) {
@@ -166,7 +360,6 @@ export default function RequestForm() {
 
   const canSubmit = !isEditing && isValid && !submitting;
 
-  // Para debug visual
   const validChecks = {
     cedula: form.cedula.trim().length > 0,
     nombre: form.nombre.trim().length > 0,
@@ -180,6 +373,16 @@ export default function RequestForm() {
   };
 
   function handleResetNew() {
+    // Liberar URLs de objetos de memoria
+    screenshots.forEach((item) => {
+      liveUrlsRef.current.delete(item.previewUrl);
+      URL.revokeObjectURL(item.previewUrl);
+    });
+    documents.forEach((item) => {
+      liveUrlsRef.current.delete(item.previewUrl);
+      URL.revokeObjectURL(item.previewUrl);
+    });
+
     setSubmittedTicket(null);
     setForm({
       cedula: '',
@@ -201,46 +404,22 @@ export default function RequestForm() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--surface-bg)' }}>
+    <div className="request-form-shell">
       {isPublic && <PublicHeader />}
 
-      <div className="request-form-page" style={{ padding: '2rem 1rem' }}>
+      <div className="request-form-page">
         {submittedTicket ? (
-          <div className="request-form" style={{ textAlign: 'center', padding: '3.5rem 2rem', animation: 'fadeInUp 0.4s ease' }}>
-            <div style={{
-              width: '72px',
-              height: '72px',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1.5rem',
-              color: 'white',
-              fontSize: '2rem',
-              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-            }}>
-              ✓
-            </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-gray-900)', marginBottom: '0.5rem' }}>
-              ¡Solicitud Enviada con Éxito!
-            </h1>
-            <p style={{ color: 'var(--color-gray-600)', fontSize: '1rem', marginBottom: '1.75rem' }}>
-              Tu solicitud ha sido ingresada al sistema y fue asignada al equipo de Desarrollo.
+          <div className="request-form request-form-success">
+            <div className="success-checkmark">✓</div>
+            <h1 className="success-title">¡Solicitud Enviada con Éxito!</h1>
+            <p className="success-text">
+              Tu solicitud ha sido ingresada al sistema y fue asignada al
+              equipo de Desarrollo.
             </p>
-            
-            <div style={{
-              background: 'var(--color-primary-bg)',
-              border: '1px solid var(--color-primary-lightest)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              maxWidth: '360px',
-              margin: '0 auto 2rem'
-            }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-primary-dark)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Código de Ticket
-              </span>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.25rem' }}>
+
+            <div className="success-ticket-box">
+              <span className="success-ticket-label">Código de Ticket</span>
+              <div className="success-ticket-code">
                 {submittedTicket.ticket_code}
               </div>
             </div>
@@ -251,10 +430,14 @@ export default function RequestForm() {
           </div>
         ) : (
           <>
-            <div className="page-header" style={{ marginBottom: '1.5rem' }}>
+            <div className="page-header form-page-header">
               <div>
-                <h1>{isEditing ? 'Editar Solicitud' : 'Nueva Solicitud de Sistema'}</h1>
-                <p className="page-subtitle" style={{ margin: 0 }}>
+                <h1>
+                  {isEditing
+                    ? 'Editar Solicitud'
+                    : 'Nueva Solicitud de Sistema'}
+                </h1>
+                <p className="page-subtitle form-page-subtitle">
                   {isPublic
                     ? 'Complete este formulario para enviar una solicitud o reporte de error al Departamento de Sistemas.'
                     : 'Ingrese el detalle técnico del ticket.'}
@@ -268,12 +451,13 @@ export default function RequestForm() {
               <section className="form-section">
                 <h2>Datos del Solicitante</h2>
                 <p className="section-desc">
-                  Identifíquese para poder ponernos en contacto sobre el estado de su solicitud.
+                  Identifíquese para poder ponernos en contacto sobre el estado
+                  de su solicitud.
                 </p>
                 <div className="form-row">
                   <div className="form-group">
                     <label>Cédula de Identidad *</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div className="cedula-row">
                       <input
                         type="text"
                         name="cedula"
@@ -282,16 +466,22 @@ export default function RequestForm() {
                         onBlur={handleCedulaBlur}
                         placeholder="Ej: V-12345678"
                         required
-                        style={{ flex: 1 }}
+                        className="cedula-input"
                       />
                       {personaLoading && (
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Buscando...</span>
+                        <span className="persona-status-loading">
+                          Buscando...
+                        </span>
                       )}
                       {!personaLoading && personaFound && (
-                        <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, background: '#d1fae5', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>✓ Encontrada</span>
+                        <span className="persona-badge persona-badge-found">
+                          ✓ Encontrada
+                        </span>
                       )}
                       {!personaLoading && !personaFound && form.cedula && (
-                        <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600, background: '#fef3c7', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>Nueva persona</span>
+                        <span className="persona-badge persona-badge-new">
+                          Nueva persona
+                        </span>
                       )}
                     </div>
                   </div>
@@ -307,7 +497,7 @@ export default function RequestForm() {
                       placeholder="Nombre"
                       required
                       readOnly={personaFound}
-                      style={{ background: personaFound ? '#f1f5f9' : undefined }}
+                      className={personaFound ? 'form-input-found' : undefined}
                     />
                   </div>
                   <div className="form-group">
@@ -320,7 +510,7 @@ export default function RequestForm() {
                       placeholder="Apellido"
                       required
                       readOnly={personaFound}
-                      style={{ background: personaFound ? '#f1f5f9' : undefined }}
+                      className={personaFound ? 'form-input-found' : undefined}
                     />
                   </div>
                 </div>
@@ -360,19 +550,33 @@ export default function RequestForm() {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Módulo afectado *</label>
-                    <select name="moduleId" value={form.moduleId} onChange={handleChange} required>
+                    <select
+                      name="moduleId"
+                      value={form.moduleId}
+                      onChange={handleChange}
+                      required
+                    >
                       <option value="">Seleccionar módulo...</option>
                       {modules.map((m) => (
-                        <option key={m.module_id} value={m.module_id}>{m.name}</option>
+                        <option key={m.module_id} value={m.module_id}>
+                          {m.name}
+                        </option>
                       ))}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Tipo de solicitud *</label>
-                    <select name="requestTypeId" value={form.requestTypeId} onChange={handleChange} required>
+                    <select
+                      name="requestTypeId"
+                      value={form.requestTypeId}
+                      onChange={handleChange}
+                      required
+                    >
                       <option value="">Seleccionar tipo...</option>
                       {types.map((t) => (
-                        <option key={t.request_type_id} value={t.request_type_id}>{t.name}</option>
+                        <option key={t.request_type_id} value={t.request_type_id}>
+                          {t.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -382,10 +586,14 @@ export default function RequestForm() {
               <section className="form-section">
                 <h2>Contexto Funcional</h2>
                 <p className="section-desc">
-                  Explique el proceso administrativo o contable asociado. Esta información es obligatoria para que el equipo de sistemas entienda el contexto.
+                  Explique el proceso administrativo o contable asociado. Esta
+                  información es obligatoria para que el equipo de sistemas
+                  entienda el contexto.
                 </p>
                 <div className="form-group">
-                  <label>¿Qué proceso administrativo/contable se está realizando? *</label>
+                  <label>
+                    ¿Qué proceso administrativo/contable se está realizando? *
+                  </label>
                   <textarea
                     name="processDescription"
                     value={form.processDescription}
@@ -394,10 +602,14 @@ export default function RequestForm() {
                     placeholder='Ej: "Cierre de ejercicio fiscal para el pago de orden N° 4500"...'
                     required
                   />
-                  <span className="char-count">{form.processDescription.length} caracteres (mín 10)</span>
+                  <span className="char-count">
+                    {form.processDescription.length} caracteres (mín 10)
+                  </span>
                 </div>
                 <div className="form-group">
-                  <label>Comportamiento Actual (¿Qué hace el sistema ahora?) *</label>
+                  <label>
+                    Comportamiento Actual (¿Qué hace el sistema ahora?) *
+                  </label>
                   <textarea
                     name="currentBehavior"
                     value={form.currentBehavior}
@@ -406,10 +618,14 @@ export default function RequestForm() {
                     placeholder='Ej: "Al intentar aprobar la orden de pago, muestra saldo insuficiente..."'
                     required
                   />
-                  <span className="char-count">{form.currentBehavior.length} caracteres (mín 10)</span>
+                  <span className="char-count">
+                    {form.currentBehavior.length} caracteres (mín 10)
+                  </span>
                 </div>
                 <div className="form-group">
-                  <label>Comportamiento Esperado (¿Qué DEBERÍA hacer?) *</label>
+                  <label>
+                    Comportamiento Esperado (¿Qué DEBERÍA hacer?) *
+                  </label>
                   <textarea
                     name="expectedBehavior"
                     value={form.expectedBehavior}
@@ -418,7 +634,9 @@ export default function RequestForm() {
                     placeholder='Ej: "El sistema debe permitir consolidar el saldo de la partida previa..."'
                     required
                   />
-                  <span className="char-count">{form.expectedBehavior.length} caracteres (mín 10)</span>
+                  <span className="char-count">
+                    {form.expectedBehavior.length} caracteres (mín 10)
+                  </span>
                 </div>
               </section>
 
@@ -432,55 +650,147 @@ export default function RequestForm() {
                         type="file"
                         accept="image/jpeg,image/png,image/gif,image/webp"
                         multiple
-                        onChange={(e) => setScreenshots([...e.target.files])}
+                        onChange={handleScreenshotChange}
                       />
-                      <span className="file-hint">{screenshots.length} archivo(s) seleccionado(s)</span>
+                      <span className="file-hint">
+                        {screenshots.length} archivo(s) seleccionado(s)
+                      </span>
+                      {convertingCount > 0 && (
+                        <span className="file-hint converting-hint">
+                          Convirtiendo imágenes a WebP…
+                        </span>
+                      )}
+
+                      {/* Vista Previa de Imágenes */}
+                      {screenshots.length > 0 && (
+                        <div className="screenshot-grid">
+                          {screenshots.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="screenshot-tile"
+                              onClick={() => setImagePreviewModal(item)}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeScreenshot(idx);
+                                }}
+                                className="screenshot-remove-btn"
+                              >
+                                ✕
+                              </button>
+                              <img
+                                src={item.previewUrl}
+                                alt={item.name}
+                                className="screenshot-thumb"
+                              />
+                              <div className="screenshot-name">
+                                {item.name}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
                     <div className="form-group">
                       <label>Documento de Soporte</label>
                       <input
                         type="file"
                         accept=".pdf,.csv,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         multiple
-                        onChange={(e) => setDocuments([...e.target.files])}
+                        onChange={handleDocumentChange}
                       />
-                      <span className="file-hint">{documents.length} archivo(s) seleccionado(s)</span>
+                      <span className="file-hint">
+                        {documents.length} archivo(s) seleccionado(s)
+                      </span>
+
+                      {/* Vista Previa de Documentos */}
+                      {documents.length > 0 && (
+                        <div className="document-list">
+                          {documents.map((item, idx) => (
+                            <div key={idx} className="document-item">
+                              <div className="document-info">
+                                <span className="document-icon">
+                                  {item.type === 'application/pdf'
+                                    ? '📄'
+                                    : '📊'}
+                                </span>
+                                <div className="document-text">
+                                  <div className="document-name">
+                                    {item.name}
+                                  </div>
+                                  <div className="document-size">
+                                    {item.size}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="document-actions">
+                                {item.type === 'application/pdf' && (
+                                  <button
+                                    type="button"
+                                    className="pdf-view-btn"
+                                    onClick={() => setPdfPreviewModal(item)}
+                                  >
+                                    Ver PDF
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="document-remove-btn"
+                                  onClick={() => removeDocument(idx)}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </section>
               )}
 
-              <div className="form-validation-hint" style={{
-                display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem',
-                padding: '0.75rem', background: '#f8fafc', borderRadius: 'var(--radius)',
-                border: '1px solid #e2e8f0', fontSize: '0.75rem'
-              }}>
+              {/* Indicadores de Validación del Formulario */}
+              <div className="form-validation-hint">
                 {Object.entries(validChecks).map(([key, val]) => (
-                  <span key={key} style={{ color: val ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                  <span
+                    key={key}
+                    className={`validation-check ${
+                      val ? 'is-valid' : 'is-invalid'
+                    }`}
+                  >
                     {val ? '✓' : '✗'} {key}
                   </span>
                 ))}
-                <span style={{ color: canSubmit ? '#10b981' : '#94a3b8', fontWeight: 600 }}>
+                <span
+                  className={`validation-ready ${
+                    canSubmit ? 'is-valid' : 'is-pending'
+                  }`}
+                >
                   {canSubmit ? '✓ LISTO' : '⏳ faltan campos'}
                 </span>
               </div>
 
+              {/* Acciones del Formulario */}
               <div className="form-actions">
-                {!isPublic && (
-                  <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>
-                    Cancelar
-                  </button>
-                )}
-                {isEditing ? (
-                  <p className="text-muted">Las solicitudes en estado RECHAZADA se reabren desde el detalle.</p>
-                ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => navigate(-1)}
+                >
+                  Cancelar
+                </button>
+                {!isEditing && (
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={!canSubmit}
-                    title={!isValid ? 'Complete todos los campos obligatorios' : ''}
+                    disabled={!canSubmit || convertingCount > 0}
                   >
-                    {submitting ? 'Enviando...' : 'Enviar Solicitud'}
+                    {submitting ? 'Guardando...' : 'Enviar Solicitud'}
                   </button>
                 )}
               </div>
@@ -488,6 +798,24 @@ export default function RequestForm() {
           </>
         )}
       </div>
+
+      {/* Modal para Visualización Previa de Imágenes */}
+      {imagePreviewModal && (
+        <ImagePreviewModal
+          src={imagePreviewModal.previewUrl}
+          alt={imagePreviewModal.name}
+          onClose={() => setImagePreviewModal(null)}
+        />
+      )}
+
+      {/* Modal para Visualización Previa de PDF */}
+      {pdfPreviewModal && (
+        <PdfPreviewModal
+          url={pdfPreviewModal.previewUrl}
+          name={pdfPreviewModal.name}
+          onClose={() => setPdfPreviewModal(null)}
+        />
+      )}
     </div>
   );
 }
