@@ -81,7 +81,7 @@ export default function SearchRequests() {
           Buscar Solicitudes
         </h1>
         <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
-          Ingrese su número de cédula para ver sus solicitudes.
+          Ingresá tu número de cédula o el código/número de solicitud (ej: SOL-2026-0001) para consultar el estado.
         </p>
 
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem' }}>
@@ -89,7 +89,7 @@ export default function SearchRequests() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value.toLocaleUpperCase())}
-            placeholder="Ej: 30297111"
+            placeholder="Ej: 30297111 o SOL-2026-0001"
             style={{
               flex: 1,
               padding: '0.75rem 1rem',
@@ -121,7 +121,7 @@ export default function SearchRequests() {
           }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔍</div>
             <p style={{ color: 'var(--color-gray-600)', fontSize: '1rem' }}>
-              No se encontraron solicitudes para esa cédula.
+              No se encontraron solicitudes asociadas a esa cédula o número de ticket.
             </p>
           </div>
         )}

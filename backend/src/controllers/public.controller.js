@@ -180,7 +180,10 @@ async function searchRequests(req, res, next) {
       return res.status(400).json({ error: 'El parámetro de búsqueda debe tener al menos 2 caracteres' });
     }
 
-    const searchTerm = normalizeText(q);
+    const rawTerm = q.trim();
+    const cleanDigits = rawTerm.replace(/\D/g, '');
+    const numericId = parseInt(rawTerm, 10);
+    const isValidNumericId = !isNaN(numericId) && /^\d+$/.test(rawTerm);
 
     const result = await pool.query(
       `SELECT r.request_id, r.ticket_code, r.status, r.priority,
@@ -192,10 +195,14 @@ async function searchRequests(req, res, next) {
        JOIN modules m ON m.module_id = r.module_id
        JOIN request_types rt ON rt.request_type_id = r.request_type_id
        JOIN users u ON u.user_id = r.created_by
-       WHERE u.cedula = $1
+       WHERE UPPER(u.cedula) = UPPER($1)
+          OR UPPER(REGEXP_REPLACE(u.cedula, '[^a-zA-Z0-9]', '', 'g')) = UPPER($2)
+          OR UPPER(r.ticket_code) = UPPER($1)
+          OR UPPER(r.ticket_code) LIKE UPPER('%' || $1 || '%')
+          OR ($3::BOOLEAN = true AND r.request_id = $4)
        ORDER BY r.created_at DESC
        LIMIT 50`,
-      [searchTerm]
+      [rawTerm, cleanDigits, isValidNumericId, isValidNumericId ? numericId : null]
     );
 
     res.json({ requests: result.rows });

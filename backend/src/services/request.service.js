@@ -56,7 +56,13 @@ async function findAll(filters, userId, userRole, userDeptId) {
     values.push(parseInt(filters.createdBy, 10));
   }
   if (filters.search) {
-    conditions.push(`(r.ticket_code ILIKE $${idx} OR r.process_description ILIKE $${idx})`);
+    conditions.push(`(
+      r.ticket_code ILIKE $${idx} OR 
+      CAST(r.request_id AS TEXT) ILIKE $${idx} OR 
+      creator.cedula ILIKE $${idx} OR 
+      creator.full_name ILIKE $${idx} OR 
+      r.process_description ILIKE $${idx}
+    )`);
     values.push(`%${filters.search}%`);
     idx++;
   }
