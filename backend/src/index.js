@@ -48,8 +48,9 @@ app.use(cors({
   credentials: true,
 }));
 
-// Body parsing
-app.use(express.json());
+// Body parsing — 50 MB para soportar adjuntos grandes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Archivos estáticos (Subimos 2 niveles desde backend/src para llegar a la raíz /uploads)

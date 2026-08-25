@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRequest, updateRequestStatus, addComment, classifyRequest, generateResponse } from '../services/api';
+import { getRequest, updateRequestStatus, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -293,7 +293,8 @@ export default function RequestDetail() {
                 <h3>Archivos Adjuntos ({attachments.length})</h3>
                 <div className="attachments-list">
                   {attachments.map((att) => {
-                    const fileUrl = getAttachmentUrl(att);
+                    const previewUrl = getAttachmentPreviewUrl(request.request_id, att.attachment_id);
+                    const downloadUrl = getAttachmentDownloadUrl(request.request_id, att.attachment_id);
                     const isImage = att.file_type === 'screenshot' || att.mime_type?.startsWith('image/');
                     const isPdf = att.file_type === 'document' || att.mime_type === 'application/pdf';
 
@@ -301,7 +302,7 @@ export default function RequestDetail() {
                       <div key={att.attachment_id} className="attachment-item">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span className="attachment-icon">
-                            {isImage ? '🖼️' : '📄'}
+                            {isImage ? '🖼️' : isPdf ? '📑' : '📄'}
                           </span>
                           <span className="attachment-name">{att.file_name}</span>
                           <span className="attachment-size">
@@ -314,7 +315,7 @@ export default function RequestDetail() {
                             <button
                               type="button"
                               className="btn btn-outline btn-sm"
-                              onClick={() => setImagePreviewModal({ src: fileUrl, alt: att.file_name })}
+                              onClick={() => setImagePreviewModal({ src: previewUrl, alt: att.file_name })}
                             >
                               Ver Imagen
                             </button>
@@ -324,14 +325,14 @@ export default function RequestDetail() {
                             <button
                               type="button"
                               className="btn btn-outline btn-sm"
-                              onClick={() => setPdfPreviewModal({ url: fileUrl, name: att.file_name })}
+                              onClick={() => setPdfPreviewModal({ url: previewUrl, name: att.file_name })}
                             >
                               Ver PDF
                             </button>
                           )}
 
                           <a
-                            href={fileUrl}
+                            href={downloadUrl}
                             download={att.file_name}
                             target="_blank"
                             rel="noreferrer"

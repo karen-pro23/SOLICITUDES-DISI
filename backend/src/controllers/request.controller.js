@@ -148,6 +148,33 @@ async function getAttachmentDownload(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getAttachmentPreview(req, res, next) {
+  try {
+    const attachment = await fileService.getAttachment(parseInt(req.params.fileId, 10));
+    if (!attachment) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+    // Verificar acceso a la solicitud
+    const request = await requestService.findById(
+      attachment.request_id,
+      req.user.role,
+      req.user.departmentId
+    );
+    if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    const fs = require('fs');
+    if (!fs.existsSync(attachment.file_path)) {
+      return res.status(404).json({ error: 'Archivo no encontrado en disco' });
+    }
+
+    res.setHeader('Content-Type', attachment.mime_type);
+    res.setHeader('Content-Disposition', `inline; filename="${attachment.file_name}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    const fileStream = fs.createReadStream(attachment.file_path);
+    fileStream.pipe(res);
+  } catch (err) { next(err); }
+}
+
 async function deleteAttachment(req, res, next) {
   try {
     const attachment = await fileService.deleteAttachment(parseInt(req.params.fileId, 10));
@@ -165,4 +192,4 @@ async function deleteAttachment(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getAll, getById, create, updateStatus, updatePriority, assign, getAttachmentDownload, deleteAttachment };
+module.exports = { getAll, getById, create, updateStatus, updatePriority, assign, getAttachmentDownload, getAttachmentPreview, deleteAttachment };

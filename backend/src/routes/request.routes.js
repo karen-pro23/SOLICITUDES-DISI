@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config/env');
 const {
   getAll, getById, create, updateStatus, updatePriority, assign,
-  getAttachmentDownload, deleteAttachment,
+  getAttachmentDownload, getAttachmentPreview, deleteAttachment,
 } = require('../controllers/request.controller');
 const commentController = require('../controllers/comment.controller');
 
@@ -51,6 +51,7 @@ router.patch('/:id/priority', updatePriority);
 router.patch('/:id/assign', assign);
 
 // Adjuntos
+router.get('/:id/attachments/:fileId/preview', getAttachmentPreview);
 router.get('/:id/attachments/:fileId/download', getAttachmentDownload);
 router.delete('/:id/attachments/:fileId', deleteAttachment);
 

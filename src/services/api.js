@@ -92,6 +92,15 @@ export async function getPublicRequest(id) {
   return data;
 }
 
+// Attachment helpers — build URLs that go through the auth proxy
+export function getAttachmentDownloadUrl(requestId, fileId) {
+  return `/api/requests/${requestId}/attachments/${fileId}/download`;
+}
+
+export function getAttachmentPreviewUrl(requestId, fileId) {
+  return `/api/requests/${requestId}/attachments/${fileId}/preview`;
+}
+
 // Authenticated API
 export async function login(email, password) {
   const { data } = await api.post('/auth/login', { email, password });
