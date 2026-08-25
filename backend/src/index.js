@@ -76,6 +76,11 @@ app.use('/api/ai', authenticate, aiRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
+  if (err && err.code && err.code.startsWith('LIMIT_')) {
+    return res.status(400).json({
+      error: 'Error en la carga de archivos: tamaño o cantidad excedida (máx. 50 MB / 5 archivos)',
+    });
+  }
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',

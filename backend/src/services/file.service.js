@@ -31,24 +31,37 @@ function validateMagicBytes(buffer, mimeType) {
 }
 
 function sanitizeFileName(name) {
-  return name
+  if (!name) return 'archivo';
+  const ext = path.extname(name);
+  const base = path.basename(name, ext);
+  const safeBase = base
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .replace(/\.\./g, '')
-    .substring(0, 200);
+    .substring(0, 150);
+  const safeExt = ext.replace(/[^a-zA-Z0-9.]/g, '').substring(0, 10);
+  return `${safeBase}${safeExt}` || 'archivo';
 }
 
 async function saveAttachment(requestId, file, fileType) {
   // Validar MIME type
   if (!ALLOWED_MIMES.includes(file.mimetype)) {
-    throw Object.assign(new Error('Tipo de archivo no permitido'), { status: 400 });
+    fs.unlink(file.path, () => {});
+    throw Object.assign(new Error(`Tipo de archivo no permitido (${file.mimetype})`), { status: 400 });
   }
 
   // Validar magic bytes
-  const buffer = await readFile(file.path);
+  let buffer;
+  try {
+    buffer = await readFile(file.path);
+  } catch (err) {
+    fs.unlink(file.path, () => {});
+    throw Object.assign(new Error('No se pudo leer el archivo temporal'), { status: 400 });
+  }
+
   if (!validateMagicBytes(buffer, file.mimetype)) {
     // Eliminar archivo temporal
     fs.unlink(file.path, () => {});
-    throw Object.assign(new Error('El archivo no corresponde al tipo declarado'), { status: 400 });
+    throw Object.assign(new Error('El contenido del archivo no corresponde con su formato o extensión'), { status: 400 });
   }
 
   // Crear directorio UUID para la solicitud
@@ -68,7 +81,12 @@ async function saveAttachment(requestId, file, fileType) {
     throw Object.assign(new Error('Path traversal detectado'), { status: 400 });
   }
 
-  fs.renameSync(file.path, resolvedPath);
+  try {
+    fs.renameSync(file.path, resolvedPath);
+  } catch (err) {
+    fs.unlink(file.path, () => {});
+    throw err;
+  }
 
   // Guardar en BD
   const result = await pool.query(

@@ -17,7 +17,26 @@ import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
 import './RequestForm.css';
 
-// ── Client-side WebP conversion (images only) ───────────────
+// ── Upload Limits & Allowed Types ──────────────────────────────
+const MAX_SCREENSHOTS = 5;
+const MAX_DOCUMENTS = 5;
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.csv', '.xlsx', '.xls'];
+const ALLOWED_DOC_MIMES = [
+  'application/pdf',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+];
+
+function formatBytes(bytes) {
+  if (!bytes || isNaN(bytes)) return '0 KB';
+  if (bytes >= 1024 * 1024) {
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+  return (bytes / 1024).toFixed(1) + ' KB';
+}
 let webpSupported = null;
 
 function isWebpSupported() {
@@ -124,6 +143,16 @@ export default function RequestForm() {
   const [personaFound, setPersonaFound] = useState(false);
   const [personaLoading, setPersonaLoading] = useState(false);
 
+  // Notification state for upload feedback
+  const [uploadNotice, setUploadNotice] = useState(null);
+
+  const showUploadNotice = (message, type = 'error') => {
+    setUploadNotice({ message, type });
+    setTimeout(() => {
+      setUploadNotice((prev) => (prev?.message === message ? null : prev));
+    }, 4500);
+  };
+
   // Adjuntos
   const [screenshots, setScreenshots] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -133,6 +162,42 @@ export default function RequestForm() {
   // Visores Modales
   const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
   const [imagePreviewModal, setImagePreviewModal] = useState(null);
+
+  // Escuchar evento Paste (Ctrl+V) para capturas de pantalla
+  useEffect(() => {
+    if (currentStep !== 3 || isEditing) return;
+
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const pastedImages = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const ext = blob.type.split('/')[1] || 'png';
+            const file = new File(
+              [blob],
+              `captura_pegada_${Date.now()}.${ext}`,
+              { type: blob.type }
+            );
+            pastedImages.push(file);
+          }
+        }
+      }
+
+      if (pastedImages.length > 0) {
+        e.preventDefault();
+        addScreenshotFiles(pastedImages);
+        showUploadNotice(`¡${pastedImages.length} captura(s) pegada(s) desde el portapapeles! 📋✨`, 'success');
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [currentStep, isEditing]);
 
   useEffect(() => {
     if (isPublic) {
@@ -226,38 +291,80 @@ export default function RequestForm() {
 
   // Manejo de Capturas
   const addScreenshotFiles = (filesList) => {
-    const files = Array.from(filesList).filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
-    
-    const newItems = files.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      liveUrlsRef.current.add(previewUrl);
-      return {
-        file,
-        previewUrl,
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        type: file.type,
-      };
-    });
-    setScreenshots((prev) => [...prev, ...newItems]);
+    const rawFiles = Array.from(filesList);
+    if (!rawFiles.length) return;
 
-    files.forEach((file) => {
-      setConvertingCount((count) => count + 1);
-      convertToWebP(file)
-        .then((converted) => {
-          setScreenshots((prev) =>
-            prev.some((item) => item.file === file)
-              ? prev.map((item) =>
-                  item.file === file ? { ...item, file: converted } : item
-                )
-              : prev
-          );
-        })
-        .catch(() => {})
-        .finally(() => {
-          setConvertingCount((count) => Math.max(0, count - 1));
-        });
+    let rejectedType = 0;
+    let oversized = 0;
+
+    const validFiles = rawFiles.filter((f) => {
+      const isImg = f.type.startsWith('image/') || ALLOWED_IMAGE_TYPES.includes(f.type);
+      if (!isImg) {
+        rejectedType++;
+        return false;
+      }
+      if (f.size > MAX_FILE_SIZE_BYTES) {
+        oversized++;
+        return false;
+      }
+      return true;
+    });
+
+    if (oversized > 0) {
+      showUploadNotice(`Se ignoraron ${oversized} imagen(es) por superar el tamaño máximo de 50 MB.`, 'error');
+    }
+    if (rejectedType > 0 && oversized === 0) {
+      showUploadNotice(`Se ignoraron ${rejectedType} archivo(s) que no son imágenes válidas (JPG, PNG, WebP, GIF).`, 'warning');
+    }
+
+    if (!validFiles.length) return;
+
+    setScreenshots((prev) => {
+      const availableSpace = MAX_SCREENSHOTS - prev.length;
+      if (availableSpace <= 0) {
+        showUploadNotice('Alcanzaste el límite máximo de 5 capturas de pantalla.', 'warning');
+        return prev;
+      }
+
+      const filesToAdd = validFiles.slice(0, availableSpace);
+      if (validFiles.length > availableSpace) {
+        showUploadNotice(`Se agregaron solo ${availableSpace} captura(s) para no superar el límite de 5.`, 'warning');
+      }
+
+      const newItems = filesToAdd.map((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        liveUrlsRef.current.add(previewUrl);
+        return {
+          file,
+          previewUrl,
+          name: file.name,
+          size: formatBytes(file.size),
+          type: file.type,
+          isConverting: true,
+        };
+      });
+
+      filesToAdd.forEach((file) => {
+        setConvertingCount((count) => count + 1);
+        convertToWebP(file)
+          .then((converted) => {
+            setScreenshots((current) =>
+              current.map((item) =>
+                item.file === file ? { ...item, file: converted, size: formatBytes(converted.size), isConverting: false } : item
+              )
+            );
+          })
+          .catch(() => {
+            setScreenshots((current) =>
+              current.map((item) => (item.file === file ? { ...item, isConverting: false } : item))
+            );
+          })
+          .finally(() => {
+            setConvertingCount((count) => Math.max(0, count - 1));
+          });
+      });
+
+      return [...prev, ...newItems];
     });
   };
 
@@ -271,8 +378,16 @@ export default function RequestForm() {
   const handleScreenshotDrop = (e) => {
     e.preventDefault();
     setIsDragOverScreenshot(false);
-    if (e.dataTransfer.files?.length) {
-      addScreenshotFiles(e.dataTransfer.files);
+    if (!e.dataTransfer.files?.length) return;
+    const droppedFiles = Array.from(e.dataTransfer.files);
+
+    const images = droppedFiles.filter((f) => f.type.startsWith('image/'));
+    const docs = droppedFiles.filter((f) => !f.type.startsWith('image/'));
+
+    if (images.length) addScreenshotFiles(images);
+    if (docs.length) {
+      addDocumentFiles(docs);
+      showUploadNotice('Se clasificaron automáticamente los documentos en Documentos de Soporte.', 'info');
     }
   };
 
@@ -287,20 +402,61 @@ export default function RequestForm() {
 
   // Manejo de Documentos
   const addDocumentFiles = (filesList) => {
-    const files = Array.from(filesList);
-    if (!files.length) return;
-    const newItems = files.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      liveUrlsRef.current.add(previewUrl);
-      return {
-        file,
-        name: file.name,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-        type: file.type,
-        previewUrl,
-      };
+    const rawFiles = Array.from(filesList);
+    if (!rawFiles.length) return;
+
+    let rejectedType = 0;
+    let oversized = 0;
+
+    const validFiles = rawFiles.filter((f) => {
+      const ext = '.' + f.name.split('.').pop().toLowerCase();
+      const isValidDoc = ALLOWED_DOC_MIMES.includes(f.type) || ALLOWED_DOC_EXTENSIONS.includes(ext);
+      if (!isValidDoc) {
+        rejectedType++;
+        return false;
+      }
+      if (f.size > MAX_FILE_SIZE_BYTES) {
+        oversized++;
+        return false;
+      }
+      return true;
     });
-    setDocuments((prev) => [...prev, ...newItems]);
+
+    if (oversized > 0) {
+      showUploadNotice(`Se ignoraron ${oversized} documento(s) por superar el tamaño máximo de 50 MB.`, 'error');
+    }
+    if (rejectedType > 0 && oversized === 0) {
+      showUploadNotice(`Se ignoraron ${rejectedType} archivo(s) no permitidos. Solo se admiten PDF, Excel (.xlsx, .xls) y CSV.`, 'warning');
+    }
+
+    if (!validFiles.length) return;
+
+    setDocuments((prev) => {
+      const availableSpace = MAX_DOCUMENTS - prev.length;
+      if (availableSpace <= 0) {
+        showUploadNotice('Alcanzaste el límite máximo de 5 documentos de soporte.', 'warning');
+        return prev;
+      }
+
+      const filesToAdd = validFiles.slice(0, availableSpace);
+      if (validFiles.length > availableSpace) {
+        showUploadNotice(`Se agregaron solo ${availableSpace} documento(s) para no superar el límite de 5.`, 'warning');
+      }
+
+      const newItems = filesToAdd.map((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        liveUrlsRef.current.add(previewUrl);
+        return {
+          file,
+          name: file.name,
+          size: formatBytes(file.size),
+          type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'text/csv'),
+          previewUrl,
+        };
+      });
+
+      return [...prev, ...newItems];
+    });
   };
 
   const handleDocumentChange = (e) => {
@@ -313,8 +469,16 @@ export default function RequestForm() {
   const handleDocumentDrop = (e) => {
     e.preventDefault();
     setIsDragOverDocument(false);
-    if (e.dataTransfer.files?.length) {
-      addDocumentFiles(e.dataTransfer.files);
+    if (!e.dataTransfer.files?.length) return;
+    const droppedFiles = Array.from(e.dataTransfer.files);
+
+    const images = droppedFiles.filter((f) => f.type.startsWith('image/'));
+    const docs = droppedFiles.filter((f) => !f.type.startsWith('image/'));
+
+    if (docs.length) addDocumentFiles(docs);
+    if (images.length) {
+      addScreenshotFiles(images);
+      showUploadNotice('Las imágenes arrastradas se agregaron automáticamente en Capturas de Pantalla.', 'info');
     }
   };
 
@@ -851,14 +1015,43 @@ export default function RequestForm() {
                   {/* Zona de Evidencias (Adjuntos) */}
                   {!isEditing && (
                     <div className="evidencias-container">
-                      <h3>Adjuntar Evidencias (Opcional pero recomendado)</h3>
+                      <div className="evidencias-header">
+                        <h3>Adjuntar Evidencias (Opcional pero recomendado)</h3>
+                        <span className="evidencias-subtitle">Máximo 5 capturas y 5 documentos de soporte (hasta 50 MB por archivo)</span>
+                      </div>
+
+                      <div className="upload-paste-tip">
+                        💡 <strong>Tip rápido:</strong> Podés pegar capturas directamente con <kbd>Ctrl</kbd> + <kbd>V</kbd> (o <kbd>⌘</kbd> + <kbd>V</kbd>) en esta pantalla.
+                      </div>
+
+                      {uploadNotice && (
+                        <div className={`upload-notice upload-notice-${uploadNotice.type}`} role="alert">
+                          <span className="upload-notice-icon">
+                            {uploadNotice.type === 'success' ? '✅' : uploadNotice.type === 'warning' ? '⚠️' : uploadNotice.type === 'info' ? 'ℹ️' : '❌'}
+                          </span>
+                          <span className="upload-notice-text">{uploadNotice.message}</span>
+                          <button
+                            type="button"
+                            className="upload-notice-close"
+                            onClick={() => setUploadNotice(null)}
+                            aria-label="Cerrar notificación"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
 
                       <div className="form-row">
                         {/* Dropzone Imagenes */}
                         <div className="form-group">
-                          <label id="screenshot-label">Capturas de Pantalla (JPG, PNG, WebP)</label>
+                          <div className="label-with-badge">
+                            <label id="screenshot-label">Capturas de Pantalla (JPG, PNG, WebP)</label>
+                            <span className={`upload-count-badge ${screenshots.length >= MAX_SCREENSHOTS ? 'is-max' : ''}`}>
+                              {screenshots.length} / {MAX_SCREENSHOTS}
+                            </span>
+                          </div>
                           <div
-                            className={`dropzone ${isDragOverScreenshot ? 'is-dragover' : ''}`}
+                            className={`dropzone ${isDragOverScreenshot ? 'is-dragover' : ''} ${screenshots.length >= MAX_SCREENSHOTS ? 'is-disabled' : ''}`}
                             onDragOver={(e) => {
                               e.preventDefault();
                               setIsDragOverScreenshot(true);
@@ -868,7 +1061,7 @@ export default function RequestForm() {
                           >
                             <span className="dropzone-icon">🖼️</span>
                             <p className="dropzone-text">
-                              Arrastrá tus imágenes aquí o{' '}
+                              Arrastrá imágenes aquí o{' '}
                               <label htmlFor="screenshot-input" className="dropzone-browse">
                                 explorá tus archivos
                               </label>
@@ -878,6 +1071,7 @@ export default function RequestForm() {
                               type="file"
                               accept="image/jpeg,image/png,image/gif,image/webp"
                               multiple
+                              disabled={screenshots.length >= MAX_SCREENSHOTS}
                               onChange={handleScreenshotChange}
                               className="sr-only-input"
                             />
@@ -913,7 +1107,10 @@ export default function RequestForm() {
                                     alt={item.name}
                                     className="screenshot-thumb"
                                   />
-                                  <div className="screenshot-name">{item.name}</div>
+                                  <div className="screenshot-meta">
+                                    <div className="screenshot-name">{item.name}</div>
+                                    <div className="screenshot-size">{item.size}</div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -922,9 +1119,14 @@ export default function RequestForm() {
 
                         {/* Dropzone Documentos */}
                         <div className="form-group">
-                          <label id="document-label">Documentos de Soporte (PDF, Excel, CSV)</label>
+                          <div className="label-with-badge">
+                            <label id="document-label">Documentos de Soporte (PDF, Excel, CSV)</label>
+                            <span className={`upload-count-badge ${documents.length >= MAX_DOCUMENTS ? 'is-max' : ''}`}>
+                              {documents.length} / {MAX_DOCUMENTS}
+                            </span>
+                          </div>
                           <div
-                            className={`dropzone ${isDragOverDocument ? 'is-dragover' : ''}`}
+                            className={`dropzone ${isDragOverDocument ? 'is-dragover' : ''} ${documents.length >= MAX_DOCUMENTS ? 'is-disabled' : ''}`}
                             onDragOver={(e) => {
                               e.preventDefault();
                               setIsDragOverDocument(true);
@@ -934,7 +1136,7 @@ export default function RequestForm() {
                           >
                             <span className="dropzone-icon">📄</span>
                             <p className="dropzone-text">
-                              Arrastrá tus documentos PDF o planillas o{' '}
+                              Arrastrá documentos PDF o planillas o{' '}
                               <label htmlFor="document-input" className="dropzone-browse">
                                 seleccioná un archivo
                               </label>
@@ -942,8 +1144,9 @@ export default function RequestForm() {
                             <input
                               id="document-input"
                               type="file"
-                              accept=".pdf,.csv,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                              accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                               multiple
+                              disabled={documents.length >= MAX_DOCUMENTS}
                               onChange={handleDocumentChange}
                               className="sr-only-input"
                             />
@@ -955,7 +1158,7 @@ export default function RequestForm() {
                                 <div key={idx} className="document-item">
                                   <div className="document-info">
                                     <span className="document-icon">
-                                      {item.type === 'application/pdf' ? '📄' : '📊'}
+                                      {item.type === 'application/pdf' || item.name.endsWith('.pdf') ? '📄' : '📊'}
                                     </span>
                                     <div className="document-text">
                                       <div className="document-name">{item.name}</div>
@@ -964,7 +1167,7 @@ export default function RequestForm() {
                                   </div>
 
                                   <div className="document-actions">
-                                    {item.type === 'application/pdf' && (
+                                    {(item.type === 'application/pdf' || item.name.endsWith('.pdf')) && (
                                       <button
                                         type="button"
                                         className="pdf-view-btn"
