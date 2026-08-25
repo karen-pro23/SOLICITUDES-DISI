@@ -18,7 +18,6 @@ import PdfPreviewModal from '../components/PdfPreviewModal';
 import './RequestForm.css';
 
 // ── Client-side WebP conversion (images only) ───────────────
-// WebP encoding support is detected ONCE per module load.
 let webpSupported = null;
 
 function isWebpSupported() {
@@ -54,8 +53,6 @@ async function decodeImage(file) {
 }
 
 async function convertToWebP(file) {
-  // Keep the file untouched when encoding is unsupported or the file is
-  // not an image (e.g. Safari < 17 cannot encode WebP).
   if (
     !isWebpSupported() ||
     !file ||
@@ -72,9 +69,6 @@ async function convertToWebP(file) {
       canvas.height = source.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(source, 0, 0);
-      // Race toBlob against a timeout so a canvas that never invokes its
-      // callback cannot hang the conversion forever. On timeout, resolve
-      // with null and fall back to the original file.
       const blob = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve(null), 10000);
         canvas.toBlob((b) => {
@@ -89,8 +83,6 @@ async function convertToWebP(file) {
       if (typeof source.close === 'function') source.close();
     }
   } catch {
-    // Any conversion failure falls back to the original file so the
-    // attach flow is never broken.
     return file;
   }
 }
@@ -109,6 +101,12 @@ export default function RequestForm() {
   const [error, setError] = useState('');
   const [submittedTicket, setSubmittedTicket] = useState(null);
 
+  // Dynamic Stepper State
+  const [currentStep, setCurrentStep] = useState(1);
+  const [copiedTicket, setCopiedTicket] = useState(false);
+  const [isDragOverScreenshot, setIsDragOverScreenshot] = useState(false);
+  const [isDragOverDocument, setIsDragOverDocument] = useState(false);
+
   const [form, setForm] = useState({
     cedula: '',
     nombre: '',
@@ -126,15 +124,13 @@ export default function RequestForm() {
   const [personaFound, setPersonaFound] = useState(false);
   const [personaLoading, setPersonaLoading] = useState(false);
 
-  // Guardarán objetos { file, previewUrl, name, size, type }
+  // Adjuntos
   const [screenshots, setScreenshots] = useState([]);
   const [documents, setDocuments] = useState([]);
-  // Screenshots still being converted to WebP (submit is blocked meanwhile)
   const [convertingCount, setConvertingCount] = useState(0);
-  // Registry of live object URLs so all of them can be revoked on unmount
   const liveUrlsRef = useRef(new Set());
 
-  // Estados para los visores modales de vista previa en grande
+  // Visores Modales
   const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
   const [imagePreviewModal, setImagePreviewModal] = useState(null);
 
@@ -171,10 +167,6 @@ export default function RequestForm() {
     }
   }, [id, isPublic, user, navigate]);
 
-  // Revoke every live preview object URL when the form unmounts, including
-  // URLs created for files that are still being converted. URLs removed via
-  // the per-item remove/reset paths are deleted from the registry when they
-  // are revoked, so the cleanup never revokes a URL twice.
   useEffect(() => {
     return () => {
       liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -188,14 +180,14 @@ export default function RequestForm() {
     form.applicantEmail.trim() !== '' &&
     Boolean(form.departmentId);
 
-  const isValid =
-    isApplicantValid &&
-    Boolean(form.moduleId) &&
-    Boolean(form.requestTypeId) &&
+  const isStep1Valid = isApplicantValid;
+  const isStep2Valid = Boolean(form.moduleId) && Boolean(form.requestTypeId);
+  const isStep3Valid =
     form.processDescription.trim().length >= 10 &&
     form.currentBehavior.trim().length >= 10 &&
-    form.expectedBehavior.trim().length >= 10 &&
-    !isEditing;
+    form.expectedBehavior.trim().length >= 10;
+
+  const isValid = isStep1Valid && isStep2Valid && isStep3Valid && !isEditing;
 
   function handleChange(e) {
     const val =
@@ -232,53 +224,55 @@ export default function RequestForm() {
     }
   }
 
-  // Manejo de adjuntos de Capturas (Imágenes)
-  const handleScreenshotChange = (e) => {
-    const input = e.target;
-    const files = Array.from(input.files);
-    try {
-      // Add items to state IMMEDIATELY (synchronously) using the original
-      // file, so the grid updates at once and there is never a window where
-      // selected evidence is missing from state or unsendable.
-      const newItems = files.map((file) => {
-        const previewUrl = URL.createObjectURL(file);
-        liveUrlsRef.current.add(previewUrl);
-        return {
-          file,
-          previewUrl,
-          name: file.name,
-          size: (file.size / 1024).toFixed(1) + ' KB',
-          type: file.type,
-        };
-      });
-      setScreenshots((prev) => [...prev, ...newItems]);
+  // Manejo de Capturas
+  const addScreenshotFiles = (filesList) => {
+    const files = Array.from(filesList).filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    
+    const newItems = files.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      liveUrlsRef.current.add(previewUrl);
+      return {
+        file,
+        previewUrl,
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        type: file.type,
+      };
+    });
+    setScreenshots((prev) => [...prev, ...newItems]);
 
-      // Convert each image asynchronously and swap `item.file` in place when
-      // ready; previewUrl/name/size/type stay bound to the original file so
-      // the preview never flickers. The swap is matched by the original File
-      // reference, so a file removed while converting is not resurrected and
-      // a removed item is never updated.
-      files.forEach((file) => {
-        setConvertingCount((count) => count + 1);
-        convertToWebP(file)
-          .then((converted) => {
-            setScreenshots((prev) =>
-              prev.some((item) => item.file === file)
-                ? prev.map((item) =>
-                    item.file === file ? { ...item, file: converted } : item
-                  )
-                : prev
-            );
-          })
-          .catch(() => {
-            // Conversion error keeps the original file in place.
-          })
-          .finally(() => {
-            setConvertingCount((count) => Math.max(0, count - 1));
-          });
-      });
-    } finally {
-      input.value = ''; // Reset input
+    files.forEach((file) => {
+      setConvertingCount((count) => count + 1);
+      convertToWebP(file)
+        .then((converted) => {
+          setScreenshots((prev) =>
+            prev.some((item) => item.file === file)
+              ? prev.map((item) =>
+                  item.file === file ? { ...item, file: converted } : item
+                )
+              : prev
+          );
+        })
+        .catch(() => {})
+        .finally(() => {
+          setConvertingCount((count) => Math.max(0, count - 1));
+        });
+    });
+  };
+
+  const handleScreenshotChange = (e) => {
+    if (e.target.files?.length) {
+      addScreenshotFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
+
+  const handleScreenshotDrop = (e) => {
+    e.preventDefault();
+    setIsDragOverScreenshot(false);
+    if (e.dataTransfer.files?.length) {
+      addScreenshotFiles(e.dataTransfer.files);
     }
   };
 
@@ -291,9 +285,10 @@ export default function RequestForm() {
     });
   };
 
-  // Manejo de adjuntos de Documentos (PDFs, Excel, CSV, etc.)
-  const handleDocumentChange = (e) => {
-    const files = Array.from(e.target.files);
+  // Manejo de Documentos
+  const addDocumentFiles = (filesList) => {
+    const files = Array.from(filesList);
+    if (!files.length) return;
     const newItems = files.map((file) => {
       const previewUrl = URL.createObjectURL(file);
       liveUrlsRef.current.add(previewUrl);
@@ -306,7 +301,21 @@ export default function RequestForm() {
       };
     });
     setDocuments((prev) => [...prev, ...newItems]);
-    e.target.value = ''; // Reset input
+  };
+
+  const handleDocumentChange = (e) => {
+    if (e.target.files?.length) {
+      addDocumentFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
+
+  const handleDocumentDrop = (e) => {
+    e.preventDefault();
+    setIsDragOverDocument(false);
+    if (e.dataTransfer.files?.length) {
+      addDocumentFiles(e.dataTransfer.files);
+    }
   };
 
   const removeDocument = (index) => {
@@ -318,12 +327,33 @@ export default function RequestForm() {
     });
   };
 
+  const handleCopyTicketCode = () => {
+    if (submittedTicket?.ticket_code) {
+      navigator.clipboard.writeText(submittedTicket.ticket_code);
+      setCopiedTicket(true);
+      setTimeout(() => setCopiedTicket(false), 2500);
+    }
+  };
+
+  const handleInsertTemplate = (field, text) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: prev[field] ? `${prev[field]}\n${text}` : text,
+    }));
+  };
+
+  const handleNextStep = () => {
+    if (currentStep === 1 && isStep1Valid) setCurrentStep(2);
+    else if (currentStep === 2 && isStep2Valid) setCurrentStep(3);
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) setCurrentStep((prev) => prev - 1);
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
-    // Edit mode must never POST to the public create endpoint.
-    if (isEditing) return;
-    if (!isValid) return;
-    if (convertingCount > 0) return; // Screenshots still converting to WebP
+    if (isEditing || !isValid || convertingCount > 0) return;
     setSubmitting(true);
     setError('');
 
@@ -341,7 +371,6 @@ export default function RequestForm() {
       fd.append('currentBehavior', form.currentBehavior);
       fd.append('expectedBehavior', form.expectedBehavior);
 
-      // Extraemos el file real binario del estado
       for (const item of screenshots) fd.append('screenshots', item.file);
       for (const item of documents) fd.append('documents', item.file);
 
@@ -352,28 +381,13 @@ export default function RequestForm() {
         navigate(`/requests/${result.request.request_id}`);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al enviar solicitud');
+      setError(err.response?.data?.error || 'Error al enviar la solicitud. Intente nuevamente.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  const canSubmit = !isEditing && isValid && !submitting;
-
-  const validChecks = {
-    cedula: form.cedula.trim().length > 0,
-    nombre: form.nombre.trim().length > 0,
-    email: form.applicantEmail.trim().length > 0,
-    depto: Boolean(form.departmentId),
-    modulo: Boolean(form.moduleId),
-    tipo: Boolean(form.requestTypeId),
-    descripcion: form.processDescription.trim().length >= 10,
-    actual: form.currentBehavior.trim().length >= 10,
-    esperado: form.expectedBehavior.trim().length >= 10,
-  };
-
   function handleResetNew() {
-    // Liberar URLs de objetos de memoria
     screenshots.forEach((item) => {
       liveUrlsRef.current.delete(item.previewUrl);
       URL.revokeObjectURL(item.previewUrl);
@@ -384,6 +398,7 @@ export default function RequestForm() {
     });
 
     setSubmittedTicket(null);
+    setCurrentStep(1);
     setForm({
       cedula: '',
       nombre: '',
@@ -403,403 +418,605 @@ export default function RequestForm() {
     setDocuments([]);
   }
 
+  const canSubmit = !isEditing && isValid && !submitting;
+
   return (
     <div className="request-form-shell">
       {isPublic && <PublicHeader />}
 
       <div className="request-form-page">
         {submittedTicket ? (
-          <div className="request-form request-form-success">
-            <div className="success-checkmark">✓</div>
+          <div className="request-form request-form-success" role="status" aria-live="polite">
+            <div className="success-checkmark" aria-hidden="true">✓</div>
             <h1 className="success-title">¡Solicitud Enviada con Éxito!</h1>
             <p className="success-text">
-              Tu solicitud ha sido ingresada al sistema y fue asignada al
-              equipo de Desarrollo.
+              Tu solicitud ha sido ingresada correctamente al sistema y fue asignada al
+              equipo de Desarrollo de Sistemas.
             </p>
 
             <div className="success-ticket-box">
-              <span className="success-ticket-label">Código de Ticket</span>
-              <div className="success-ticket-code">
-                {submittedTicket.ticket_code}
-              </div>
+              <span className="success-ticket-label">Código de Ticket para Seguimiento</span>
+              <div className="success-ticket-code">{submittedTicket.ticket_code}</div>
+              <button
+                type="button"
+                className="btn-copy-ticket"
+                onClick={handleCopyTicketCode}
+                aria-label="Copiar código de ticket"
+              >
+                {copiedTicket ? '✓ Copiado al portapapeles' : '📋 Copiar Código'}
+              </button>
             </div>
 
-            <button className="btn btn-primary" onClick={handleResetNew}>
-              Enviar otra solicitud
-            </button>
+            <div className="success-actions">
+              <button className="btn btn-primary" onClick={handleResetNew}>
+                Enviar otra solicitud
+              </button>
+              <button className="btn btn-outline" onClick={() => navigate('/buscar')}>
+                Ir a buscar mi solicitud
+              </button>
+            </div>
           </div>
         ) : (
           <>
-            <div className="page-header form-page-header">
+            <header className="page-header form-page-header">
               <div>
                 <h1>
-                  {isEditing
-                    ? 'Editar Solicitud'
-                    : 'Nueva Solicitud de Sistema'}
+                  {isEditing ? 'Editar Solicitud' : 'Nueva Solicitud de Servicio / Reporte'}
                 </h1>
                 <p className="page-subtitle form-page-subtitle">
                   {isPublic
-                    ? 'Complete este formulario para enviar una solicitud o reporte de error al Departamento de Sistemas.'
-                    : 'Ingrese el detalle técnico del ticket.'}
+                    ? 'Completá los 3 pasos a continuación para enviar tu requerimiento al equipo de Sistemas.'
+                    : 'Ingresá el detalle técnico de la solicitud interna.'}
                 </p>
               </div>
-            </div>
+            </header>
 
-            {error && <div className="alert alert-error">{error}</div>}
+            {/* Visual Stepper / Wizard Tabs */}
+            <nav className="stepper-nav" aria-label="Pasos de la solicitud">
+              <div className="stepper-progress-bar-bg">
+                <div
+                  className="stepper-progress-bar-fill"
+                  style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+                />
+              </div>
 
-            <form onSubmit={handleSubmit} className="request-form">
-              <section className="form-section">
-                <h2>Datos del Solicitante</h2>
-                <p className="section-desc">
-                  Identifíquese para poder ponernos en contacto sobre el estado
-                  de su solicitud.
-                </p>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Cédula de Identidad *</label>
-                    <div className="cedula-row">
-                      <input
-                        type="text"
-                        name="cedula"
-                        value={form.cedula}
-                        onChange={handleChange}
-                        onBlur={handleCedulaBlur}
-                        placeholder="Ej: V-12345678"
-                        required
-                        className="cedula-input"
-                      />
-                      {personaLoading && (
-                        <span className="persona-status-loading">
-                          Buscando...
-                        </span>
-                      )}
-                      {!personaLoading && personaFound && (
-                        <span className="persona-badge persona-badge-found">
-                          ✓ Encontrada
-                        </span>
-                      )}
-                      {!personaLoading && !personaFound && form.cedula && (
-                        <span className="persona-badge persona-badge-new">
-                          Nueva persona
-                        </span>
-                      )}
-                    </div>
-                  </div>
+              <button
+                type="button"
+                className={`step-tab ${currentStep === 1 ? 'is-active' : ''} ${
+                  isStep1Valid ? 'is-completed' : ''
+                }`}
+                onClick={() => setCurrentStep(1)}
+                aria-current={currentStep === 1 ? 'step' : undefined}
+              >
+                <div className="step-badge">
+                  {isStep1Valid ? '✓' : '1'}
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Nombre *</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={form.nombre}
-                      onChange={handleChange}
-                      placeholder="Nombre"
-                      required
-                      readOnly={personaFound}
-                      className={personaFound ? 'form-input-found' : undefined}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Apellido *</label>
-                    <input
-                      type="text"
-                      name="apellido"
-                      value={form.apellido}
-                      onChange={handleChange}
-                      placeholder="Apellido"
-                      required
-                      readOnly={personaFound}
-                      className={personaFound ? 'form-input-found' : undefined}
-                    />
-                  </div>
+                <div className="step-label">
+                  <span className="step-title">1. Solicitante</span>
+                  <span className="step-sub">Datos de contacto</span>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Correo Electrónico *</label>
-                    <input
-                      type="email"
-                      name="applicantEmail"
-                      value={form.applicantEmail}
-                      onChange={handleChange}
-                      placeholder="su@email.com"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Departamento / Área *</label>
-                    <select
-                      name="departmentId"
-                      value={form.departmentId}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Seleccionar departamento...</option>
-                      {departments.map((d) => (
-                        <option key={d.department_id} value={d.department_id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </section>
+              </button>
 
-              <section className="form-section">
-                <h2>Datos de la Solicitud</h2>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Módulo afectado *</label>
-                    <select
-                      name="moduleId"
-                      value={form.moduleId}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Seleccionar módulo...</option>
-                      {modules.map((m) => (
-                        <option key={m.module_id} value={m.module_id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Tipo de solicitud *</label>
-                    <select
-                      name="requestTypeId"
-                      value={form.requestTypeId}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Seleccionar tipo...</option>
-                      {types.map((t) => (
-                        <option key={t.request_type_id} value={t.request_type_id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <button
+                type="button"
+                className={`step-tab ${currentStep === 2 ? 'is-active' : ''} ${
+                  isStep2Valid ? 'is-completed' : ''
+                }`}
+                onClick={() => isStep1Valid && setCurrentStep(2)}
+                disabled={!isStep1Valid}
+                aria-current={currentStep === 2 ? 'step' : undefined}
+              >
+                <div className="step-badge">
+                  {isStep2Valid ? '✓' : '2'}
                 </div>
-              </section>
+                <div className="step-label">
+                  <span className="step-title">2. Clasificación</span>
+                  <span className="step-sub">Módulo y tipo</span>
+                </div>
+              </button>
 
-              <section className="form-section">
-                <h2>Contexto Funcional</h2>
-                <p className="section-desc">
-                  Explique el proceso administrativo o contable asociado. Esta
-                  información es obligatoria para que el equipo de sistemas
-                  entienda el contexto.
-                </p>
-                <div className="form-group">
-                  <label>
-                    ¿Qué proceso administrativo/contable se está realizando? *
-                  </label>
-                  <textarea
-                    name="processDescription"
-                    value={form.processDescription}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder='Ej: "Cierre de ejercicio fiscal para el pago de orden N° 4500"...'
-                    required
-                  />
-                  <span className="char-count">
-                    {form.processDescription.length} caracteres (mín 10)
-                  </span>
+              <button
+                type="button"
+                className={`step-tab ${currentStep === 3 ? 'is-active' : ''} ${
+                  isStep3Valid ? 'is-completed' : ''
+                }`}
+                onClick={() => isStep1Valid && isStep2Valid && setCurrentStep(3)}
+                disabled={!isStep1Valid || !isStep2Valid}
+                aria-current={currentStep === 3 ? 'step' : undefined}
+              >
+                <div className="step-badge">
+                  {isStep3Valid ? '✓' : '3'}
                 </div>
-                <div className="form-group">
-                  <label>
-                    Comportamiento Actual (¿Qué hace el sistema ahora?) *
-                  </label>
-                  <textarea
-                    name="currentBehavior"
-                    value={form.currentBehavior}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder='Ej: "Al intentar aprobar la orden de pago, muestra saldo insuficiente..."'
-                    required
-                  />
-                  <span className="char-count">
-                    {form.currentBehavior.length} caracteres (mín 10)
-                  </span>
+                <div className="step-label">
+                  <span className="step-title">3. Detalle y Evidencias</span>
+                  <span className="step-sub">Explicación y archivos</span>
                 </div>
-                <div className="form-group">
-                  <label>
-                    Comportamiento Esperado (¿Qué DEBERÍA hacer?) *
-                  </label>
-                  <textarea
-                    name="expectedBehavior"
-                    value={form.expectedBehavior}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder='Ej: "El sistema debe permitir consolidar el saldo de la partida previa..."'
-                    required
-                  />
-                  <span className="char-count">
-                    {form.expectedBehavior.length} caracteres (mín 10)
-                  </span>
-                </div>
-              </section>
+              </button>
+            </nav>
 
-              {!isEditing && (
-                <section className="form-section">
-                  <h2>Evidencias</h2>
+            {error && (
+              <div className="alert alert-error" role="alert">
+                <span>⚠️ {error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="request-form" noValidate>
+              {/* PASO 1: DATOS DEL SOLICITANTE */}
+              {currentStep === 1 && (
+                <section className="form-section fade-in-step" aria-labelledby="step1-heading">
+                  <h2 id="step1-heading">
+                    <span className="section-icon">👤</span> Datos del Solicitante
+                  </h2>
+                  <p className="section-desc">
+                    Identificate con tu Cédula de Identidad para verificar tus datos institucionales.
+                  </p>
+
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Captura de Pantalla del Error</label>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif,image/webp"
-                        multiple
-                        onChange={handleScreenshotChange}
-                      />
-                      <span className="file-hint">
-                        {screenshots.length} archivo(s) seleccionado(s)
-                      </span>
-                      {convertingCount > 0 && (
-                        <span className="file-hint converting-hint">
-                          Convirtiendo imágenes a WebP…
-                        </span>
-                      )}
-
-                      {/* Vista Previa de Imágenes */}
-                      {screenshots.length > 0 && (
-                        <div className="screenshot-grid">
-                          {screenshots.map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="screenshot-tile"
-                              onClick={() => setImagePreviewModal(item)}
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeScreenshot(idx);
-                                }}
-                                className="screenshot-remove-btn"
-                              >
-                                ✕
-                              </button>
-                              <img
-                                src={item.previewUrl}
-                                alt={item.name}
-                                className="screenshot-thumb"
-                              />
-                              <div className="screenshot-name">
-                                {item.name}
-                              </div>
-                            </div>
-                          ))}
+                      <label htmlFor="cedula">Cédula de Identidad *</label>
+                      <div className="cedula-row">
+                        <input
+                          id="cedula"
+                          type="text"
+                          name="cedula"
+                          value={form.cedula}
+                          onChange={handleChange}
+                          onBlur={handleCedulaBlur}
+                          placeholder="Ej: V-12345678"
+                          required
+                          aria-required="true"
+                          aria-describedby="cedula-status"
+                          className="cedula-input"
+                        />
+                        <div id="cedula-status" role="status" aria-live="polite">
+                          {personaLoading && (
+                            <span className="persona-status-loading">
+                              <span className="spinner-icon">⏳</span> Buscando...
+                            </span>
+                          )}
+                          {!personaLoading && personaFound && (
+                            <span className="persona-badge persona-badge-found">
+                              ✓ Verificada
+                            </span>
+                          )}
+                          {!personaLoading && !personaFound && form.cedula.trim() !== '' && (
+                            <span className="persona-badge persona-badge-new">
+                              Nueva Persona
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
+                  </div>
 
+                  <div className="form-row">
                     <div className="form-group">
-                      <label>Documento de Soporte</label>
+                      <label htmlFor="nombre">Nombre *</label>
                       <input
-                        type="file"
-                        accept=".pdf,.csv,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                        multiple
-                        onChange={handleDocumentChange}
+                        id="nombre"
+                        type="text"
+                        name="nombre"
+                        value={form.nombre}
+                        onChange={handleChange}
+                        placeholder="Nombre completo"
+                        required
+                        aria-required="true"
+                        readOnly={personaFound}
+                        className={personaFound ? 'form-input-found' : undefined}
                       />
-                      <span className="file-hint">
-                        {documents.length} archivo(s) seleccionado(s)
-                      </span>
-
-                      {/* Vista Previa de Documentos */}
-                      {documents.length > 0 && (
-                        <div className="document-list">
-                          {documents.map((item, idx) => (
-                            <div key={idx} className="document-item">
-                              <div className="document-info">
-                                <span className="document-icon">
-                                  {item.type === 'application/pdf'
-                                    ? '📄'
-                                    : '📊'}
-                                </span>
-                                <div className="document-text">
-                                  <div className="document-name">
-                                    {item.name}
-                                  </div>
-                                  <div className="document-size">
-                                    {item.size}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="document-actions">
-                                {item.type === 'application/pdf' && (
-                                  <button
-                                    type="button"
-                                    className="pdf-view-btn"
-                                    onClick={() => setPdfPreviewModal(item)}
-                                  >
-                                    Ver PDF
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="document-remove-btn"
-                                  onClick={() => removeDocument(idx)}
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
+                    <div className="form-group">
+                      <label htmlFor="apellido">Apellido *</label>
+                      <input
+                        id="apellido"
+                        type="text"
+                        name="apellido"
+                        value={form.apellido}
+                        onChange={handleChange}
+                        placeholder="Apellido completo"
+                        required
+                        aria-required="true"
+                        readOnly={personaFound}
+                        className={personaFound ? 'form-input-found' : undefined}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="applicantEmail">Correo Electrónico de Contacto *</label>
+                      <input
+                        id="applicantEmail"
+                        type="email"
+                        name="applicantEmail"
+                        value={form.applicantEmail}
+                        onChange={handleChange}
+                        placeholder="ejemplo@gobernacion.gob.ve"
+                        required
+                        aria-required="true"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="departmentId">Departamento / Dirección de Origen *</label>
+                      <select
+                        id="departmentId"
+                        name="departmentId"
+                        value={form.departmentId}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                      >
+                        <option value="">-- Seleccionar departamento --</option>
+                        {departments.map((d) => (
+                          <option key={d.department_id} value={d.department_id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="step-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-next-step"
+                      onClick={handleNextStep}
+                      disabled={!isStep1Valid}
+                    >
+                      Continuar a Clasificación →
+                    </button>
                   </div>
                 </section>
               )}
 
-              {/* Indicadores de Validación del Formulario */}
-              <div className="form-validation-hint">
-                {Object.entries(validChecks).map(([key, val]) => (
-                  <span
-                    key={key}
-                    className={`validation-check ${
-                      val ? 'is-valid' : 'is-invalid'
-                    }`}
-                  >
-                    {val ? '✓' : '✗'} {key}
-                  </span>
-                ))}
-                <span
-                  className={`validation-ready ${
-                    canSubmit ? 'is-valid' : 'is-pending'
-                  }`}
-                >
-                  {canSubmit ? '✓ LISTO' : '⏳ faltan campos'}
-                </span>
-              </div>
+              {/* PASO 2: CLASIFICACIÓN DE LA SOLICITUD */}
+              {currentStep === 2 && (
+                <section className="form-section fade-in-step" aria-labelledby="step2-heading">
+                  <h2 id="step2-heading">
+                    <span className="section-icon">📋</span> Clasificación de la Solicitud
+                  </h2>
+                  <p className="section-desc">
+                    Indicá qué sistema o módulo presenta el problema o requiere mejoras.
+                  </p>
 
-              {/* Acciones del Formulario */}
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => navigate(-1)}
-                >
-                  Cancelar
-                </button>
-                {!isEditing && (
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={!canSubmit || convertingCount > 0}
-                  >
-                    {submitting ? 'Guardando...' : 'Enviar Solicitud'}
-                  </button>
-                )}
-              </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="moduleId">Módulo / Sistema Afectado *</label>
+                      <select
+                        id="moduleId"
+                        name="moduleId"
+                        value={form.moduleId}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                      >
+                        <option value="">-- Seleccionar módulo afectado --</option>
+                        {modules.map((m) => (
+                          <option key={m.module_id} value={m.module_id}>
+                            💻 {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="requestTypeId">Tipo de Requerimiento *</label>
+                      <select
+                        id="requestTypeId"
+                        name="requestTypeId"
+                        value={form.requestTypeId}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                      >
+                        <option value="">-- Seleccionar tipo de solicitud --</option>
+                        {types.map((t) => (
+                          <option key={t.request_type_id} value={t.request_type_id}>
+                            ⚙️ {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="priority">Nivel de Impacto / Prioridad</label>
+                      <select
+                        id="priority"
+                        name="priority"
+                        value={form.priority}
+                        onChange={handleChange}
+                      >
+                        <option value="baja">🟢 Baja (Consulta / Cambio estético)</option>
+                        <option value="media">🟡 Media (Inconveniente con alternativa)</option>
+                        <option value="alta">🔴 Alta (Bloquea el trabajo diario)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="step-actions">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handlePrevStep}
+                    >
+                      ← Volver
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-next-step"
+                      onClick={handleNextStep}
+                      disabled={!isStep2Valid}
+                    >
+                      Continuar a Detalle y Evidencias →
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              {/* PASO 3: DETALLE Y EVIDENCIAS */}
+              {currentStep === 3 && (
+                <section className="form-section fade-in-step" aria-labelledby="step3-heading">
+                  <h2 id="step3-heading">
+                    <span className="section-icon">📝</span> Detalle del Caso y Evidencias
+                  </h2>
+                  <p className="section-desc">
+                    Explicá el contexto para que nuestro equipo pueda reproducir y resolver el requerimiento rápidamente.
+                  </p>
+
+                  <div className="form-group">
+                    <label htmlFor="processDescription">
+                      1. ¿Qué proceso administrativo o trámite estabas realizando? *
+                    </label>
+                    <textarea
+                      id="processDescription"
+                      name="processDescription"
+                      value={form.processDescription}
+                      onChange={handleChange}
+                      rows={3}
+                      placeholder='Ej: "Registro de nómina mensual" o "Generación de reporte trimestral de caja"...'
+                      required
+                      aria-required="true"
+                      aria-describedby="desc-count"
+                    />
+                    <div className="textarea-footer">
+                      <span id="desc-count" className={`char-count ${form.processDescription.length >= 10 ? 'is-valid-count' : ''}`}>
+                        {form.processDescription.length} / 10 caracteres mín.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="currentBehavior">
+                      2. Comportamiento Actual (¿Qué hace o muestra el sistema ahora?) *
+                    </label>
+                    <div className="quick-templates">
+                      <span className="template-label">Sugerencias rápidas:</span>
+                      <button
+                        type="button"
+                        className="template-chip"
+                        onClick={() => handleInsertTemplate('currentBehavior', 'El sistema muestra un mensaje de error en pantalla al hacer clic en guardar.')}
+                      >
+                        + Mensaje de error al guardar
+                      </button>
+                      <button
+                        type="button"
+                        className="template-chip"
+                        onClick={() => handleInsertTemplate('currentBehavior', 'La pantalla se queda cargando indefinidamente.')}
+                      >
+                        + Carga indefinida
+                      </button>
+                    </div>
+                    <textarea
+                      id="currentBehavior"
+                      name="currentBehavior"
+                      value={form.currentBehavior}
+                      onChange={handleChange}
+                      rows={3}
+                      placeholder='Ej: "Al presionar el botón Procesar, aparece un mensaje rojo que dice Error 500"...'
+                      required
+                      aria-required="true"
+                      aria-describedby="current-count"
+                    />
+                    <div className="textarea-footer">
+                      <span id="current-count" className={`char-count ${form.currentBehavior.length >= 10 ? 'is-valid-count' : ''}`}>
+                        {form.currentBehavior.length} / 10 caracteres mín.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="expectedBehavior">
+                      3. Comportamiento Esperado (¿Qué debería suceder?) *
+                    </label>
+                    <textarea
+                      id="expectedBehavior"
+                      name="expectedBehavior"
+                      value={form.expectedBehavior}
+                      onChange={handleChange}
+                      rows={3}
+                      placeholder='Ej: "Debería emitir el comprobante PDF con la firma y actualizar el saldo actual"...'
+                      required
+                      aria-required="true"
+                      aria-describedby="expected-count"
+                    />
+                    <div className="textarea-footer">
+                      <span id="expected-count" className={`char-count ${form.expectedBehavior.length >= 10 ? 'is-valid-count' : ''}`}>
+                        {form.expectedBehavior.length} / 10 caracteres mín.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Zona de Evidencias (Adjuntos) */}
+                  {!isEditing && (
+                    <div className="evidencias-container">
+                      <h3>Adjuntar Evidencias (Opcional pero recomendado)</h3>
+
+                      <div className="form-row">
+                        {/* Dropzone Imagenes */}
+                        <div className="form-group">
+                          <label id="screenshot-label">Capturas de Pantalla (JPG, PNG, WebP)</label>
+                          <div
+                            className={`dropzone ${isDragOverScreenshot ? 'is-dragover' : ''}`}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDragOverScreenshot(true);
+                            }}
+                            onDragLeave={() => setIsDragOverScreenshot(false)}
+                            onDrop={handleScreenshotDrop}
+                          >
+                            <span className="dropzone-icon">🖼️</span>
+                            <p className="dropzone-text">
+                              Arrastrá tus imágenes aquí o{' '}
+                              <label htmlFor="screenshot-input" className="dropzone-browse">
+                                explorá tus archivos
+                              </label>
+                            </p>
+                            <input
+                              id="screenshot-input"
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              multiple
+                              onChange={handleScreenshotChange}
+                              className="sr-only-input"
+                            />
+                          </div>
+
+                          {convertingCount > 0 && (
+                            <span className="file-hint converting-hint">
+                              ⚡ Optimizando imágenes a WebP...
+                            </span>
+                          )}
+
+                          {screenshots.length > 0 && (
+                            <div className="screenshot-grid">
+                              {screenshots.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="screenshot-tile"
+                                  onClick={() => setImagePreviewModal(item)}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeScreenshot(idx);
+                                    }}
+                                    className="screenshot-remove-btn"
+                                    aria-label={`Eliminar imagen ${item.name}`}
+                                  >
+                                    ✕
+                                  </button>
+                                  <img
+                                    src={item.previewUrl}
+                                    alt={item.name}
+                                    className="screenshot-thumb"
+                                  />
+                                  <div className="screenshot-name">{item.name}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Dropzone Documentos */}
+                        <div className="form-group">
+                          <label id="document-label">Documentos de Soporte (PDF, Excel, CSV)</label>
+                          <div
+                            className={`dropzone ${isDragOverDocument ? 'is-dragover' : ''}`}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDragOverDocument(true);
+                            }}
+                            onDragLeave={() => setIsDragOverDocument(false)}
+                            onDrop={handleDocumentDrop}
+                          >
+                            <span className="dropzone-icon">📄</span>
+                            <p className="dropzone-text">
+                              Arrastrá tus documentos PDF o planillas o{' '}
+                              <label htmlFor="document-input" className="dropzone-browse">
+                                seleccioná un archivo
+                              </label>
+                            </p>
+                            <input
+                              id="document-input"
+                              type="file"
+                              accept=".pdf,.csv,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                              multiple
+                              onChange={handleDocumentChange}
+                              className="sr-only-input"
+                            />
+                          </div>
+
+                          {documents.length > 0 && (
+                            <div className="document-list">
+                              {documents.map((item, idx) => (
+                                <div key={idx} className="document-item">
+                                  <div className="document-info">
+                                    <span className="document-icon">
+                                      {item.type === 'application/pdf' ? '📄' : '📊'}
+                                    </span>
+                                    <div className="document-text">
+                                      <div className="document-name">{item.name}</div>
+                                      <div className="document-size">{item.size}</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="document-actions">
+                                    {item.type === 'application/pdf' && (
+                                      <button
+                                        type="button"
+                                        className="pdf-view-btn"
+                                        onClick={() => setPdfPreviewModal(item)}
+                                      >
+                                        Ver PDF
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="document-remove-btn"
+                                      onClick={() => removeDocument(idx)}
+                                      aria-label={`Eliminar documento ${item.name}`}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Acciones Finales del Formulario */}
+                  <div className="form-actions-step">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handlePrevStep}
+                    >
+                      ← Volver a Clasificación
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-submit-lg"
+                      disabled={!canSubmit || convertingCount > 0}
+                    >
+                      {submitting ? '⏳ Guardando Solicitud...' : '🚀 Enviar Solicitud Ahora'}
+                    </button>
+                  </div>
+                </section>
+              )}
             </form>
           </>
         )}
       </div>
 
-      {/* Modal para Visualización Previa de Imágenes */}
+      {/* Modales de Vista Previa */}
       {imagePreviewModal && (
         <ImagePreviewModal
           src={imagePreviewModal.previewUrl}
@@ -808,7 +1025,6 @@ export default function RequestForm() {
         />
       )}
 
-      {/* Modal para Visualización Previa de PDF */}
       {pdfPreviewModal && (
         <PdfPreviewModal
           url={pdfPreviewModal.previewUrl}

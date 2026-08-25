@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "dev:frontend": "vite",
     "dev:backend": "pnpm --dir backend dev",
-    "dev:all": "concurrently -n backend,frontend -c blue,magenta \"pnpm dev:backend\" \"pnpm dev\"",
+    "dev:all": "pnpm dev",
     "build": "vite build",
     "preview": "vite preview"
   },
