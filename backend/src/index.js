@@ -15,8 +15,12 @@ const { authenticate } = require('./middleware/auth.middleware');
 
 const app = express();
 
-// Security
-app.use(helmet());
+// Security (Configurado para permitir ver recursos/adjuntos en iFrames y Modales)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+}));
+
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174,http://localhost:5270')
   .split(',')
   .map((origin) => origin.trim())
@@ -47,6 +51,9 @@ app.use(cors({
 // Body parsing
 app.use(express.json());
 app.use(cookieParser());
+
+// Archivos estáticos (Subimos 2 niveles desde backend/src para llegar a la raíz /uploads)
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Health check
 app.get('/api/health', async (req, res) => {

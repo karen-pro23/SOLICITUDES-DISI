@@ -4,6 +4,8 @@ import { getRequest, updateRequestStatus, addComment, classifyRequest, generateR
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
+import ImagePreviewModal from '../components/ImagePreviewModal';
+import PdfPreviewModal from '../components/PdfPreviewModal';
 import { STATUS_TRANSITIONS } from '../constants/requestOptions';
 import './RequestDetail.css';
 
@@ -36,6 +38,10 @@ export default function RequestDetail() {
   const [isInternal, setIsInternal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Modales de vista previa
+  const [imagePreviewModal, setImagePreviewModal] = useState(null);
+  const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
+
   // AI state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -56,7 +62,6 @@ export default function RequestDetail() {
   const canChangeStatus = user.role !== 'requester';
 
   // Etiquetas y estilos locales para las transiciones permitidas
-  // (las transiciones válidas salen de STATUS_TRANSITIONS, fuente única).
   const STATUS_ACTION_STYLES = {
     PENDIENTE: {
       EN_PROCESO: { label: 'Aceptar', className: 'btn-success' },
@@ -90,7 +95,6 @@ export default function RequestDetail() {
     try {
       const result = await updateRequestStatus(request.request_id, newStatus, rejectionReason);
       setData((prev) => ({ ...prev, request: result.request }));
-      // Recargar historial
       const updated = await getRequest(id);
       setData(updated);
     } catch (err) {
@@ -126,7 +130,6 @@ export default function RequestDetail() {
     try {
       const cls = await classifyRequest(request.request_id);
       setAiClassification(cls);
-      // Refresh data to get updated fields
       const updated = await getRequest(id);
       setData(updated);
     } catch (err) {
@@ -175,6 +178,23 @@ export default function RequestDetail() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Función robusta para construir la URL del recurso estático (Opción B)
+  function getAttachmentUrl(att) {
+    if (att.file_url) return att.file_url;
+    if (att.url) return att.url;
+
+    if (att.file_path) {
+      const normalizedPath = att.file_path.replace(/\\/g, '/');
+      if (normalizedPath.includes('/uploads/')) {
+        const relativePath = normalizedPath.split('/uploads/')[1];
+        // Si usas Vite proxy o apuntas directo al backend, anteponemos /uploads/ codificado
+        return encodeURI(`/uploads/${relativePath}`);
+      }
+    }
+
+    return `/api/attachments/${att.attachment_id}`;
   }
 
   const PRIORITY_COLORS = {
@@ -272,17 +292,57 @@ export default function RequestDetail() {
               <div className="detail-section">
                 <h3>Archivos Adjuntos ({attachments.length})</h3>
                 <div className="attachments-list">
-                  {attachments.map((att) => (
-                    <div key={att.attachment_id} className="attachment-item">
-                      <span className="attachment-icon">
-                        {att.file_type === 'screenshot' ? '🖼️' : '📄'}
-                      </span>
-                      <span className="attachment-name">{att.file_name}</span>
-                      <span className="attachment-size">
-                        {(att.file_size / 1024).toFixed(1)} KB
-                      </span>
-                    </div>
-                  ))}
+                  {attachments.map((att) => {
+                    const fileUrl = getAttachmentUrl(att);
+                    const isImage = att.file_type === 'screenshot' || att.mime_type?.startsWith('image/');
+                    const isPdf = att.file_type === 'document' || att.mime_type === 'application/pdf';
+
+                    return (
+                      <div key={att.attachment_id} className="attachment-item">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span className="attachment-icon">
+                            {isImage ? '🖼️' : '📄'}
+                          </span>
+                          <span className="attachment-name">{att.file_name}</span>
+                          <span className="attachment-size">
+                            {(att.file_size / 1024).toFixed(1)} KB
+                          </span>
+                        </div>
+
+                        <div className="attachment-actions" style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                          {isImage && (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => setImagePreviewModal({ src: fileUrl, alt: att.file_name })}
+                            >
+                              Ver Imagen
+                            </button>
+                          )}
+
+                          {isPdf && (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => setPdfPreviewModal({ url: fileUrl, name: att.file_name })}
+                            >
+                              Ver PDF
+                            </button>
+                          )}
+
+                          <a
+                            href={fileUrl}
+                            download={att.file_name}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Descargar
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -536,6 +596,24 @@ export default function RequestDetail() {
           </div>
         </div>
       </div>
+
+      {/* Modal para Visualización Previa de Imágenes */}
+      {imagePreviewModal && (
+        <ImagePreviewModal
+          src={imagePreviewModal.src}
+          alt={imagePreviewModal.alt}
+          onClose={() => setImagePreviewModal(null)}
+        />
+      )}
+
+      {/* Modal para Visualización Previa de PDFs */}
+      {pdfPreviewModal && (
+        <PdfPreviewModal
+          url={pdfPreviewModal.url}
+          name={pdfPreviewModal.name}
+          onClose={() => setPdfPreviewModal(null)}
+        />
+      )}
     </div>
   );
 }
