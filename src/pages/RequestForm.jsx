@@ -167,6 +167,84 @@ export default function RequestForm() {
   const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
   const [imagePreviewModal, setImagePreviewModal] = useState(null);
 
+  // Escuchar evento Paste (Ctrl+V) para capturas de pantalla
+  useEffect(() => {
+    if (currentStep !== 3 || isEditing) return;
+
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const pastedImages = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const ext = blob.type.split('/')[1] || 'png';
+            const file = new File(
+              [blob],
+              `captura_pegada_${Date.now()}.${ext}`,
+              { type: blob.type }
+            );
+            pastedImages.push(file);
+          }
+        }
+      }
+
+      if (pastedImages.length > 0) {
+        e.preventDefault();
+        addScreenshotFiles(pastedImages);
+        showUploadNotice(`¡${pastedImages.length} captura(s) pegada(s) desde el portapapeles! 📋✨`, 'success');
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [currentStep, isEditing]);
+
+  // Cargar Módulos, Tipos de Solicitud y Departamentos al iniciar
+  useEffect(() => {
+    if (isPublic) {
+      getPublicModules().then(setModules).catch(() => {});
+      getPublicRequestTypes().then(setTypes).catch(() => {});
+      getPublicDepartments().then(setDepartments).catch(() => {});
+    } else {
+      getModules().then(setModules).catch(() => {});
+      getRequestTypes().then(setTypes).catch(() => {});
+      getDepartments().then(setDepartments).catch(() => {});
+    }
+
+    if (id && user) {
+      getRequest(id)
+        .then((data) => {
+          const r = data.request;
+          setForm({
+            cedula: '',
+            nombre: '',
+            apellido: '',
+            applicantEmail: '',
+            departmentId: r.department_id || '',
+            moduleId: r.module_id,
+            requestTypeId: r.request_type_id,
+            priority: r.priority,
+            processDescription: r.process_description || '',
+            currentBehavior: r.current_behavior || '',
+            expectedBehavior: r.expected_behavior || '',
+          });
+        })
+        .catch(() => navigate('/solicitud'));
+    }
+  }, [id, isPublic, user, navigate]);
+
+  // Limpieza de URLs creadas
+  useEffect(() => {
+    return () => {
+      liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      liveUrlsRef.current.clear();
+    };
+  }, []);
+
   // Validation functions with friendly non-technical Spanish messages
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
