@@ -79,7 +79,7 @@ function KanbanCardView({
         </div>
         <div className="kanban-card-row">
           <span className="kanban-card-label">Departamento</span>
-          <span className="kanban-card-value">{req.department_name || '—'}</span>
+          <span className="kanban-card-value">{req.department_name || 'Sin departamento'}</span>
         </div>
         <div className="kanban-card-row">
           <span className="kanban-card-label">Módulo</span>

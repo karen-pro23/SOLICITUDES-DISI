@@ -17,13 +17,14 @@ async function findAll(filters, userId, userRole, userDeptId) {
              m.name as module_name,
              m.is_systems,
              rt.name as request_type_name,
-             d.name as department_name
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
              FROM requests r
              LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
              LEFT JOIN modules m ON m.module_id = r.module_id
              LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
-             LEFT JOIN departments d ON d.department_id = r.department_id`;
+             LEFT JOIN departments d ON d.department_id = r.department_id
+             LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id`;
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -104,13 +105,14 @@ async function findById(requestId, userRole, userDeptId) {
              m.name as module_name,
              m.is_systems,
              rt.name as request_type_name,
-             d.name as department_name
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
              FROM requests r
              LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
              LEFT JOIN modules m ON m.module_id = r.module_id
              LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
              LEFT JOIN departments d ON d.department_id = r.department_id
+             LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
              WHERE r.request_id = $1`;
   const values = [requestId];
 
