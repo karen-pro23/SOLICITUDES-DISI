@@ -126,6 +126,10 @@ export default function RequestForm() {
   const [isDragOverScreenshot, setIsDragOverScreenshot] = useState(false);
   const [isDragOverDocument, setIsDragOverDocument] = useState(false);
 
+  // Form Validation & Touched State
+  const [touched, setTouched] = useState({});
+  const [attemptedNext, setAttemptedNext] = useState({});
+
   const [form, setForm] = useState({
     cedula: '',
     nombre: '',
@@ -163,103 +167,80 @@ export default function RequestForm() {
   const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
   const [imagePreviewModal, setImagePreviewModal] = useState(null);
 
-  // Escuchar evento Paste (Ctrl+V) para capturas de pantalla
-  useEffect(() => {
-    if (currentStep !== 3 || isEditing) return;
+  // Validation functions with friendly non-technical Spanish messages
+  const validateEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
 
-    const handlePaste = (e) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      const pastedImages = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type && item.type.startsWith('image/')) {
-          const blob = item.getAsFile();
-          if (blob) {
-            const ext = blob.type.split('/')[1] || 'png';
-            const file = new File(
-              [blob],
-              `captura_pegada_${Date.now()}.${ext}`,
-              { type: blob.type }
-            );
-            pastedImages.push(file);
-          }
-        }
-      }
-
-      if (pastedImages.length > 0) {
-        e.preventDefault();
-        addScreenshotFiles(pastedImages);
-        showUploadNotice(`¡${pastedImages.length} captura(s) pegada(s) desde el portapapeles! 📋✨`, 'success');
-      }
-    };
-
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [currentStep, isEditing]);
-
-  useEffect(() => {
-    if (isPublic) {
-      getPublicModules().then(setModules).catch(() => {});
-      getPublicRequestTypes().then(setTypes).catch(() => {});
-      getPublicDepartments().then(setDepartments).catch(() => {});
-    } else {
-      getModules().then(setModules).catch(() => {});
-      getRequestTypes().then(setTypes).catch(() => {});
-      getDepartments().then(setDepartments).catch(() => {});
+  const getStep1ErrorsMap = () => {
+    const errs = {};
+    if (!form.cedula.trim()) {
+      errs.cedula = 'Por favor ingresá tu Cédula de Identidad.';
     }
-
-    if (id && user) {
-      getRequest(id)
-        .then((data) => {
-          const r = data.request;
-          setForm({
-            cedula: '',
-            nombre: '',
-            apellido: '',
-            applicantEmail: '',
-            departmentId: r.department_id || '',
-            moduleId: r.module_id,
-            requestTypeId: r.request_type_id,
-            priority: r.priority,
-            processDescription: r.process_description || '',
-            currentBehavior: r.current_behavior || '',
-            expectedBehavior: r.expected_behavior || '',
-          });
-        })
-        .catch(() => navigate('/solicitud'));
+    if (!form.nombre.trim()) {
+      errs.nombre = 'Por favor indicá tu Nombre.';
     }
-  }, [id, isPublic, user, navigate]);
+    if (!form.apellido.trim()) {
+      errs.apellido = 'Por favor indicá tu Apellido.';
+    }
+    if (!form.applicantEmail.trim()) {
+      errs.applicantEmail = 'Por favor ingresá tu Correo Electrónico de contacto.';
+    } else if (!validateEmail(form.applicantEmail)) {
+      errs.applicantEmail = 'El correo no tiene un formato válido (ejemplo: tu.nombre@gobernacion.gob.ve).';
+    }
+    if (!form.departmentId) {
+      errs.departmentId = 'Por favor seleccioná tu Departamento o Dirección de origen.';
+    }
+    return errs;
+  };
 
-  useEffect(() => {
-    return () => {
-      liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      liveUrlsRef.current.clear();
-    };
-  }, []);
+  const getStep2ErrorsMap = () => {
+    const errs = {};
+    if (!form.moduleId) {
+      errs.moduleId = 'Seleccioná el Módulo o Sistema donde ocurrió la falla o necesidad.';
+    }
+    if (!form.requestTypeId) {
+      errs.requestTypeId = 'Seleccioná el Tipo de Solicitud (ej: Falla de sistema, Solicitud de cambio).';
+    }
+    return errs;
+  };
 
-  const isApplicantValid =
-    form.cedula.trim() !== '' &&
-    form.nombre.trim() !== '' &&
-    form.applicantEmail.trim() !== '' &&
-    Boolean(form.departmentId);
+  const getStep3ErrorsMap = () => {
+    const errs = {};
+    const pLen = form.processDescription.trim().length;
+    if (pLen < 10) {
+      errs.processDescription = `Explicá qué trámite estabas haciendo (te faltan ${10 - pLen} caracteres para llegar al mínimo de 10).`;
+    }
+    const cLen = form.currentBehavior.trim().length;
+    if (cLen < 10) {
+      errs.currentBehavior = `Describí qué error o problema te muestra el sistema (te faltan ${10 - cLen} caracteres para llegar al mínimo de 10).`;
+    }
+    const eLen = form.expectedBehavior.trim().length;
+    if (eLen < 10) {
+      errs.expectedBehavior = `Explicá qué esperabas que hiciera el sistema (te faltan ${10 - eLen} caracteres para llegar al mínimo de 10).`;
+    }
+    return errs;
+  };
 
-  const isStep1Valid = isApplicantValid;
-  const isStep2Valid = Boolean(form.moduleId) && Boolean(form.requestTypeId);
-  const isStep3Valid =
-    form.processDescription.trim().length >= 10 &&
-    form.currentBehavior.trim().length >= 10 &&
-    form.expectedBehavior.trim().length >= 10;
+  const step1Errors = getStep1ErrorsMap();
+  const step2Errors = getStep2ErrorsMap();
+  const step3Errors = getStep3ErrorsMap();
+
+  const isStep1Valid = Object.keys(step1Errors).length === 0;
+  const isStep2Valid = Object.keys(step2Errors).length === 0;
+  const isStep3Valid = Object.keys(step3Errors).length === 0;
 
   const isValid = isStep1Valid && isStep2Valid && isStep3Valid && !isEditing;
 
   function handleChange(e) {
-    const val =
-      e.target.type === 'email'
-        ? e.target.value.toLocaleLowerCase()
-        : e.target.value.toLocaleUpperCase();
-    setForm((prev) => ({ ...prev, [e.target.name]: val }));
+    const { name, value, type } = e.target;
+    let val;
+    if (type === 'email' || name === 'priority') {
+      val = value.toLocaleLowerCase();
+    } else {
+      val = value.toLocaleUpperCase();
+    }
+    setForm((prev) => ({ ...prev, [name]: val }));
   }
 
   async function handleCedulaBlur(e) {
@@ -491,11 +472,58 @@ export default function RequestForm() {
     });
   };
 
-  const handleCopyTicketCode = () => {
-    if (submittedTicket?.ticket_code) {
-      navigator.clipboard.writeText(submittedTicket.ticket_code);
-      setCopiedTicket(true);
-      setTimeout(() => setCopiedTicket(false), 2500);
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    if (name) {
+      setTouched((prev) => ({ ...prev, [name]: true }));
+    }
+  };
+
+  const handleStepTabClick = (targetStep) => {
+    if (targetStep === 1) {
+      setCurrentStep(1);
+      return;
+    }
+    if (targetStep === 2) {
+      if (!isStep1Valid) {
+        setAttemptedNext((prev) => ({ ...prev, 1: true }));
+        setTouched((prev) => ({
+          ...prev,
+          cedula: true,
+          nombre: true,
+          apellido: true,
+          applicantEmail: true,
+          departmentId: true,
+        }));
+        return;
+      }
+      setCurrentStep(2);
+    }
+    if (targetStep === 3) {
+      if (!isStep1Valid) {
+        setCurrentStep(1);
+        setAttemptedNext((prev) => ({ ...prev, 1: true }));
+        setTouched((prev) => ({
+          ...prev,
+          cedula: true,
+          nombre: true,
+          apellido: true,
+          applicantEmail: true,
+          departmentId: true,
+        }));
+        return;
+      }
+      if (!isStep2Valid) {
+        setCurrentStep(2);
+        setAttemptedNext((prev) => ({ ...prev, 2: true }));
+        setTouched((prev) => ({
+          ...prev,
+          moduleId: true,
+          requestTypeId: true,
+        }));
+        return;
+      }
+      setCurrentStep(3);
     }
   };
 
@@ -507,8 +535,32 @@ export default function RequestForm() {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && isStep1Valid) setCurrentStep(2);
-    else if (currentStep === 2 && isStep2Valid) setCurrentStep(3);
+    if (currentStep === 1) {
+      if (!isStep1Valid) {
+        setAttemptedNext((prev) => ({ ...prev, 1: true }));
+        setTouched((prev) => ({
+          ...prev,
+          cedula: true,
+          nombre: true,
+          apellido: true,
+          applicantEmail: true,
+          departmentId: true,
+        }));
+        return;
+      }
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
+      if (!isStep2Valid) {
+        setAttemptedNext((prev) => ({ ...prev, 2: true }));
+        setTouched((prev) => ({
+          ...prev,
+          moduleId: true,
+          requestTypeId: true,
+        }));
+        return;
+      }
+      setCurrentStep(3);
+    }
   };
 
   const handlePrevStep = () => {
@@ -517,7 +569,49 @@ export default function RequestForm() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (isEditing || !isValid || convertingCount > 0) return;
+    if (isEditing) return;
+
+    if (!isStep1Valid) {
+      setCurrentStep(1);
+      setAttemptedNext((prev) => ({ ...prev, 1: true }));
+      setTouched((prev) => ({
+        ...prev,
+        cedula: true,
+        nombre: true,
+        apellido: true,
+        applicantEmail: true,
+        departmentId: true,
+      }));
+      return;
+    }
+
+    if (!isStep2Valid) {
+      setCurrentStep(2);
+      setAttemptedNext((prev) => ({ ...prev, 2: true }));
+      setTouched((prev) => ({
+        ...prev,
+        moduleId: true,
+        requestTypeId: true,
+      }));
+      return;
+    }
+
+    if (!isStep3Valid) {
+      setAttemptedNext((prev) => ({ ...prev, 3: true }));
+      setTouched((prev) => ({
+        ...prev,
+        processDescription: true,
+        currentBehavior: true,
+        expectedBehavior: true,
+      }));
+      return;
+    }
+
+    if (convertingCount > 0) {
+      showUploadNotice('Por favor aguardá a que finalice la optimización de imágenes antes de enviar.', 'warning');
+      return;
+    }
+
     setSubmitting(true);
     setError('');
 
@@ -649,7 +743,7 @@ export default function RequestForm() {
                 className={`step-tab ${currentStep === 1 ? 'is-active' : ''} ${
                   isStep1Valid ? 'is-completed' : ''
                 }`}
-                onClick={() => setCurrentStep(1)}
+                onClick={() => handleStepTabClick(1)}
                 aria-current={currentStep === 1 ? 'step' : undefined}
               >
                 <div className="step-badge">
@@ -666,8 +760,7 @@ export default function RequestForm() {
                 className={`step-tab ${currentStep === 2 ? 'is-active' : ''} ${
                   isStep2Valid ? 'is-completed' : ''
                 }`}
-                onClick={() => isStep1Valid && setCurrentStep(2)}
-                disabled={!isStep1Valid}
+                onClick={() => handleStepTabClick(2)}
                 aria-current={currentStep === 2 ? 'step' : undefined}
               >
                 <div className="step-badge">
@@ -684,8 +777,7 @@ export default function RequestForm() {
                 className={`step-tab ${currentStep === 3 ? 'is-active' : ''} ${
                   isStep3Valid ? 'is-completed' : ''
                 }`}
-                onClick={() => isStep1Valid && isStep2Valid && setCurrentStep(3)}
-                disabled={!isStep1Valid || !isStep2Valid}
+                onClick={() => handleStepTabClick(3)}
                 aria-current={currentStep === 3 ? 'step' : undefined}
               >
                 <div className="step-badge">
@@ -715,6 +807,20 @@ export default function RequestForm() {
                     Identificate con tu Cédula de Identidad para verificar tus datos institucionales.
                   </p>
 
+                  {attemptedNext[1] && !isStep1Valid && (
+                    <div className="validation-error-alert" role="alert">
+                      <div className="validation-alert-header">
+                        <span className="validation-alert-icon">⚠️</span>
+                        <strong>Para avanzar al Paso 2, por favor completá los siguientes datos:</strong>
+                      </div>
+                      <ul className="validation-alert-list">
+                        {Object.values(step1Errors).map((msg, idx) => (
+                          <li key={idx}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="cedula">Cédula de Identidad *</label>
@@ -725,12 +831,15 @@ export default function RequestForm() {
                           name="cedula"
                           value={form.cedula}
                           onChange={handleChange}
-                          onBlur={handleCedulaBlur}
+                          onBlur={(e) => {
+                            handleBlur(e);
+                            handleCedulaBlur(e);
+                          }}
                           placeholder="Ej: V-12345678"
                           required
                           aria-required="true"
                           aria-describedby="cedula-status"
-                          className="cedula-input"
+                          className={`cedula-input ${(touched.cedula || attemptedNext[1]) && step1Errors.cedula ? 'input-error' : ''}`}
                         />
                         <div id="cedula-status" role="status" aria-live="polite">
                           {personaLoading && (
@@ -750,6 +859,9 @@ export default function RequestForm() {
                           )}
                         </div>
                       </div>
+                      {(touched.cedula || attemptedNext[1]) && step1Errors.cedula && (
+                        <span className="field-error-text">⚠️ {step1Errors.cedula}</span>
+                      )}
                     </div>
                   </div>
 
@@ -762,12 +874,16 @@ export default function RequestForm() {
                         name="nombre"
                         value={form.nombre}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="Nombre completo"
                         required
                         aria-required="true"
                         readOnly={personaFound}
-                        className={personaFound ? 'form-input-found' : undefined}
+                        className={`${personaFound ? 'form-input-found' : ''} ${(touched.nombre || attemptedNext[1]) && step1Errors.nombre ? 'input-error' : ''}`}
                       />
+                      {(touched.nombre || attemptedNext[1]) && step1Errors.nombre && (
+                        <span className="field-error-text">⚠️ {step1Errors.nombre}</span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label htmlFor="apellido">Apellido *</label>
@@ -777,12 +893,16 @@ export default function RequestForm() {
                         name="apellido"
                         value={form.apellido}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="Apellido completo"
                         required
                         aria-required="true"
                         readOnly={personaFound}
-                        className={personaFound ? 'form-input-found' : undefined}
+                        className={`${personaFound ? 'form-input-found' : ''} ${(touched.apellido || attemptedNext[1]) && step1Errors.apellido ? 'input-error' : ''}`}
                       />
+                      {(touched.apellido || attemptedNext[1]) && step1Errors.apellido && (
+                        <span className="field-error-text">⚠️ {step1Errors.apellido}</span>
+                      )}
                     </div>
                   </div>
 
@@ -795,10 +915,15 @@ export default function RequestForm() {
                         name="applicantEmail"
                         value={form.applicantEmail}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="ejemplo@gobernacion.gob.ve"
                         required
                         aria-required="true"
+                        className={(touched.applicantEmail || attemptedNext[1]) && step1Errors.applicantEmail ? 'input-error' : undefined}
                       />
+                      {(touched.applicantEmail || attemptedNext[1]) && step1Errors.applicantEmail && (
+                        <span className="field-error-text">⚠️ {step1Errors.applicantEmail}</span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label htmlFor="departmentId">Departamento / Dirección de Origen *</label>
@@ -807,8 +932,10 @@ export default function RequestForm() {
                         name="departmentId"
                         value={form.departmentId}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         required
                         aria-required="true"
+                        className={(touched.departmentId || attemptedNext[1]) && step1Errors.departmentId ? 'input-error' : undefined}
                       >
                         <option value="">-- Seleccionar departamento --</option>
                         {departments.map((d) => (
@@ -817,6 +944,9 @@ export default function RequestForm() {
                           </option>
                         ))}
                       </select>
+                      {(touched.departmentId || attemptedNext[1]) && step1Errors.departmentId && (
+                        <span className="field-error-text">⚠️ {step1Errors.departmentId}</span>
+                      )}
                     </div>
                   </div>
 
@@ -825,7 +955,6 @@ export default function RequestForm() {
                       type="button"
                       className="btn btn-primary btn-next-step"
                       onClick={handleNextStep}
-                      disabled={!isStep1Valid}
                     >
                       Continuar a Clasificación →
                     </button>
@@ -843,6 +972,20 @@ export default function RequestForm() {
                     Indicá qué sistema o módulo presenta el problema o requiere mejoras.
                   </p>
 
+                  {attemptedNext[2] && !isStep2Valid && (
+                    <div className="validation-error-alert" role="alert">
+                      <div className="validation-alert-header">
+                        <span className="validation-alert-icon">⚠️</span>
+                        <strong>Para avanzar al Paso 3, seleccioná la información requerida:</strong>
+                      </div>
+                      <ul className="validation-alert-list">
+                        {Object.values(step2Errors).map((msg, idx) => (
+                          <li key={idx}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="moduleId">Módulo / Sistema Afectado *</label>
@@ -851,8 +994,10 @@ export default function RequestForm() {
                         name="moduleId"
                         value={form.moduleId}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         required
                         aria-required="true"
+                        className={(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId ? 'input-error' : undefined}
                       >
                         <option value="">-- Seleccionar módulo afectado --</option>
                         {modules.map((m) => (
@@ -861,6 +1006,9 @@ export default function RequestForm() {
                           </option>
                         ))}
                       </select>
+                      {(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId && (
+                        <span className="field-error-text">⚠️ {step2Errors.moduleId}</span>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -870,8 +1018,10 @@ export default function RequestForm() {
                         name="requestTypeId"
                         value={form.requestTypeId}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         required
                         aria-required="true"
+                        className={(touched.requestTypeId || attemptedNext[2]) && step2Errors.requestTypeId ? 'input-error' : undefined}
                       >
                         <option value="">-- Seleccionar tipo de solicitud --</option>
                         {types.map((t) => (
@@ -880,6 +1030,9 @@ export default function RequestForm() {
                           </option>
                         ))}
                       </select>
+                      {(touched.requestTypeId || attemptedNext[2]) && step2Errors.requestTypeId && (
+                        <span className="field-error-text">⚠️ {step2Errors.requestTypeId}</span>
+                      )}
                     </div>
                   </div>
 
@@ -911,7 +1064,6 @@ export default function RequestForm() {
                       type="button"
                       className="btn btn-primary btn-next-step"
                       onClick={handleNextStep}
-                      disabled={!isStep2Valid}
                     >
                       Continuar a Detalle y Evidencias →
                     </button>
@@ -929,6 +1081,20 @@ export default function RequestForm() {
                     Explicá el contexto para que nuestro equipo pueda reproducir y resolver el requerimiento rápidamente.
                   </p>
 
+                  {attemptedNext[3] && !isStep3Valid && (
+                    <div className="validation-error-alert" role="alert">
+                      <div className="validation-alert-header">
+                        <span className="validation-alert-icon">⚠️</span>
+                        <strong>Para finalizar la solicitud, completá los detalles obligatorios:</strong>
+                      </div>
+                      <ul className="validation-alert-list">
+                        {Object.values(step3Errors).map((msg, idx) => (
+                          <li key={idx}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label htmlFor="processDescription">
                       1. ¿Qué proceso administrativo o trámite estabas realizando? *
@@ -938,17 +1104,22 @@ export default function RequestForm() {
                       name="processDescription"
                       value={form.processDescription}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       rows={3}
                       placeholder='Ej: "Registro de nómina mensual" o "Generación de reporte trimestral de caja"...'
                       required
                       aria-required="true"
                       aria-describedby="desc-count"
+                      className={(touched.processDescription || attemptedNext[3]) && step3Errors.processDescription ? 'input-error' : undefined}
                     />
                     <div className="textarea-footer">
                       <span id="desc-count" className={`char-count ${form.processDescription.length >= 10 ? 'is-valid-count' : ''}`}>
                         {form.processDescription.length} / 10 caracteres mín.
                       </span>
                     </div>
+                    {(touched.processDescription || attemptedNext[3]) && step3Errors.processDescription && (
+                      <span className="field-error-text">⚠️ {step3Errors.processDescription}</span>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -977,17 +1148,22 @@ export default function RequestForm() {
                       name="currentBehavior"
                       value={form.currentBehavior}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       rows={3}
                       placeholder='Ej: "Al presionar el botón Procesar, aparece un mensaje rojo que dice Error 500"...'
                       required
                       aria-required="true"
                       aria-describedby="current-count"
+                      className={(touched.currentBehavior || attemptedNext[3]) && step3Errors.currentBehavior ? 'input-error' : undefined}
                     />
                     <div className="textarea-footer">
                       <span id="current-count" className={`char-count ${form.currentBehavior.length >= 10 ? 'is-valid-count' : ''}`}>
                         {form.currentBehavior.length} / 10 caracteres mín.
                       </span>
                     </div>
+                    {(touched.currentBehavior || attemptedNext[3]) && step3Errors.currentBehavior && (
+                      <span className="field-error-text">⚠️ {step3Errors.currentBehavior}</span>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -999,17 +1175,22 @@ export default function RequestForm() {
                       name="expectedBehavior"
                       value={form.expectedBehavior}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       rows={3}
                       placeholder='Ej: "Debería emitir el comprobante PDF con la firma y actualizar el saldo actual"...'
                       required
                       aria-required="true"
                       aria-describedby="expected-count"
+                      className={(touched.expectedBehavior || attemptedNext[3]) && step3Errors.expectedBehavior ? 'input-error' : undefined}
                     />
                     <div className="textarea-footer">
                       <span id="expected-count" className={`char-count ${form.expectedBehavior.length >= 10 ? 'is-valid-count' : ''}`}>
                         {form.expectedBehavior.length} / 10 caracteres mín.
                       </span>
                     </div>
+                    {(touched.expectedBehavior || attemptedNext[3]) && step3Errors.expectedBehavior && (
+                      <span className="field-error-text">⚠️ {step3Errors.expectedBehavior}</span>
+                    )}
                   </div>
 
                   {/* Zona de Evidencias (Adjuntos) */}
@@ -1207,7 +1388,7 @@ export default function RequestForm() {
                     <button
                       type="submit"
                       className="btn btn-primary btn-submit-lg"
-                      disabled={!canSubmit || convertingCount > 0}
+                      disabled={submitting || convertingCount > 0}
                     >
                       {submitting ? '⏳ Guardando Solicitud...' : '🚀 Enviar Solicitud Ahora'}
                     </button>

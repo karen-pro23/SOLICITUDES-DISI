@@ -305,7 +305,7 @@ export default function Dashboard() {
                         {req.created_by_name}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
-                        {req.department_name || 'Departamento'}
+                        {req.department_name || 'Sin departamento'}
                       </div>
                     </td>
                     <td>{req.module_name}</td>

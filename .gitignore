@@ -3,3 +3,5 @@ dist/
 .env
 uploads/
 *.log
+static_analysis_semgrep_1/
+

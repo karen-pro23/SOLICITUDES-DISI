@@ -841,3 +841,65 @@
   justify-content: center;
   gap: 1rem;
 }
+
+/* ── Non-technical Validation Guidance ──────────────────────── */
+
+.validation-error-alert {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.validation-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #991b1b;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin-bottom: 0.375rem;
+}
+
+.validation-alert-icon {
+  font-size: 1.125rem;
+}
+
+.validation-alert-subtitle {
+  font-size: 0.85rem;
+  color: #7f1d1d;
+  margin: 0 0 0.5rem 0;
+}
+
+.validation-alert-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #991b1b;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.validation-alert-list li {
+  margin-bottom: 0.25rem;
+}
+
+.form-group input.input-error,
+.form-group select.input-error,
+.form-group textarea.input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.field-error-text {
+  display: block;
+  font-size: 0.8125rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 0.375rem;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease-out;
+}

@@ -16,12 +16,14 @@ async function findAll(filters, userId, userRole, userDeptId) {
              assignee.full_name as assigned_to_name,
              m.name as module_name,
              m.is_systems,
-             rt.name as request_type_name
+             rt.name as request_type_name,
+             d.name as department_name
              FROM requests r
-             JOIN users creator ON creator.user_id = r.created_by
+             LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
-             JOIN modules m ON m.module_id = r.module_id
-             JOIN request_types rt ON rt.request_type_id = r.request_type_id`;
+             LEFT JOIN modules m ON m.module_id = r.module_id
+             LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+             LEFT JOIN departments d ON d.department_id = r.department_id`;
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -104,11 +106,11 @@ async function findById(requestId, userRole, userDeptId) {
              rt.name as request_type_name,
              d.name as department_name
              FROM requests r
-             JOIN users creator ON creator.user_id = r.created_by
+             LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
-             JOIN modules m ON m.module_id = r.module_id
-             JOIN request_types rt ON rt.request_type_id = r.request_type_id
-             JOIN departments d ON d.department_id = r.department_id
+             LEFT JOIN modules m ON m.module_id = r.module_id
+             LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+             LEFT JOIN departments d ON d.department_id = r.department_id
              WHERE r.request_id = $1`;
   const values = [requestId];
 
@@ -123,13 +125,16 @@ async function findById(requestId, userRole, userDeptId) {
 
 async function create(data, userId, userDeptId) {
   const { moduleId, requestTypeId, priority, processDescription, currentBehavior, expectedBehavior } = data;
+  const cleanPriority = ['baja', 'media', 'alta'].includes((priority || '').toLowerCase().trim())
+    ? priority.toLowerCase().trim()
+    : 'media';
 
   const result = await pool.query(
     `INSERT INTO requests (created_by, department_id, module_id, request_type_id, priority,
       process_description, current_behavior, expected_behavior)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [userId, userDeptId, moduleId, requestTypeId, priority || 'media',
+    [userId, userDeptId, moduleId, requestTypeId, cleanPriority,
      processDescription, currentBehavior, expectedBehavior]
   );
 

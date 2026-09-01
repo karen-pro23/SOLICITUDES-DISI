@@ -140,10 +140,13 @@ async function createRequest(req, res, next) {
       userId = newUser.rows[0].user_id;
     }
 
+    const rawPriority = (priority || '').toLowerCase().trim();
+    const validPriority = ['baja', 'media', 'alta'].includes(rawPriority) ? rawPriority : 'media';
+
     const requestData = {
       moduleId: modId,
       requestTypeId: typeId,
-      priority: priority || 'media',
+      priority: validPriority,
       processDescription: normalizeText(processDescription),
       currentBehavior: normalizeText(currentBehavior),
       expectedBehavior: normalizeText(expectedBehavior),
@@ -190,13 +193,18 @@ async function searchRequests(req, res, next) {
               r.process_description, r.created_at,
               m.name AS module_name,
               rt.name AS request_type_name,
-              u.full_name AS created_by_name
+              d.name AS department_name,
+              COALESCE(u.full_name, p.nombre || ' ' || p.apellido) AS created_by_name
        FROM requests r
-       JOIN modules m ON m.module_id = r.module_id
-       JOIN request_types rt ON rt.request_type_id = r.request_type_id
-       JOIN users u ON u.user_id = r.created_by
+       LEFT JOIN modules m ON m.module_id = r.module_id
+       LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+       LEFT JOIN departments d ON d.department_id = r.department_id
+       LEFT JOIN users u ON u.user_id = r.created_by
+       LEFT JOIN persona p ON p.cedula = u.cedula
        WHERE UPPER(u.cedula) = UPPER($1)
           OR UPPER(REGEXP_REPLACE(u.cedula, '[^a-zA-Z0-9]', '', 'g')) = UPPER($2)
+          OR UPPER(p.cedula) = UPPER($1)
+          OR UPPER(REGEXP_REPLACE(p.cedula, '[^a-zA-Z0-9]', '', 'g')) = UPPER($2)
           OR UPPER(r.ticket_code) = UPPER($1)
           OR UPPER(r.ticket_code) LIKE UPPER('%' || $1 || '%')
           OR ($3::BOOLEAN = true AND r.request_id = $4)
@@ -222,12 +230,13 @@ async function getRequestPublic(req, res, next) {
               m.name AS module_name,
               rt.name AS request_type_name,
               d.name AS department_name,
-              u.full_name AS created_by_name
+              COALESCE(u.full_name, p.nombre || ' ' || p.apellido) AS created_by_name
        FROM requests r
-       JOIN modules m ON m.module_id = r.module_id
-       JOIN request_types rt ON rt.request_type_id = r.request_type_id
-       JOIN departments d ON d.department_id = r.department_id
-       JOIN users u ON u.user_id = r.created_by
+       LEFT JOIN modules m ON m.module_id = r.module_id
+       LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+       LEFT JOIN departments d ON d.department_id = r.department_id
+       LEFT JOIN users u ON u.user_id = r.created_by
+       LEFT JOIN persona p ON p.cedula = u.cedula
        WHERE r.request_id = $1`,
       [parseInt(id, 10)]
     );
