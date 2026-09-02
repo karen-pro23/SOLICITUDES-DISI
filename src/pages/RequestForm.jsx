@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import PublicHeader from '../components/PublicHeader';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
+import LetterSendingAnimation from '../components/LetterSendingAnimation';
 import './RequestForm.css';
 
 // ── Upload Limits & Allowed Types ──────────────────────────────
@@ -125,6 +126,14 @@ export default function RequestForm() {
   const [copiedTicket, setCopiedTicket] = useState(false);
   const [isDragOverScreenshot, setIsDragOverScreenshot] = useState(false);
   const [isDragOverDocument, setIsDragOverDocument] = useState(false);
+
+  const handleCopyTicketCode = () => {
+    if (submittedTicket?.ticket_code) {
+      navigator.clipboard.writeText(submittedTicket.ticket_code);
+      setCopiedTicket(true);
+      setTimeout(() => setCopiedTicket(false), 3000);
+    }
+  };
 
   // Form Validation & Touched State
   const [touched, setTouched] = useState({});
@@ -711,11 +720,7 @@ export default function RequestForm() {
       for (const item of documents) fd.append('documents', item.file);
 
       const result = await createPublicRequest(fd);
-      if (isPublic) {
-        setSubmittedTicket(result.request);
-      } else {
-        navigate(`/requests/${result.request.request_id}`);
-      }
+      setSubmittedTicket(result.request);
     } catch (err) {
       setError(err.response?.data?.error || 'Error al enviar la solicitud. Intente nuevamente.');
     } finally {
@@ -763,7 +768,7 @@ export default function RequestForm() {
       <div className="request-form-page">
         {submittedTicket ? (
           <div className="request-form request-form-success" role="status" aria-live="polite">
-            <div className="success-checkmark" aria-hidden="true">✓</div>
+            <LetterSendingAnimation ticketCode={submittedTicket.ticket_code} />
             <h1 className="success-title">¡Solicitud Enviada con Éxito!</h1>
             <p className="success-text">
               Tu solicitud ha sido ingresada correctamente al sistema y fue asignada al
@@ -787,9 +792,15 @@ export default function RequestForm() {
               <button className="btn btn-primary" onClick={handleResetNew}>
                 Enviar otra solicitud
               </button>
-              <button className="btn btn-outline" onClick={() => navigate('/buscar')}>
-                Ir a buscar mi solicitud
-              </button>
+              {isPublic ? (
+                <button className="btn btn-outline" onClick={() => navigate('/buscar')}>
+                  Ir a buscar mi solicitud
+                </button>
+              ) : (
+                <button className="btn btn-outline" onClick={() => navigate(`/requests/${submittedTicket.request_id}`)}>
+                  Ver mi solicitud
+                </button>
+              )}
             </div>
           </div>
         ) : (
