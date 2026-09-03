@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
+import PaginationControl from '../components/PaginationControl';
 import {
   STATUS_OPTIONS,
   STATUS_TRANSITIONS,
@@ -23,6 +24,8 @@ import './Dashboard.css';
 export default function Dashboard() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
@@ -39,25 +42,20 @@ export default function Dashboard() {
     if (activeStatusReq) setPendingStatus(null);
   }, [activeStatusReq]);
 
-  const fetchRequests = useCallback(async (cursor) => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { limit: 25 };
+      const params = { page, limit };
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
-      if (cursor) params.cursor = cursor;
 
       const [data, metricsData] = await Promise.all([
         getRequests(params),
         getMetrics().catch(() => null),
       ]);
 
-      if (cursor) {
-        setRequests((prev) => [...prev, ...data.requests]);
-      } else {
-        setRequests(data.requests);
-      }
+      setRequests(data.requests || []);
       setPagination(data.pagination);
       if (metricsData) setMetrics(metricsData);
     } catch (err) {
@@ -65,18 +63,20 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, page, limit]);
 
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
 
   function handleStatusTab(statusKey) {
+    setPage(1);
     setFilters((prev) => ({ ...prev, status: statusKey }));
   }
 
   function handleSearch(e) {
     e.preventDefault();
+    setPage(1);
     fetchRequests();
   }
 
@@ -294,130 +294,103 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="table-responsive">
-            <table className="table">
+            <table className="table request-table">
               <thead>
                 <tr>
-                  <th>Código</th>
-                  <th>Solicitante / Dpto</th>
-                  <th>Módulo</th>
+                  <th>Código / Ticket</th>
+                  <th>Solicitante y Origen</th>
+                  <th>Módulo Afectado</th>
                   <th>Estado</th>
                   <th>Prioridad</th>
                   <th>Fecha</th>
-                  <th style={{ textAlign: 'right' }}>Acciones Rápidas</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req) => (
-                  <tr key={req.request_id}>
-                    <td>
-                      <Link to={`/requests/${req.request_id}`} style={{ fontWeight: 700 }}>
-                        {req.ticket_code}
-                      </Link>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--color-gray-900)' }}>
-                        {req.created_by_name}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
-                        {req.department_name || 'Sin departamento'}
-                      </div>
-                    </td>
-                    <td>{req.module_name}</td>
-                    <td>
-                      <StatusBadge status={req.status} />
-                    </td>
-                     <td>
-                       <span
-                         className={`priority-pill priority-${req.priority}`}
-                         style={{
-                           fontSize: '0.75rem',
-                           fontWeight: 700,
-                           padding: '0.375rem 0.75rem',
-                           borderRadius: '24px',
-                           textTransform: 'uppercase',
-                           letterSpacing: '0.05em',
-                           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
-                           transition: 'all 0.2s ease',
-                           background:
-                             req.priority === 'alta'
-                               ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
-                               : req.priority === 'media'
-                               ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
-                               : req.priority === 'baja'
-                               ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
-                               : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
-                            color:
-                              req.priority === 'alta'
-                                ? '#dc2626'
-                                : req.priority === 'media'
-                                ? '#d97706'
-                                : req.priority === 'baja'
-                                ? '#16a34a'
-                                : '#64748b',
-                            border: `1.5px solid ${req.priority === 'alta' ? '#fca5a5' : req.priority === 'media' ? '#fcd34d' : req.priority === 'baja' ? '#86efac' : '#cbd5e1'}`,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            backgroundImage:
-                              req.priority === 'alta'
-                                ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
-                                : req.priority === 'media'
-                                ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
-                                : req.priority === 'baja'
-                                ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
-                                : 'linear-gradient(135deg, #f8fafc, #e2e8f0)',
-                          }}
-                       >
-                         {req.priority}
-                       </span>
-                     </td>
-                    <td>{new Date(req.created_at).toLocaleDateString()}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.375rem' }}>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => setActiveStatusReq(req)}
-                          title="Cambiar estado de la solicitud"
-                        >
-                          ESTADO
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => setActivePriorityReq(req)}
-                          title="Cambiar prioridad de la solicitud"
-                        >
-                          PRIORIDAD
-                        </button>
-                        <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-outline">
-                          VER DETALLE
+                {requests.map((req) => {
+                  const initial = (req.created_by_name || 'U').charAt(0).toUpperCase();
+                  return (
+                    <tr key={req.request_id} className="request-table-row">
+                      <td className="col-ticket">
+                        <Link to={`/requests/${req.request_id}`} className="ticket-badge-link">
+                          <span className="ticket-icon">🎟️</span>
+                          <span className="ticket-code-text">{req.ticket_code}</span>
                         </Link>
-                        {user && user.role !== 'requester' && (
+                      </td>
+                      <td className="col-user">
+                        <div className="user-info-cell">
+                          <div className="user-avatar">{initial}</div>
+                          <div>
+                            <div className="user-name">{req.created_by_name || 'Usuario'}</div>
+                            <div className="user-dept">{req.department_name || 'Sin departamento'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="col-module">
+                        <span className="module-tag">{req.module_name}</span>
+                      </td>
+                      <td className="col-status">
+                        <StatusBadge status={req.status} />
+                      </td>
+                      <td className="col-priority">
+                        <span className={`priority-pill priority-${req.priority}`}>
+                          {req.priority}
+                        </span>
+                      </td>
+                      <td className="col-date">
+                        <span className="date-text">{new Date(req.created_at).toLocaleDateString()}</span>
+                      </td>
+                      <td className="col-actions" style={{ textAlign: 'right' }}>
+                        <div className="row-actions-group">
                           <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDeleteRequest(req)}
-                            title="Eliminar solicitud"
+                            type="button"
+                            className="btn-action-pill btn-action-status"
+                            onClick={() => setActiveStatusReq(req)}
+                            title="Cambiar estado de la solicitud"
                           >
-                            🗑️
+                            ⚙️ Estado
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            className="btn-action-pill btn-action-priority"
+                            onClick={() => setActivePriorityReq(req)}
+                            title="Cambiar prioridad de la solicitud"
+                          >
+                            🔥 Prioridad
+                          </button>
+                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">
+                            👁️ Detalle
+                          </Link>
+                          {user && user.role !== 'requester' && (
+                            <button
+                              type="button"
+                              className="btn-action-pill btn-action-delete"
+                              onClick={() => handleDeleteRequest(req)}
+                              title="Eliminar solicitud"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {pagination?.hasMore && (
-            <div className="pagination-actions">
-              <button
-                className="btn btn-outline"
-                onClick={() => fetchRequests(pagination.nextCursor)}
-                disabled={loading}
-              >
-                {loading ? 'Cargando...' : 'Cargar más solicitudes'}
-              </button>
-            </div>
-          )}
+          <PaginationControl
+            currentPage={pagination?.page || page}
+            totalPages={pagination?.totalPages || 1}
+            totalItems={pagination?.totalItems || requests.length}
+            limit={limit}
+            onPageChange={(newPage) => setPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+          />
         </>
       )}
 
