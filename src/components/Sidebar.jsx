@@ -86,25 +86,56 @@ const linkMap = {
   admin: adminLinks,
 };
 
-export default function Sidebar({ role }) {
+export default function Sidebar({ role, collapsed, toggleCollapse, onNavClick }) {
   const links = linkMap[role] || requesterLinks;
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''}`}>
       <div className="sidebar-logo">
-        <h2>Portal</h2>
-        <span className="sidebar-subtitle">Sistemas & Admin</span>
+        <div className="logo-brand">
+          <div className="logo-icon">P</div>
+          {!collapsed && (
+            <div className="logo-text-group">
+              <h2>Portal</h2>
+              <span className="sidebar-subtitle">Sistemas & Admin</span>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          className="sidebar-collapse-toggle"
+          onClick={toggleCollapse}
+          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
       </div>
+
       <nav className="sidebar-nav">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             end={link.to === '/dashboard'}
+            onClick={onNavClick}
             className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            title={collapsed ? link.label : undefined}
           >
-            {link.icon}
-            {link.label}
+            <span className="sidebar-link-icon">{link.icon}</span>
+            {!collapsed && <span className="sidebar-link-text">{link.label}</span>}
           </NavLink>
         ))}
       </nav>

@@ -20,11 +20,11 @@ import { CSS } from '@dnd-kit/utilities';
 import './DevInbox.css';
 
 const STATUS_OPTIONS = [
-  { value: 'PENDIENTE', label: 'Pendiente', icon: '⏳' },
-  { value: 'EN_PROCESO', label: 'En Proceso', icon: '⚙️' },
-  { value: 'EN_PRUEBAS', label: 'En Pruebas', icon: '🧪' },
-  { value: 'COMPLETADA', label: 'Completada', icon: '✅' },
-  { value: 'RECHAZADA', label: 'Rechazada', icon: '❌' },
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'EN_PROCESO', label: 'En Proceso' },
+  { value: 'EN_PRUEBAS', label: 'En Pruebas' },
+  { value: 'COMPLETADA', label: 'Completada' },
+  { value: 'RECHAZADA', label: 'Rechazada' },
 ];
 
 const STATUS_ORDER = ['PENDIENTE', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA', 'RECHAZADA'];
@@ -138,7 +138,7 @@ function KanbanCardView({
                       }}
                     >
                       <span className="status-dropdown-dot" data-status={statusValue} />
-                      {opt?.icon} {opt?.label}
+                      {opt?.label}
                     </button>
                   );
                 })}
@@ -160,7 +160,7 @@ function KanbanCardView({
               handleDeleteClick(req);
             }}
           >
-            🗑️
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         )}
       </div>

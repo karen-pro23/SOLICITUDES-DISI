@@ -119,7 +119,9 @@ export default function SearchRequests() {
             borderRadius: 'var(--radius-lg)',
             border: '1px solid #e2e8f0',
           }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔍</div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
             <p style={{ color: 'var(--color-gray-600)', fontSize: '1rem' }}>
               No se encontraron solicitudes asociadas a esa cédula o número de ticket.
             </p>

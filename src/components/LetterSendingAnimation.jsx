@@ -5,11 +5,21 @@ export default function LetterSendingAnimation({ ticketCode }) {
   return (
     <div className="letter-anim-shell">
       {/* Sparkles / Magic dust floating around */}
-      <div className="sparkle-particle p1">✨</div>
-      <div className="sparkle-particle p2">⭐</div>
-      <div className="sparkle-particle p3">✨</div>
-      <div className="sparkle-particle p4">💫</div>
-      <div className="sparkle-particle p5">✨</div>
+      <div className="sparkle-particle p1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbf24"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"/></svg>
+      </div>
+      <div className="sparkle-particle p2">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#60a5fa"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"/></svg>
+      </div>
+      <div className="sparkle-particle p3">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#34d399"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"/></svg>
+      </div>
+      <div className="sparkle-particle p4">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#f472b6"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"/></svg>
+      </div>
+      <div className="sparkle-particle p5">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.2-6.3-4.6-6.3 4.6 2.3-7.2-6-4.6h7.6z"/></svg>
+      </div>
 
       {/* Main animation container */}
       <div className="letter-anim-box">
