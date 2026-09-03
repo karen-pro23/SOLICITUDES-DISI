@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRequest, updateRequestStatus, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
+import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -99,6 +99,22 @@ export default function RequestDetail() {
       setData(updated);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al cambiar estado');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteRequest() {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${request.ticket_code}? Esta acción eliminará también sus adjuntos e historial.`)) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await deleteRequest(request.request_id);
+      toast.success(`Solicitud ${request.ticket_code} eliminada con éxito`);
+      navigate('/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
     } finally {
       setSubmitting(false);
     }
@@ -348,7 +364,7 @@ export default function RequestDetail() {
               </div>
             )}
 
-            {canChangeStatus && actions.length > 0 && (
+            {canChangeStatus && (
               <div className="detail-section">
                 <h3>Acciones</h3>
                 <div className="status-actions">
@@ -362,6 +378,14 @@ export default function RequestDetail() {
                       {action.label}
                     </button>
                   ))}
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleDeleteRequest}
+                    disabled={submitting}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    🗑️ Eliminar Solicitud
+                  </button>
                 </div>
               </div>
             )}

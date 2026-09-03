@@ -278,4 +278,19 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory };
+async function remove(requestId, userRole, userDeptId) {
+  const request = await findById(requestId, userRole, userDeptId);
+  if (!request) {
+    throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
+  }
+
+  if (userRole === 'requester') {
+    throw Object.assign(new Error('No tienes permiso para eliminar solicitudes'), { status: 403 });
+  }
+
+  const result = await pool.query('DELETE FROM requests WHERE request_id = $1 RETURNING *', [requestId]);
+  return result.rows[0];
+}
+
+module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory, remove };
+

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getRequests, updateRequestStatus, addComment } from '../services/api';
+import { getRequests, updateRequestStatus, deleteRequest, addComment } from '../services/api';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import ActionModal from '../components/ActionModal';
@@ -55,6 +55,7 @@ function KanbanCardView({
   openStatusDropdown,
   setOpenStatusDropdown,
   handleStatusOptionClick,
+  handleDeleteClick,
 }) {
   return (
     <div
@@ -149,6 +150,19 @@ function KanbanCardView({
         <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-primary" onClick={(e) => e.stopPropagation()}>
           Ver detalle
         </Link>
+        {!overlay && handleDeleteClick && (
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            title="Eliminar solicitud"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteClick(req);
+            }}
+          >
+            🗑️
+          </button>
+        )}
       </div>
     </div>
   );
@@ -364,6 +378,19 @@ export default function DevInbox() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openStatusDropdown]);
 
+  async function handleDeleteRequest(req) {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${req.ticket_code}?`)) {
+      return;
+    }
+    try {
+      await deleteRequest(req.request_id);
+      toast.success(`Solicitud ${req.ticket_code} eliminada`);
+      fetchAllRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
+    }
+  }
+
   function renderCard(req) {
     return (
       <DraggableKanbanCard
@@ -373,6 +400,7 @@ export default function DevInbox() {
         openStatusDropdown={openStatusDropdown}
         setOpenStatusDropdown={setOpenStatusDropdown}
         handleStatusOptionClick={handleStatusOptionClick}
+        handleDeleteClick={handleDeleteRequest}
       />
     );
   }

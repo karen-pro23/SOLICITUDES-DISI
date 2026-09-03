@@ -5,6 +5,7 @@ import {
   getModules,
   updateRequestStatus,
   updateRequestPriority,
+  deleteRequest,
   addComment,
   getMetrics,
 } from '../services/api';
@@ -112,6 +113,19 @@ export default function Dashboard() {
       toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
     } finally {
       setModalSubmitting(false);
+    }
+  }
+
+  async function handleDeleteRequest(req) {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${req.ticket_code}?`)) {
+      return;
+    }
+    try {
+      await deleteRequest(req.request_id);
+      toast.success(`Solicitud ${req.ticket_code} eliminada con éxito`);
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
     }
   }
 
@@ -376,6 +390,15 @@ export default function Dashboard() {
                         <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-outline">
                           VER DETALLE
                         </Link>
+                        {user && user.role !== 'requester' && (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDeleteRequest(req)}
+                            title="Eliminar solicitud"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

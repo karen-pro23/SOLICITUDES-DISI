@@ -146,6 +146,11 @@ export async function updateRequestStatus(id, status, rejectionReason) {
   return data;
 }
 
+export async function deleteRequest(id) {
+  const { data } = await api.delete(`/requests/${id}`);
+  return data;
+}
+
 export async function updateRequestPriority(id, priority) {
   const { data } = await api.patch(`/requests/${id}/priority`, { priority });
   return data;

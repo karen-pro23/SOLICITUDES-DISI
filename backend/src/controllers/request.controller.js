@@ -192,4 +192,19 @@ async function deleteAttachment(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getAll, getById, create, updateStatus, updatePriority, assign, getAttachmentDownload, getAttachmentPreview, deleteAttachment };
+async function remove(req, res, next) {
+  try {
+    const deleted = await requestService.remove(
+      parseInt(req.params.id, 10),
+      req.user.role,
+      req.user.departmentId
+    );
+    res.json({ message: 'Solicitud eliminada con éxito', request: deleted });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+}
+
+module.exports = { getAll, getById, create, updateStatus, updatePriority, assign, getAttachmentDownload, getAttachmentPreview, deleteAttachment, remove };
+

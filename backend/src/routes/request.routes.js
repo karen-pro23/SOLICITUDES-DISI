@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config/env');
 const {
   getAll, getById, create, updateStatus, updatePriority, assign,
-  getAttachmentDownload, getAttachmentPreview, deleteAttachment,
+  getAttachmentDownload, getAttachmentPreview, deleteAttachment, remove,
 } = require('../controllers/request.controller');
 const commentController = require('../controllers/comment.controller');
 
@@ -65,6 +65,7 @@ router.post('/', handleUploadMiddleware, create);
 router.patch('/:id/status', updateStatus);
 router.patch('/:id/priority', updatePriority);
 router.patch('/:id/assign', assign);
+router.delete('/:id', remove);
 
 // Adjuntos
 router.get('/:id/attachments/:fileId/preview', getAttachmentPreview);
