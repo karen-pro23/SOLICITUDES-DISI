@@ -238,3 +238,452 @@
   background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-accent) 100%);
   border-radius: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════
+   Module / Type Management — Card-based CRUD
+   ═══════════════════════════════════════════════════════ */
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+  margin-top: 0.25rem;
+}
+
+/* ── Sections ─────────────────────────────── */
+
+.mgmt-section {
+  margin-bottom: 2.5rem;
+}
+
+.mgmt-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.mgmt-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-gray-900);
+}
+
+.mgmt-section-title svg {
+  color: var(--color-primary);
+}
+
+.mgmt-section-title h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.mgmt-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Search ───────────────────────────────── */
+
+.mgmt-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 10px;
+  background: var(--color-gray-50);
+  transition: all var(--transition);
+}
+
+.mgmt-search:focus-within {
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: white;
+}
+
+.mgmt-search svg {
+  color: var(--color-gray-400);
+  flex-shrink: 0;
+}
+
+.mgmt-search input {
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 0.8125rem;
+  width: 140px;
+  color: var(--color-gray-700);
+}
+
+.mgmt-search input::placeholder {
+  color: var(--color-gray-400);
+}
+
+/* ── Badges ───────────────────────────────── */
+
+.mgmt-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.mgmt-badge--blue {
+  background: var(--color-primary-lightest);
+  color: var(--color-primary-dark);
+}
+
+.mgmt-badge--green {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+
+.mgmt-badge--red {
+  background: var(--color-danger-bg);
+  color: #991b1b;
+}
+
+.mgmt-badge--purple {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.mgmt-badge--gray {
+  background: var(--color-gray-100);
+  color: var(--color-gray-500);
+}
+
+/* ── Status Dot ───────────────────────────── */
+
+.mgmt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mgmt-dot--green {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.mgmt-dot--red {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* ── Toggle ───────────────────────────────── */
+
+.mgmt-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  border: none;
+  cursor: pointer;
+  background: var(--color-gray-300);
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.mgmt-toggle--on {
+  background: var(--color-primary);
+}
+
+.mgmt-toggle--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mgmt-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform var(--transition);
+}
+
+.mgmt-toggle--on .mgmt-toggle-knob {
+  transform: translateX(18px);
+}
+
+/* ── Form Panel ───────────────────────────── */
+
+.mgmt-form-panel {
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-card);
+  animation: mgmt-slideIn 0.2s ease;
+}
+
+@keyframes mgmt-slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mgmt-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.mgmt-form-grid--2col {
+  grid-template-columns: 1fr 1fr;
+  auto: unset;
+}
+
+.mgmt-form-grid .form-group--toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.mgmt-form-toggles {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mgmt-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mgmt-toggle-row svg {
+  color: var(--color-gray-400);
+}
+
+.mgmt-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+/* ── Card List ────────────────────────────── */
+
+.mgmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mgmt-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 12px;
+  transition: all var(--transition);
+}
+
+.mgmt-card:hover {
+  border-color: var(--color-primary-lighter);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
+  transform: translateY(-1px);
+}
+
+.mgmt-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mgmt-card-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.mgmt-card-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.mgmt-card-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mgmt-card-desc {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin-top: 0.125rem;
+}
+
+.mgmt-card-tags {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.mgmt-card-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.mgmt-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.mgmt-icon-btn:hover {
+  background: var(--color-primary-lightest);
+  color: var(--color-primary);
+}
+
+.mgmt-icon-btn--danger:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ── Empty State ──────────────────────────── */
+
+.mgmt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  color: var(--color-gray-400);
+  background: white;
+  border: 1px dashed var(--color-gray-200);
+  border-radius: 12px;
+}
+
+.mgmt-empty p {
+  font-size: 0.8125rem;
+}
+
+/* ── Skeleton Loading ─────────────────────── */
+
+.mgmt-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mgmt-skeleton-card {
+  height: 64px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-50) 50%, var(--color-gray-100) 75%);
+  background-size: 200% 100%;
+  animation: mgmt-shimmer 1.5s infinite;
+}
+
+@keyframes mgmt-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Responsive ───────────────────────────── */
+
+@media (max-width: 640px) {
+  .mgmt-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mgmt-section-actions {
+    flex-wrap: wrap;
+  }
+
+  .mgmt-search {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mgmt-search input {
+    width: 100%;
+  }
+
+  .mgmt-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.875rem;
+  }
+
+  .mgmt-card-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .mgmt-card-tags {
+    padding-left: calc(36px + 0.75rem);
+  }
+
+  .mgmt-card-actions {
+    justify-content: flex-end;
+    border-top: 1px solid var(--color-gray-100);
+    padding-top: 0.5rem;
+  }
+
+  .mgmt-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mgmt-form-grid--2col {
+    grid-template-columns: 1fr;
+  }
+
+  .mgmt-form-toggles {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

@@ -48,8 +48,9 @@ app.use(cors({
   credentials: true,
 }));
 
-// Body parsing
-app.use(express.json());
+// Body parsing — 50 MB para soportar adjuntos grandes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Archivos estáticos (Subimos 2 niveles desde backend/src para llegar a la raíz /uploads)
@@ -75,9 +76,39 @@ app.use('/api/ai', authenticate, aiRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
+  if (err && err.code && err.code.startsWith('LIMIT_')) {
+    return res.status(400).json({
+      error: 'Error en la carga de archivos: tamaño o cantidad excedida (máx. 50 MB / 5 archivos)',
+    });
+  }
+
+  // Traducción de errores técnicos de PostgreSQL a mensajes claros para personas no técnicas
+  if (err && err.code) {
+    if (err.constraint === 'requests_priority_check' || (err.message && err.message.includes('requests_priority_check'))) {
+      return res.status(400).json({
+        error: 'No se pudo guardar la solicitud. Por favor verificá que la prioridad sea válida (Baja, Media o Alta).',
+      });
+    }
+    if (err.code === '23514') {
+      return res.status(400).json({
+        error: 'Uno de los datos ingresados no cumple con los valores o formato permitido.',
+      });
+    }
+    if (err.code === '23505') {
+      return res.status(409).json({
+        error: 'El registro ingresado (código, cédula o correo) ya existe en el sistema.',
+      });
+    }
+    if (err.code === '23503') {
+      return res.status(400).json({
+        error: 'La información asociada (módulo, departamento o usuario) no está disponible o no existe.',
+      });
+    }
+  }
+
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
+    error: err.status ? err.message : 'Ocurrió un inconveniente al procesar tu solicitud. Por favor intentá nuevamente.',
   });
 });
 

@@ -11,17 +11,13 @@ const VALID_TRANSITIONS = {
 const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
 async function findAll(filters, userId, userRole, userDeptId) {
-  let sql = `SELECT r.*, 
-             creator.full_name as created_by_name,
-             assignee.full_name as assigned_to_name,
-             m.name as module_name,
-             m.is_systems,
-             rt.name as request_type_name
-             FROM requests r
-             JOIN users creator ON creator.user_id = r.created_by
-             LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
-             JOIN modules m ON m.module_id = r.module_id
-             JOIN request_types rt ON rt.request_type_id = r.request_type_id`;
+  let baseSql = `FROM requests r
+                 LEFT JOIN users creator ON creator.user_id = r.created_by
+                 LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
+                 LEFT JOIN modules m ON m.module_id = r.module_id
+                 LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+                 LEFT JOIN departments d ON d.department_id = r.department_id
+                 LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id`;
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -56,35 +52,83 @@ async function findAll(filters, userId, userRole, userDeptId) {
     values.push(parseInt(filters.createdBy, 10));
   }
   if (filters.search) {
-    conditions.push(`(r.ticket_code ILIKE $${idx} OR r.process_description ILIKE $${idx})`);
+    conditions.push(`(
+      r.ticket_code ILIKE $${idx} OR 
+      CAST(r.request_id AS TEXT) ILIKE $${idx} OR 
+      creator.cedula ILIKE $${idx} OR 
+      creator.full_name ILIKE $${idx} OR 
+      r.process_description ILIKE $${idx}
+    )`);
     values.push(`%${filters.search}%`);
     idx++;
   }
 
-  if (conditions.length > 0) {
-    sql += ' WHERE ' + conditions.join(' AND ');
-  }
+  const whereClause = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
 
-  // Cursor-based pagination
-  const limit = Math.min(parseInt(filters.limit, 10) || 20, 100);
+  // Contar total de registros filtrados
+  const countResult = await pool.query(`SELECT COUNT(*) ${baseSql} ${whereClause}`, values);
+  const totalItems = parseInt(countResult.rows[0].count, 10);
+
+  const page = Math.max(parseInt(filters.page, 10) || 1, 1);
+  const limit = Math.min(parseInt(filters.limit, 10) || 10, 100);
+  const totalPages = Math.ceil(totalItems / limit) || 1;
+
+  let querySql = `SELECT r.*, 
+             creator.full_name as created_by_name,
+             assignee.full_name as assigned_to_name,
+             m.name as module_name,
+             m.is_systems,
+             rt.name as request_type_name,
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
+             ${baseSql} ${whereClause}`;
+
+  const queryValues = [...values];
+  let qIdx = values.length + 1;
+
   if (filters.cursor) {
-    sql += ` AND r.created_at < $${idx++}`;
-    values.push(filters.cursor);
+    querySql += (whereClause ? ' AND ' : ' WHERE ') + `r.created_at < $${qIdx++}`;
+    queryValues.push(filters.cursor);
   }
 
-  sql += ' ORDER BY\n    CASE r.priority\n      WHEN \'alta\' THEN 3\n      WHEN \'media\' THEN 2\n      WHEN \'baja\' THEN 1\n      ELSE 0\n    END DESC,\n    r.created_at DESC LIMIT $' + idx;
-  values.push(limit + 1);
+  querySql += ` ORDER BY
+    CASE r.priority
+      WHEN 'alta' THEN 3
+      WHEN 'media' THEN 2
+      WHEN 'baja' THEN 1
+      ELSE 0
+    END DESC,
+    r.created_at DESC`;
 
-  const result = await pool.query(sql, values);
-  const rows = result.rows.slice(0, limit);
-  const hasMore = result.rows.length > limit;
+  if (!filters.cursor) {
+    querySql += ` LIMIT $${qIdx++} OFFSET $${qIdx++}`;
+    queryValues.push(limit, (page - 1) * limit);
+  } else {
+    querySql += ` LIMIT $${qIdx++}`;
+    queryValues.push(limit + 1);
+  }
+
+  const result = await pool.query(querySql, queryValues);
+  let rows = result.rows;
+  let hasMore = false;
+
+  if (filters.cursor) {
+    rows = result.rows.slice(0, limit);
+    hasMore = result.rows.length > limit;
+  } else {
+    hasMore = page < totalPages;
+  }
 
   return {
     requests: rows,
     pagination: {
+      page,
       limit,
+      totalItems,
+      totalPages,
+      hasPrevPage: page > 1,
+      hasNextPage: page < totalPages,
       hasMore,
-      nextCursor: hasMore ? rows[rows.length - 1].created_at : null,
+      nextCursor: hasMore && rows.length > 0 ? rows[rows.length - 1].created_at : null,
     },
   };
 }
@@ -96,13 +140,14 @@ async function findById(requestId, userRole, userDeptId) {
              m.name as module_name,
              m.is_systems,
              rt.name as request_type_name,
-             d.name as department_name
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
              FROM requests r
-             JOIN users creator ON creator.user_id = r.created_by
+             LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
-             JOIN modules m ON m.module_id = r.module_id
-             JOIN request_types rt ON rt.request_type_id = r.request_type_id
-             JOIN departments d ON d.department_id = r.department_id
+             LEFT JOIN modules m ON m.module_id = r.module_id
+             LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
+             LEFT JOIN departments d ON d.department_id = r.department_id
+             LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
              WHERE r.request_id = $1`;
   const values = [requestId];
 
@@ -117,13 +162,16 @@ async function findById(requestId, userRole, userDeptId) {
 
 async function create(data, userId, userDeptId) {
   const { moduleId, requestTypeId, priority, processDescription, currentBehavior, expectedBehavior } = data;
+  const cleanPriority = ['baja', 'media', 'alta'].includes((priority || '').toLowerCase().trim())
+    ? priority.toLowerCase().trim()
+    : 'media';
 
   const result = await pool.query(
     `INSERT INTO requests (created_by, department_id, module_id, request_type_id, priority,
       process_description, current_behavior, expected_behavior)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [userId, userDeptId, moduleId, requestTypeId, priority || 'media',
+    [userId, userDeptId, moduleId, requestTypeId, cleanPriority,
      processDescription, currentBehavior, expectedBehavior]
   );
 
@@ -265,4 +313,19 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory };
+async function remove(requestId, userRole, userDeptId) {
+  const request = await findById(requestId, userRole, userDeptId);
+  if (!request) {
+    throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
+  }
+
+  if (userRole === 'requester') {
+    throw Object.assign(new Error('No tienes permiso para eliminar solicitudes'), { status: 403 });
+  }
+
+  const result = await pool.query('DELETE FROM requests WHERE request_id = $1 RETURNING *', [requestId]);
+  return result.rows[0];
+}
+
+module.exports = { findAll, findById, create, updateStatus, updatePriority, assign, getAttachments, getHistory, remove };
+

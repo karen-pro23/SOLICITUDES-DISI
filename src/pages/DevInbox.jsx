@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getRequests, updateRequestStatus, addComment } from '../services/api';
+import { getRequests, updateRequestStatus, deleteRequest, addComment } from '../services/api';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import ActionModal from '../components/ActionModal';
+import ConfirmModal from '../components/ConfirmModal';
 import {
   DndContext,
   closestCorners,
@@ -20,11 +21,11 @@ import { CSS } from '@dnd-kit/utilities';
 import './DevInbox.css';
 
 const STATUS_OPTIONS = [
-  { value: 'PENDIENTE', label: 'Pendiente', icon: '⏳' },
-  { value: 'EN_PROCESO', label: 'En Proceso', icon: '⚙️' },
-  { value: 'EN_PRUEBAS', label: 'En Pruebas', icon: '🧪' },
-  { value: 'COMPLETADA', label: 'Completada', icon: '✅' },
-  { value: 'RECHAZADA', label: 'Rechazada', icon: '❌' },
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'EN_PROCESO', label: 'En Proceso' },
+  { value: 'EN_PRUEBAS', label: 'En Pruebas' },
+  { value: 'COMPLETADA', label: 'Completada' },
+  { value: 'RECHAZADA', label: 'Rechazada' },
 ];
 
 const STATUS_ORDER = ['PENDIENTE', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA', 'RECHAZADA'];
@@ -55,6 +56,7 @@ function KanbanCardView({
   openStatusDropdown,
   setOpenStatusDropdown,
   handleStatusOptionClick,
+  handleDeleteClick,
 }) {
   return (
     <div
@@ -79,7 +81,7 @@ function KanbanCardView({
         </div>
         <div className="kanban-card-row">
           <span className="kanban-card-label">Departamento</span>
-          <span className="kanban-card-value">{req.department_name || '—'}</span>
+          <span className="kanban-card-value">{req.department_name || 'Sin departamento'}</span>
         </div>
         <div className="kanban-card-row">
           <span className="kanban-card-label">Módulo</span>
@@ -137,7 +139,7 @@ function KanbanCardView({
                       }}
                     >
                       <span className="status-dropdown-dot" data-status={statusValue} />
-                      {opt?.icon} {opt?.label}
+                      {opt?.label}
                     </button>
                   );
                 })}
@@ -149,6 +151,19 @@ function KanbanCardView({
         <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-primary" onClick={(e) => e.stopPropagation()}>
           Ver detalle
         </Link>
+        {!overlay && handleDeleteClick && (
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            title="Eliminar solicitud"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteClick(req);
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -211,6 +226,9 @@ export default function DevInbox() {
   const [modalSubmitting, setModalSubmitting] = useState(false);
   // Confirmación para módulo no-sistemas
   const [nonSystemsConfirm, setNonSystemsConfirm] = useState(null);
+  // Delete confirmation modal
+  const [confirmDeleteReq, setConfirmDeleteReq] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   // Dropdown de estado abierto
   const [openStatusDropdown, setOpenStatusDropdown] = useState(null);
 
@@ -364,6 +382,24 @@ export default function DevInbox() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openStatusDropdown]);
 
+  function handleDeleteRequest(req) {
+    setConfirmDeleteReq(req);
+  }
+
+  async function confirmDelete(req) {
+    setDeleting(true);
+    try {
+      await deleteRequest(req.request_id);
+      toast.success(`Solicitud ${req.ticket_code} eliminada`);
+      setConfirmDeleteReq(null);
+      fetchAllRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function renderCard(req) {
     return (
       <DraggableKanbanCard
@@ -373,6 +409,7 @@ export default function DevInbox() {
         openStatusDropdown={openStatusDropdown}
         setOpenStatusDropdown={setOpenStatusDropdown}
         handleStatusOptionClick={handleStatusOptionClick}
+        handleDeleteClick={handleDeleteRequest}
       />
     );
   }
@@ -457,6 +494,19 @@ export default function DevInbox() {
               ? 'Ingresá el motivo del rechazo. Esta justificación será visible para el solicitante.'
               : 'Podés agregar una nota sobre la solución aplicada.'
           }
+        />
+
+        {/* Confirmación — Eliminar solicitud */}
+        <ConfirmModal
+          isOpen={Boolean(confirmDeleteReq)}
+          onClose={() => setConfirmDeleteReq(null)}
+          onConfirm={() => confirmDelete(confirmDeleteReq)}
+          title="Eliminar solicitud"
+          description={confirmDeleteReq ? `¿Estás seguro de que deseas eliminar permanentemente la solicitud ${confirmDeleteReq.ticket_code}?` : undefined}
+          confirmLabel="Eliminar"
+          confirmClassName="btn-danger"
+          submitting={deleting}
+          submittingLabel="Eliminando..."
         />
 
         {/* Confirmación para módulo no-sistemas */}

@@ -81,7 +81,7 @@ export default function SearchRequests() {
           Buscar Solicitudes
         </h1>
         <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
-          Ingrese su número de cédula para ver sus solicitudes.
+          Ingresá tu número de cédula o el código/número de solicitud (ej: SOL-2026-0001) para consultar el estado.
         </p>
 
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem' }}>
@@ -89,7 +89,7 @@ export default function SearchRequests() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value.toLocaleUpperCase())}
-            placeholder="Ej: 30297111"
+            placeholder="Ej: 30297111 o SOL-2026-0001"
             style={{
               flex: 1,
               padding: '0.75rem 1rem',
@@ -119,9 +119,11 @@ export default function SearchRequests() {
             borderRadius: 'var(--radius-lg)',
             border: '1px solid #e2e8f0',
           }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔍</div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
             <p style={{ color: 'var(--color-gray-600)', fontSize: '1rem' }}>
-              No se encontraron solicitudes para esa cédula.
+              No se encontraron solicitudes asociadas a esa cédula o número de ticket.
             </p>
           </div>
         )}

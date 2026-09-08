@@ -92,6 +92,15 @@ export async function getPublicRequest(id) {
   return data;
 }
 
+// Attachment helpers — build URLs that go through the auth proxy
+export function getAttachmentDownloadUrl(requestId, fileId) {
+  return `/api/requests/${requestId}/attachments/${fileId}/download`;
+}
+
+export function getAttachmentPreviewUrl(requestId, fileId) {
+  return `/api/requests/${requestId}/attachments/${fileId}/preview`;
+}
+
 // Authenticated API
 export async function login(email, password) {
   const { data } = await api.post('/auth/login', { email, password });
@@ -134,6 +143,11 @@ export async function createRequest(formData) {
 
 export async function updateRequestStatus(id, status, rejectionReason) {
   const { data } = await api.patch(`/requests/${id}/status`, { status, rejectionReason });
+  return data;
+}
+
+export async function deleteRequest(id) {
+  const { data } = await api.delete(`/requests/${id}`);
   return data;
 }
 

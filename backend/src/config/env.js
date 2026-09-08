@@ -17,7 +17,7 @@ module.exports = {
   },
   upload: {
     dir: process.env.UPLOAD_DIR || '../uploads',
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 5242880,
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 52428800,
   },
   googleAI: {
     apiKey: process.env.GOOGLE_AI_API_KEY || '',

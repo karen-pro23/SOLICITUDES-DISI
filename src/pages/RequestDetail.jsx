@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRequest, updateRequestStatus, addComment, classifyRequest, generateResponse } from '../services/api';
+import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { STATUS_TRANSITIONS } from '../constants/requestOptions';
 import './RequestDetail.css';
 
@@ -50,6 +51,9 @@ export default function RequestDetail() {
   const [responseObservations, setResponseObservations] = useState('');
   const [generatedResponse, setGeneratedResponse] = useState('');
   const [responseLoading, setResponseLoading] = useState(false);
+
+  // Delete confirmation modal
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     getRequest(id).then(setData).catch(() => navigate('/buscar')).finally(() => setLoading(false));
@@ -99,6 +103,23 @@ export default function RequestDetail() {
       setData(updated);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al cambiar estado');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleDeleteRequest() {
+    setConfirmDelete(true);
+  }
+
+  async function confirmDeleteAction() {
+    setSubmitting(true);
+    try {
+      await deleteRequest(request.request_id);
+      toast.success(`Solicitud ${request.ticket_code} eliminada con éxito`);
+      navigate('/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
     } finally {
       setSubmitting(false);
     }
@@ -293,7 +314,8 @@ export default function RequestDetail() {
                 <h3>Archivos Adjuntos ({attachments.length})</h3>
                 <div className="attachments-list">
                   {attachments.map((att) => {
-                    const fileUrl = getAttachmentUrl(att);
+                    const previewUrl = getAttachmentPreviewUrl(request.request_id, att.attachment_id);
+                    const downloadUrl = getAttachmentDownloadUrl(request.request_id, att.attachment_id);
                     const isImage = att.file_type === 'screenshot' || att.mime_type?.startsWith('image/');
                     const isPdf = att.file_type === 'document' || att.mime_type === 'application/pdf';
 
@@ -301,7 +323,13 @@ export default function RequestDetail() {
                       <div key={att.attachment_id} className="attachment-item">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span className="attachment-icon">
-                            {isImage ? '🖼️' : '📄'}
+                            {isImage ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            ) : isPdf ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            ) : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            )}
                           </span>
                           <span className="attachment-name">{att.file_name}</span>
                           <span className="attachment-size">
@@ -314,7 +342,7 @@ export default function RequestDetail() {
                             <button
                               type="button"
                               className="btn btn-outline btn-sm"
-                              onClick={() => setImagePreviewModal({ src: fileUrl, alt: att.file_name })}
+                              onClick={() => setImagePreviewModal({ src: previewUrl, alt: att.file_name })}
                             >
                               Ver Imagen
                             </button>
@@ -324,14 +352,14 @@ export default function RequestDetail() {
                             <button
                               type="button"
                               className="btn btn-outline btn-sm"
-                              onClick={() => setPdfPreviewModal({ url: fileUrl, name: att.file_name })}
+                              onClick={() => setPdfPreviewModal({ url: previewUrl, name: att.file_name })}
                             >
                               Ver PDF
                             </button>
                           )}
 
                           <a
-                            href={fileUrl}
+                            href={downloadUrl}
                             download={att.file_name}
                             target="_blank"
                             rel="noreferrer"
@@ -347,7 +375,7 @@ export default function RequestDetail() {
               </div>
             )}
 
-            {canChangeStatus && actions.length > 0 && (
+            {canChangeStatus && (
               <div className="detail-section">
                 <h3>Acciones</h3>
                 <div className="status-actions">
@@ -361,6 +389,14 @@ export default function RequestDetail() {
                       {action.label}
                     </button>
                   ))}
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleDeleteRequest}
+                    disabled={submitting}
+                    style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Eliminar Solicitud
+                  </button>
                 </div>
               </div>
             )}
@@ -614,6 +650,19 @@ export default function RequestDetail() {
           onClose={() => setPdfPreviewModal(null)}
         />
       )}
+
+      {/* Modal de Confirmación — Eliminar solicitud */}
+      <ConfirmModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={confirmDeleteAction}
+        title="Eliminar solicitud"
+        description={`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${request.ticket_code}? Esta acción eliminará también sus adjuntos e historial.`}
+        confirmLabel="Eliminar"
+        confirmClassName="btn-danger"
+        submitting={submitting}
+        submittingLabel="Eliminando..."
+      />
     </div>
   );
 }

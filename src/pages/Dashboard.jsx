@@ -5,6 +5,7 @@ import {
   getModules,
   updateRequestStatus,
   updateRequestPriority,
+  deleteRequest,
   addComment,
   getMetrics,
 } from '../services/api';
@@ -12,6 +13,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
+import ConfirmModal from '../components/ConfirmModal';
+import PaginationControl from '../components/PaginationControl';
 import {
   STATUS_OPTIONS,
   STATUS_TRANSITIONS,
@@ -22,6 +25,8 @@ import './Dashboard.css';
 export default function Dashboard() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
@@ -33,30 +38,29 @@ export default function Dashboard() {
   const [pendingStatus, setPendingStatus] = useState(null); // estado elegido pendiente de confirmar (nota)
   const [modalSubmitting, setModalSubmitting] = useState(false);
 
+  // Delete confirmation modal
+  const [confirmDeleteReq, setConfirmDeleteReq] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Al abrir el modal de estado, reiniciar la selección pendiente
   useEffect(() => {
     if (activeStatusReq) setPendingStatus(null);
   }, [activeStatusReq]);
 
-  const fetchRequests = useCallback(async (cursor) => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { limit: 25 };
+      const params = { page, limit };
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
-      if (cursor) params.cursor = cursor;
 
       const [data, metricsData] = await Promise.all([
         getRequests(params),
         getMetrics().catch(() => null),
       ]);
 
-      if (cursor) {
-        setRequests((prev) => [...prev, ...data.requests]);
-      } else {
-        setRequests(data.requests);
-      }
+      setRequests(data.requests || []);
       setPagination(data.pagination);
       if (metricsData) setMetrics(metricsData);
     } catch (err) {
@@ -64,18 +68,20 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, page, limit]);
 
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
 
   function handleStatusTab(statusKey) {
+    setPage(1);
     setFilters((prev) => ({ ...prev, status: statusKey }));
   }
 
   function handleSearch(e) {
     e.preventDefault();
+    setPage(1);
     fetchRequests();
   }
 
@@ -112,6 +118,24 @@ export default function Dashboard() {
       toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
     } finally {
       setModalSubmitting(false);
+    }
+  }
+
+  function handleDeleteRequest(req) {
+    setConfirmDeleteReq(req);
+  }
+
+  async function confirmDelete(req) {
+    setDeleting(true);
+    try {
+      await deleteRequest(req.request_id);
+      toast.success(`Solicitud ${req.ticket_code} eliminada con éxito`);
+      setConfirmDeleteReq(null);
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -280,121 +304,103 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="table-responsive">
-            <table className="table">
+            <table className="table request-table">
               <thead>
                 <tr>
-                  <th>Código</th>
-                  <th>Solicitante / Dpto</th>
-                  <th>Módulo</th>
+                  <th>Código / Ticket</th>
+                  <th>Solicitante y Origen</th>
+                  <th>Módulo Afectado</th>
                   <th>Estado</th>
                   <th>Prioridad</th>
                   <th>Fecha</th>
-                  <th style={{ textAlign: 'right' }}>Acciones Rápidas</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req) => (
-                  <tr key={req.request_id}>
-                    <td>
-                      <Link to={`/requests/${req.request_id}`} style={{ fontWeight: 700 }}>
-                        {req.ticket_code}
-                      </Link>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--color-gray-900)' }}>
-                        {req.created_by_name}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
-                        {req.department_name || 'Departamento'}
-                      </div>
-                    </td>
-                    <td>{req.module_name}</td>
-                    <td>
-                      <StatusBadge status={req.status} />
-                    </td>
-                     <td>
-                       <span
-                         className={`priority-pill priority-${req.priority}`}
-                         style={{
-                           fontSize: '0.75rem',
-                           fontWeight: 700,
-                           padding: '0.375rem 0.75rem',
-                           borderRadius: '24px',
-                           textTransform: 'uppercase',
-                           letterSpacing: '0.05em',
-                           boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
-                           transition: 'all 0.2s ease',
-                           background:
-                             req.priority === 'alta'
-                               ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
-                               : req.priority === 'media'
-                               ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
-                               : req.priority === 'baja'
-                               ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
-                               : 'linear-gradient(135deg, #f1f5f9, #e2e8f0)',
-                            color:
-                              req.priority === 'alta'
-                                ? '#dc2626'
-                                : req.priority === 'media'
-                                ? '#d97706'
-                                : req.priority === 'baja'
-                                ? '#16a34a'
-                                : '#64748b',
-                            border: `1.5px solid ${req.priority === 'alta' ? '#fca5a5' : req.priority === 'media' ? '#fcd34d' : req.priority === 'baja' ? '#86efac' : '#cbd5e1'}`,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            backgroundImage:
-                              req.priority === 'alta'
-                                ? 'linear-gradient(135deg, #fef2f2, #fee2e2)'
-                                : req.priority === 'media'
-                                ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
-                                : req.priority === 'baja'
-                                ? 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
-                                : 'linear-gradient(135deg, #f8fafc, #e2e8f0)',
-                          }}
-                       >
-                         {req.priority}
-                       </span>
-                     </td>
-                    <td>{new Date(req.created_at).toLocaleDateString()}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.375rem' }}>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => setActiveStatusReq(req)}
-                          title="Cambiar estado de la solicitud"
-                        >
-                          ESTADO
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => setActivePriorityReq(req)}
-                          title="Cambiar prioridad de la solicitud"
-                        >
-                          PRIORIDAD
-                        </button>
-                        <Link to={`/requests/${req.request_id}`} className="btn btn-sm btn-outline">
-                          VER DETALLE
+                {requests.map((req) => {
+                  const initial = (req.created_by_name || 'U').charAt(0).toUpperCase();
+                  return (
+                    <tr key={req.request_id} className="request-table-row">
+                      <td className="col-ticket">
+                        <Link to={`/requests/${req.request_id}`} className="ticket-badge-link">
+                          <svg className="ticket-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>
+                          <span className="ticket-code-text">{req.ticket_code}</span>
                         </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="col-user">
+                        <div className="user-info-cell">
+                          <div className="user-avatar">{initial}</div>
+                          <div>
+                            <div className="user-name">{req.created_by_name || 'Usuario'}</div>
+                            <div className="user-dept">{req.department_name || 'Sin departamento'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="col-module">
+                        <span className="module-tag">{req.module_name}</span>
+                      </td>
+                      <td className="col-status">
+                        <StatusBadge status={req.status} />
+                      </td>
+                      <td className="col-priority">
+                        <span className={`priority-pill priority-${req.priority}`}>
+                          {req.priority}
+                        </span>
+                      </td>
+                      <td className="col-date">
+                        <span className="date-text">{new Date(req.created_at).toLocaleDateString()}</span>
+                      </td>
+                      <td className="col-actions" style={{ textAlign: 'right' }}>
+                        <div className="row-actions-group">
+                          <button
+                            type="button"
+                            className="btn-action-pill btn-action-status"
+                            onClick={() => setActiveStatusReq(req)}
+                            title="Cambiar estado de la solicitud"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Estado
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-action-pill btn-action-priority"
+                            onClick={() => setActivePriorityReq(req)}
+                            title="Cambiar prioridad de la solicitud"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> Prioridad
+                          </button>
+                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Detalle
+                          </Link>
+                          {user && user.role !== 'requester' && (
+                            <button
+                              type="button"
+                              className="btn-action-pill btn-action-delete"
+                              onClick={() => handleDeleteRequest(req)}
+                              title="Eliminar solicitud"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {pagination?.hasMore && (
-            <div className="pagination-actions">
-              <button
-                className="btn btn-outline"
-                onClick={() => fetchRequests(pagination.nextCursor)}
-                disabled={loading}
-              >
-                {loading ? 'Cargando...' : 'Cargar más solicitudes'}
-              </button>
-            </div>
-          )}
+          <PaginationControl
+            currentPage={pagination?.page || page}
+            totalPages={pagination?.totalPages || 1}
+            totalItems={pagination?.totalItems || requests.length}
+            limit={limit}
+            onPageChange={(newPage) => setPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+          />
         </>
       )}
 
@@ -427,6 +433,19 @@ export default function Dashboard() {
         onSelect={(value) => submitPriority(activePriorityReq, value)}
         noteConfig={null}
         submitting={modalSubmitting}
+      />
+
+      {/* Modal de Confirmación — Eliminar solicitud */}
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteReq)}
+        onClose={() => setConfirmDeleteReq(null)}
+        onConfirm={() => confirmDelete(confirmDeleteReq)}
+        title="Eliminar solicitud"
+        description={confirmDeleteReq ? `¿Estás seguro de que deseas eliminar permanentemente la solicitud ${confirmDeleteReq.ticket_code}?` : undefined}
+        confirmLabel="Eliminar"
+        confirmClassName="btn-danger"
+        submitting={deleting}
+        submittingLabel="Eliminando..."
       />
     </div>
   );
