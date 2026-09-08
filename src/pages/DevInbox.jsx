@@ -4,6 +4,7 @@ import { getRequests, updateRequestStatus, deleteRequest, addComment } from '../
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import ActionModal from '../components/ActionModal';
+import ConfirmModal from '../components/ConfirmModal';
 import {
   DndContext,
   closestCorners,
@@ -225,6 +226,9 @@ export default function DevInbox() {
   const [modalSubmitting, setModalSubmitting] = useState(false);
   // Confirmación para módulo no-sistemas
   const [nonSystemsConfirm, setNonSystemsConfirm] = useState(null);
+  // Delete confirmation modal
+  const [confirmDeleteReq, setConfirmDeleteReq] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   // Dropdown de estado abierto
   const [openStatusDropdown, setOpenStatusDropdown] = useState(null);
 
@@ -378,16 +382,21 @@ export default function DevInbox() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openStatusDropdown]);
 
-  async function handleDeleteRequest(req) {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${req.ticket_code}?`)) {
-      return;
-    }
+  function handleDeleteRequest(req) {
+    setConfirmDeleteReq(req);
+  }
+
+  async function confirmDelete(req) {
+    setDeleting(true);
     try {
       await deleteRequest(req.request_id);
       toast.success(`Solicitud ${req.ticket_code} eliminada`);
+      setConfirmDeleteReq(null);
       fetchAllRequests();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -485,6 +494,19 @@ export default function DevInbox() {
               ? 'Ingresá el motivo del rechazo. Esta justificación será visible para el solicitante.'
               : 'Podés agregar una nota sobre la solución aplicada.'
           }
+        />
+
+        {/* Confirmación — Eliminar solicitud */}
+        <ConfirmModal
+          isOpen={Boolean(confirmDeleteReq)}
+          onClose={() => setConfirmDeleteReq(null)}
+          onConfirm={() => confirmDelete(confirmDeleteReq)}
+          title="Eliminar solicitud"
+          description={confirmDeleteReq ? `¿Estás seguro de que deseas eliminar permanentemente la solicitud ${confirmDeleteReq.ticket_code}?` : undefined}
+          confirmLabel="Eliminar"
+          confirmClassName="btn-danger"
+          submitting={deleting}
+          submittingLabel="Eliminando..."
         />
 
         {/* Confirmación para módulo no-sistemas */}

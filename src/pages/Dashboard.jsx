@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
+import ConfirmModal from '../components/ConfirmModal';
 import PaginationControl from '../components/PaginationControl';
 import {
   STATUS_OPTIONS,
@@ -36,6 +37,10 @@ export default function Dashboard() {
   const [activePriorityReq, setActivePriorityReq] = useState(null); // solicitud cuya prioridad se edita
   const [pendingStatus, setPendingStatus] = useState(null); // estado elegido pendiente de confirmar (nota)
   const [modalSubmitting, setModalSubmitting] = useState(false);
+
+  // Delete confirmation modal
+  const [confirmDeleteReq, setConfirmDeleteReq] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Al abrir el modal de estado, reiniciar la selección pendiente
   useEffect(() => {
@@ -116,16 +121,21 @@ export default function Dashboard() {
     }
   }
 
-  async function handleDeleteRequest(req) {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${req.ticket_code}?`)) {
-      return;
-    }
+  function handleDeleteRequest(req) {
+    setConfirmDeleteReq(req);
+  }
+
+  async function confirmDelete(req) {
+    setDeleting(true);
     try {
       await deleteRequest(req.request_id);
       toast.success(`Solicitud ${req.ticket_code} eliminada con éxito`);
+      setConfirmDeleteReq(null);
       fetchRequests();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -423,6 +433,19 @@ export default function Dashboard() {
         onSelect={(value) => submitPriority(activePriorityReq, value)}
         noteConfig={null}
         submitting={modalSubmitting}
+      />
+
+      {/* Modal de Confirmación — Eliminar solicitud */}
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteReq)}
+        onClose={() => setConfirmDeleteReq(null)}
+        onConfirm={() => confirmDelete(confirmDeleteReq)}
+        title="Eliminar solicitud"
+        description={confirmDeleteReq ? `¿Estás seguro de que deseas eliminar permanentemente la solicitud ${confirmDeleteReq.ticket_code}?` : undefined}
+        confirmLabel="Eliminar"
+        confirmClassName="btn-danger"
+        submitting={deleting}
+        submittingLabel="Eliminando..."
       />
     </div>
   );

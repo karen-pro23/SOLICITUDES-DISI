@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { STATUS_TRANSITIONS } from '../constants/requestOptions';
 import './RequestDetail.css';
 
@@ -50,6 +51,9 @@ export default function RequestDetail() {
   const [responseObservations, setResponseObservations] = useState('');
   const [generatedResponse, setGeneratedResponse] = useState('');
   const [responseLoading, setResponseLoading] = useState(false);
+
+  // Delete confirmation modal
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     getRequest(id).then(setData).catch(() => navigate('/buscar')).finally(() => setLoading(false));
@@ -104,10 +108,11 @@ export default function RequestDetail() {
     }
   }
 
-  async function handleDeleteRequest() {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${request.ticket_code}? Esta acción eliminará también sus adjuntos e historial.`)) {
-      return;
-    }
+  function handleDeleteRequest() {
+    setConfirmDelete(true);
+  }
+
+  async function confirmDeleteAction() {
     setSubmitting(true);
     try {
       await deleteRequest(request.request_id);
@@ -645,6 +650,19 @@ export default function RequestDetail() {
           onClose={() => setPdfPreviewModal(null)}
         />
       )}
+
+      {/* Modal de Confirmación — Eliminar solicitud */}
+      <ConfirmModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={confirmDeleteAction}
+        title="Eliminar solicitud"
+        description={`¿Estás seguro de que deseas eliminar permanentemente la solicitud ${request.ticket_code}? Esta acción eliminará también sus adjuntos e historial.`}
+        confirmLabel="Eliminar"
+        confirmClassName="btn-danger"
+        submitting={submitting}
+        submittingLabel="Eliminando..."
+      />
     </div>
   );
 }
