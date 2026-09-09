@@ -99,24 +99,31 @@ async function findAll(filters, userId, userRole, userDeptId) {
     END DESC,
     r.created_at DESC`;
 
-  if (filters.sortBy) {
+  if (!filters.cursor && filters.sort) {
     const validSortColumns = {
-      'ticket_code': 'r.ticket_code',
-      'created_by_name': 'creator.full_name',
-      'module_name': 'm.name',
-      'status': 'r.status',
+      'code': 'r.ticket_code',
+      'requester': 'creator.full_name',
+      'module': 'm.name',
+      'status': `CASE r.status
+                   WHEN 'PENDIENTE' THEN 1
+                   WHEN 'EN_PROCESO' THEN 2
+                   WHEN 'EN_PRUEBAS' THEN 3
+                   WHEN 'COMPLETADA' THEN 4
+                   WHEN 'RECHAZADA' THEN 5
+                   ELSE 0
+                 END`,
       'priority': `CASE r.priority
                      WHEN 'alta' THEN 3
                      WHEN 'media' THEN 2
                      WHEN 'baja' THEN 1
                      ELSE 0
                    END`,
-      'created_at': 'r.created_at'
+      'date': 'r.created_at'
     };
 
-    if (validSortColumns[filters.sortBy]) {
-      const order = filters.sortOrder && filters.sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-      orderByClause = ` ORDER BY ${validSortColumns[filters.sortBy]} ${order} NULLS LAST, r.created_at DESC`;
+    if (validSortColumns[filters.sort]) {
+      const order = filters.order && filters.order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      orderByClause = ` ORDER BY ${validSortColumns[filters.sort]} ${order} NULLS LAST, r.request_id ASC`;
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getRequests,
@@ -30,7 +30,8 @@ export default function Dashboard() {
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: null });
+  const seqRef = useRef(0);
   const [metrics, setMetrics] = useState(null);
 
   // Modal State
@@ -49,6 +50,7 @@ export default function Dashboard() {
   }, [activeStatusReq]);
 
   const fetchRequests = useCallback(async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const params = { page, limit };
@@ -56,8 +58,8 @@ export default function Dashboard() {
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
       if (sortConfig.key) {
-        params.sortBy = sortConfig.key;
-        params.sortOrder = sortConfig.direction;
+        params.sort = sortConfig.key;
+        params.order = sortConfig.dir;
       }
 
       const [data, metricsData] = await Promise.all([
@@ -65,13 +67,14 @@ export default function Dashboard() {
         getMetrics().catch(() => null),
       ]);
 
+      if (seq !== seqRef.current) return;
       setRequests(data.requests || []);
       setPagination(data.pagination);
       if (metricsData) setMetrics(metricsData);
     } catch (err) {
       console.error('Error al obtener solicitudes:', err);
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
   }, [filters, page, limit, sortConfig]);
 
@@ -90,27 +93,34 @@ export default function Dashboard() {
     fetchRequests();
   }
 
-  function handleSort(key) {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+  function cycleSort(key) {
+    if (sortConfig.key === key) {
+      if (sortConfig.dir === 'asc') {
+        setSortConfig({ key, dir: 'desc' });
+      } else {
+        setSortConfig({ key: null, dir: null });
+      }
+    } else {
+      setSortConfig({ key, dir: 'asc' });
     }
-    setSortConfig({ key, direction });
     setPage(1);
   }
 
   const renderSortableHeader = (label, sortKey) => {
     const isActive = sortConfig.key === sortKey;
+    const ariaSort = isActive ? (sortConfig.dir === 'asc' ? 'ascending' : 'descending') : 'none';
     return (
-      <th onClick={() => handleSort(sortKey)} style={{ cursor: 'pointer', userSelect: 'none' }} title={`Ordenar por ${label}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {label}
-          {isActive ? (
-            <span style={{ fontSize: '0.8em', color: 'inherit' }}>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-          ) : (
-            <span style={{ fontSize: '0.8em', color: 'var(--text-muted, #9ca3af)', opacity: 0.5 }}>⇅</span>
-          )}
-        </div>
+      <th scope="col" aria-sort={ariaSort} className="th-sort">
+        <button type="button" onClick={() => cycleSort(sortKey)}>
+          <span>{label}</span>
+          <span className="sort-chevron" aria-hidden="true">
+            {isActive ? (
+              sortConfig.dir === 'asc' ? '▲' : '▼'
+            ) : (
+              '⇅'
+            )}
+          </span>
+        </button>
       </th>
     );
   };
