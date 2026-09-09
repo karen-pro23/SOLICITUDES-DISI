@@ -90,7 +90,7 @@ async function findAll(filters, userId, userRole, userDeptId) {
     queryValues.push(filters.cursor);
   }
 
-  querySql += ` ORDER BY
+  let orderByClause = ` ORDER BY
     CASE r.priority
       WHEN 'alta' THEN 3
       WHEN 'media' THEN 2
@@ -98,6 +98,36 @@ async function findAll(filters, userId, userRole, userDeptId) {
       ELSE 0
     END DESC,
     r.created_at DESC`;
+
+  if (!filters.cursor && filters.sort) {
+    const validSortColumns = {
+      'ticket_code': 'r.ticket_code',
+      'created_by_name': 'creator.full_name',
+      'module_name': 'm.name',
+      'status': `CASE r.status
+                   WHEN 'PENDIENTE' THEN 1
+                   WHEN 'EN_PROCESO' THEN 2
+                   WHEN 'EN_PRUEBAS' THEN 3
+                   WHEN 'COMPLETADA' THEN 4
+                   WHEN 'RECHAZADA' THEN 5
+                   ELSE 0
+                 END`,
+      'priority': `CASE r.priority
+                     WHEN 'alta' THEN 3
+                     WHEN 'media' THEN 2
+                     WHEN 'baja' THEN 1
+                     ELSE 0
+                   END`,
+      'created_at': 'r.created_at'
+    };
+
+    if (validSortColumns[filters.sort]) {
+      const order = filters.order && filters.order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      orderByClause = ` ORDER BY ${validSortColumns[filters.sort]} ${order} NULLS LAST, r.request_id ASC`;
+    }
+  }
+
+  querySql += orderByClause;
 
   if (!filters.cursor) {
     querySql += ` LIMIT $${qIdx++} OFFSET $${qIdx++}`;

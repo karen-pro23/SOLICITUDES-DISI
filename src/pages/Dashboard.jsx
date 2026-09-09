@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getRequests,
@@ -30,6 +30,8 @@ export default function Dashboard() {
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: null });
+  const seqRef = useRef(0);
   const [metrics, setMetrics] = useState(null);
 
   // Modal State
@@ -48,27 +50,33 @@ export default function Dashboard() {
   }, [activeStatusReq]);
 
   const fetchRequests = useCallback(async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const params = { page, limit };
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
+      if (sortConfig.key) {
+        params.sort = sortConfig.key;
+        params.order = sortConfig.dir;
+      }
 
       const [data, metricsData] = await Promise.all([
         getRequests(params),
         getMetrics().catch(() => null),
       ]);
 
+      if (seq !== seqRef.current) return;
       setRequests(data.requests || []);
       setPagination(data.pagination);
       if (metricsData) setMetrics(metricsData);
     } catch (err) {
       console.error('Error al obtener solicitudes:', err);
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
-  }, [filters, page, limit]);
+  }, [filters, page, limit, sortConfig]);
 
   useEffect(() => {
     fetchRequests();
@@ -84,6 +92,38 @@ export default function Dashboard() {
     setPage(1);
     fetchRequests();
   }
+
+  function cycleSort(key) {
+    if (sortConfig.key === key) {
+      if (sortConfig.dir === 'asc') {
+        setSortConfig({ key, dir: 'desc' });
+      } else {
+        setSortConfig({ key: null, dir: null });
+      }
+    } else {
+      setSortConfig({ key, dir: 'asc' });
+    }
+    setPage(1);
+  }
+
+  const renderSortableHeader = (label, sortKey) => {
+    const isActive = sortConfig.key === sortKey;
+    const ariaSort = isActive ? (sortConfig.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return (
+      <th scope="col" aria-sort={ariaSort} className="th-sort">
+        <button type="button" onClick={() => cycleSort(sortKey)}>
+          <span>{label}</span>
+          <span className="sort-chevron" aria-hidden="true">
+            {isActive ? (
+              sortConfig.dir === 'asc' ? '▲' : '▼'
+            ) : (
+              '⇅'
+            )}
+          </span>
+        </button>
+      </th>
+    );
+  };
 
   // Acciones Rápidas
   async function submitStatus(req, value, note) {
@@ -307,12 +347,12 @@ export default function Dashboard() {
             <table className="table request-table">
               <thead>
                 <tr>
-                  <th>Código / Ticket</th>
-                  <th>Solicitante y Origen</th>
-                  <th>Módulo Afectado</th>
-                  <th>Estado</th>
-                  <th>Prioridad</th>
-                  <th>Fecha</th>
+                  {renderSortableHeader("Código / Ticket", "ticket_code")}
+                  {renderSortableHeader("Solicitante y Origen", "created_by_name")}
+                  {renderSortableHeader("Módulo Afectado", "module_name")}
+                  {renderSortableHeader("Estado", "status")}
+                  {renderSortableHeader("Prioridad", "priority")}
+                  {renderSortableHeader("Fecha", "created_at")}
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
