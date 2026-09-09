@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [metrics, setMetrics] = useState(null);
 
   // Modal State
@@ -54,6 +55,10 @@ export default function Dashboard() {
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
+      if (sortConfig.key) {
+        params.sortBy = sortConfig.key;
+        params.sortOrder = sortConfig.direction;
+      }
 
       const [data, metricsData] = await Promise.all([
         getRequests(params),
@@ -68,7 +73,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, limit]);
+  }, [filters, page, limit, sortConfig]);
 
   useEffect(() => {
     fetchRequests();
@@ -84,6 +89,31 @@ export default function Dashboard() {
     setPage(1);
     fetchRequests();
   }
+
+  function handleSort(key) {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+    setPage(1);
+  }
+
+  const renderSortableHeader = (label, sortKey) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <th onClick={() => handleSort(sortKey)} style={{ cursor: 'pointer', userSelect: 'none' }} title={`Ordenar por ${label}`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {label}
+          {isActive ? (
+            <span style={{ fontSize: '0.8em', color: 'inherit' }}>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+          ) : (
+            <span style={{ fontSize: '0.8em', color: 'var(--text-muted, #9ca3af)', opacity: 0.5 }}>⇅</span>
+          )}
+        </div>
+      </th>
+    );
+  };
 
   // Acciones Rápidas
   async function submitStatus(req, value, note) {
@@ -307,12 +337,12 @@ export default function Dashboard() {
             <table className="table request-table">
               <thead>
                 <tr>
-                  <th>Código / Ticket</th>
-                  <th>Solicitante y Origen</th>
-                  <th>Módulo Afectado</th>
-                  <th>Estado</th>
-                  <th>Prioridad</th>
-                  <th>Fecha</th>
+                  {renderSortableHeader("Código / Ticket", "ticket_code")}
+                  {renderSortableHeader("Solicitante y Origen", "created_by_name")}
+                  {renderSortableHeader("Módulo Afectado", "module_name")}
+                  {renderSortableHeader("Estado", "status")}
+                  {renderSortableHeader("Prioridad", "priority")}
+                  {renderSortableHeader("Fecha", "created_at")}
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
