@@ -101,9 +101,9 @@ async function findAll(filters, userId, userRole, userDeptId) {
 
   if (!filters.cursor && filters.sort) {
     const validSortColumns = {
-      'code': 'r.ticket_code',
-      'requester': 'creator.full_name',
-      'module': 'm.name',
+      'ticket_code': 'r.ticket_code',
+      'created_by_name': 'creator.full_name',
+      'module_name': 'm.name',
       'status': `CASE r.status
                    WHEN 'PENDIENTE' THEN 1
                    WHEN 'EN_PROCESO' THEN 2
@@ -118,7 +118,7 @@ async function findAll(filters, userId, userRole, userDeptId) {
                      WHEN 'baja' THEN 1
                      ELSE 0
                    END`,
-      'date': 'r.created_at'
+      'created_at': 'r.created_at'
     };
 
     if (validSortColumns[filters.sort]) {
