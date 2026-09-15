@@ -9,7 +9,8 @@ async function getAll(req, res, next) {
       req.query,
       req.user.userId,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe
     );
     res.json(result);
   } catch (err) { next(err); }
@@ -20,7 +21,8 @@ async function getById(req, res, next) {
     const request = await requestService.findById(
       parseInt(req.params.id, 10),
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -81,7 +83,8 @@ async function updateStatus(req, res, next) {
       rejectionReason,
       req.user.userId,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe
     );
     res.json({ request });
   } catch (err) {
@@ -99,7 +102,9 @@ async function updatePriority(req, res, next) {
       parseInt(req.params.id, 10),
       priority,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     res.json({ request });
   } catch (err) {
@@ -110,14 +115,17 @@ async function updatePriority(req, res, next) {
 
 async function assign(req, res, next) {
   try {
-    const { assigneeId } = req.body;
-    if (!assigneeId) return res.status(400).json({ error: 'Asignado requerido' });
+    const { assigneeId, assignedDepartmentId } = req.body;
+    if (!assigneeId && !assignedDepartmentId) return res.status(400).json({ error: 'Debe especificar el empleado o el departamento para asignar' });
 
     const request = await requestService.assign(
       parseInt(req.params.id, 10),
-      parseInt(assigneeId, 10),
+      assigneeId ? parseInt(assigneeId, 10) : null,
+      assignedDepartmentId ? parseInt(assignedDepartmentId, 10) : null,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     res.json({ request });
   } catch (err) {
@@ -135,7 +143,9 @@ async function getAttachmentDownload(req, res, next) {
     const request = await requestService.findById(
       attachment.request_id,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -157,7 +167,9 @@ async function getAttachmentPreview(req, res, next) {
     const request = await requestService.findById(
       attachment.request_id,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -184,7 +196,9 @@ async function deleteAttachment(req, res, next) {
     const request = await requestService.findById(
       attachment.request_id,
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -197,7 +211,9 @@ async function remove(req, res, next) {
     const deleted = await requestService.remove(
       parseInt(req.params.id, 10),
       req.user.role,
-      req.user.departmentId
+      req.user.departmentId,
+      req.user.es_jefe,
+      req.user.userId
     );
     res.json({ message: 'Solicitud eliminada con éxito', request: deleted });
   } catch (err) {
