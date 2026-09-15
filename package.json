@@ -9,7 +9,9 @@
     "dev:backend": "pnpm --dir backend dev",
     "dev:all": "pnpm dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate": "pnpm --dir backend migrate",
+    "seed": "pnpm --dir backend seed"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
