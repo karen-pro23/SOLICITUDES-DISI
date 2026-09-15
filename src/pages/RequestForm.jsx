@@ -118,6 +118,7 @@ export default function RequestForm() {
   const [types, setTypes] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingAnimation, setSendingAnimation] = useState(false);
   const [error, setError] = useState('');
   const [submittedTicket, setSubmittedTicket] = useState(null);
 
@@ -700,6 +701,7 @@ export default function RequestForm() {
     }
 
     setSubmitting(true);
+    setSendingAnimation(true);
     setError('');
 
     try {
@@ -720,8 +722,16 @@ export default function RequestForm() {
       for (const item of documents) fd.append('documents', item.file);
 
       const result = await createPublicRequest(fd);
-      setSubmittedTicket(result.request);
+
+      // Mantener la animación visible al menos 2.5 segundos para una experiencia fluida
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2500));
+      const apiCall = Promise.resolve(result);
+      const [, finalResult] = await Promise.all([minDelay, apiCall]);
+
+      setSendingAnimation(false);
+      setSubmittedTicket(finalResult.request);
     } catch (err) {
+      setSendingAnimation(false);
       setError(err.response?.data?.error || 'Error al enviar la solicitud. Intente nuevamente.');
     } finally {
       setSubmitting(false);
@@ -765,18 +775,33 @@ export default function RequestForm() {
     <div className="request-form-shell">
       {isPublic && <PublicHeader />}
 
+      {/* ── Overlay de Animación de Envío ────────────────── */}
+      {sendingAnimation && (
+        <div className="sending-overlay" role="alert" aria-live="assertive">
+          <div className="sending-overlay-content">
+            <LetterSendingAnimation />
+            <h2 className="sending-title">Enviando tu solicitud...</h2>
+            <p className="sending-subtitle">Por favor no cierres esta ventana</p>
+            <div className="sending-dots">
+              <span className="sending-dot" />
+              <span className="sending-dot" />
+              <span className="sending-dot" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="request-form-page">
         {submittedTicket ? (
           <div className="request-form request-form-success" role="status" aria-live="polite">
             <LetterSendingAnimation ticketCode={submittedTicket.ticket_code} />
-            <h1 className="success-title">¡Solicitud Enviada con Éxito!</h1>
+            <h1 className="success-title">¡Solicitud Registrada con Éxito!</h1>
             <p className="success-text">
-              Tu solicitud ha sido ingresada correctamente al sistema y fue asignada al
-              equipo de Desarrollo de Sistemas.
+              Tu solicitud fue recibida correctamente y ha sido asignada al equipo de Desarrollo de Sistemas para su revisión.
             </p>
 
             <div className="success-ticket-box">
-              <span className="success-ticket-label">Código de Ticket para Seguimiento</span>
+              <span className="success-ticket-label">Código de Seguimiento</span>
               <div className="success-ticket-code">{submittedTicket.ticket_code}</div>
               <button
                 type="button"
@@ -794,6 +819,17 @@ export default function RequestForm() {
                   </>
                 )}
               </button>
+            </div>
+
+            <div className="success-messages">
+              <div className="success-message-thanks">
+                <span className="success-msg-icon">🙏</span>
+                <p>Gracias por utilizar el sistema de solicitudes de la Dirección de Sistemas de Información.</p>
+              </div>
+              <div className="success-message-attention">
+                <span className="success-msg-icon">📋</span>
+                <p>Su requerimiento será atendido a la brevedad por el equipo especializado. Recibirá una notificación por correo electrónico con el avance de su gestión.</p>
+              </div>
             </div>
 
             <div className="success-actions">
