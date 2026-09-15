@@ -6,7 +6,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "migrate": "node src/db/run-migrations.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "fix-admin": "node src/db/fix-super-admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "migrate": "pnpm --dir backend migrate",
-    "seed": "pnpm --dir backend seed"
+    "seed": "pnpm --dir backend seed",
+    "fix-admin": "pnpm --dir backend fix-admin"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
