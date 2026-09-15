@@ -15,11 +15,18 @@ async function getById(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getByDepartment(req, res, next) {
+  try {
+    const users = await userService.getByDepartment(parseInt(req.params.id, 10));
+    res.json({ users });
+  } catch (err) { next(err); }
+}
+
 async function create(req, res, next) {
   try {
     const { fullName, email, password, role, departmentId } = req.body;
-    if (!fullName || !email || !password || !role || !departmentId) {
-      return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    if (!fullName || !email || !password || !role) {
+      return res.status(400).json({ error: 'Todos los campos básicos son requeridos' });
     }
     const user = await userService.create(req.body);
     res.status(201).json({ user });
@@ -44,4 +51,4 @@ async function remove(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getAll, getById, create, update, remove };
+module.exports = { getAll, getById, getByDepartment, create, update, remove };

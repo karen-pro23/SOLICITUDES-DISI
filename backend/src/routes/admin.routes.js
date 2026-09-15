@@ -3,7 +3,7 @@ const { requireRole } = require('../middleware/auth.middleware');
 const {
   getModules, createModule, updateModule, deleteModule,
   getRequestTypes, createRequestType, updateRequestType, deleteRequestType,
-  getDepartments, getMetrics,
+  getDepartments, createDepartment, updateDepartment, deleteDepartment, getMetrics,
 } = require('../controllers/admin.controller');
 
 const router = Router();
@@ -23,6 +23,9 @@ router.delete('/request-types/:id', deleteRequestType);
 
 // Departamentos
 router.get('/departments', getDepartments);
+router.post('/departments', createDepartment);
+router.put('/departments/:id', updateDepartment);
+router.delete('/departments/:id', deleteDepartment);
 
 // Métricas
 router.get('/metrics', getMetrics);
