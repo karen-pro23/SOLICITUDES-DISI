@@ -156,9 +156,9 @@ export async function updateRequestPriority(id, priority) {
   return data;
 }
 
-export async function assignRequest(id, assigneeId) {
-  const { data } = await api.patch(`/requests/${id}/assign`, { assigneeId });
-  return data;
+export async function assignRequest(id, data) {
+  const res = await api.patch(`/requests/${id}/assign`, data);
+  return res.data;
 }
 
 export async function addComment(requestId, content, isInternal = false) {
@@ -183,6 +183,11 @@ export async function getDepartments() {
 
 export async function getUsers() {
   const { data } = await api.get('/admin/users');
+  return data.users;
+}
+
+export async function getUsersByDepartment(deptId) {
+  const { data } = await api.get(`/admin/users/department/${deptId}`);
   return data.users;
 }
 
