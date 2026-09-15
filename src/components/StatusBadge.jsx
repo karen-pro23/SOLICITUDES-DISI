@@ -6,6 +6,7 @@ const STATUS_STYLES = {
   EN_PROCESO: { bg: '#dbeafe', color: '#1e40af', label: 'En Proceso' },
   EN_PRUEBAS: { bg: '#e0e7ff', color: '#3730a3', label: 'En Pruebas' },
   COMPLETADA: { bg: '#d1fae5', color: '#065f46', label: 'Completada' },
+  ASIGNADA: { bg: '#e0f2fe', color: '#0369a1', label: 'Asignada' },
 };
 
 export default function StatusBadge({ status }) {

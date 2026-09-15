@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
 import ConfirmModal from '../components/ConfirmModal';
+import AssignModal from '../components/AssignModal';
 import { STATUS_TRANSITIONS } from '../constants/requestOptions';
 import './RequestDetail.css';
 
@@ -55,6 +56,9 @@ export default function RequestDetail() {
   // Delete confirmation modal
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Assignment modal
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+
   useEffect(() => {
     getRequest(id).then(setData).catch(() => navigate('/buscar')).finally(() => setLoading(false));
   }, [id, navigate]);
@@ -63,12 +67,17 @@ export default function RequestDetail() {
   if (!data) return null;
 
   const { request, attachments, history, comments } = data;
-  const canChangeStatus = user.role !== 'requester';
+  const canChangeStatus = user.role !== 'requester' || user.es_jefe;
 
   // Etiquetas y estilos locales para las transiciones permitidas
   const STATUS_ACTION_STYLES = {
     PENDIENTE: {
       EN_PROCESO: { label: 'Aceptar', className: 'btn-success' },
+      RECHAZADA: { label: 'Rechazar', className: 'btn-danger' },
+      ASIGNADA: { label: 'Asignar', className: 'btn-primary' },
+    },
+    ASIGNADA: {
+      EN_PROCESO: { label: 'Iniciar Proceso', className: 'btn-success' },
       RECHAZADA: { label: 'Rechazar', className: 'btn-danger' },
     },
     RECHAZADA: {
@@ -279,7 +288,17 @@ export default function RequestDetail() {
               </div>
               <div className="meta-item">
                 <span className="meta-label">Asignado a</span>
-                <span className="meta-value">{request.assigned_to_name || 'Sin asignar'}</span>
+                <span className="meta-value">
+                  {request.assigned_to_name ? (
+                    <span>👤 {request.assigned_to_name}</span>
+                  ) : null}
+                  {request.assigned_to_name && request.assigned_department_name ? <br /> : null}
+                  {request.assigned_department_name ? (
+                    <span style={{ color: 'var(--color-primary)' }}>🏢 {request.assigned_department_name}</span>
+                  ) : (
+                    !request.assigned_to_name && 'Sin asignar'
+                  )}
+                </span>
               </div>
               <div className="meta-item" style={{ gridColumn: '1 / -1' }}>
                 <span className="meta-label">Fecha de creación</span>
@@ -389,6 +408,14 @@ export default function RequestDetail() {
                       {action.label}
                     </button>
                   ))}
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => setAssignModalOpen(true)}
+                    disabled={submitting}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.375rem' }}><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    Asignar
+                  </button>
                   <button
                     className="btn btn-danger"
                     onClick={handleDeleteRequest}
@@ -662,6 +689,15 @@ export default function RequestDetail() {
         confirmClassName="btn-danger"
         submitting={submitting}
         submittingLabel="Eliminando..."
+      />
+
+      <AssignModal 
+        isOpen={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        request={request}
+        onAssignComplete={() => {
+          getRequest(id).then(setData);
+        }}
       />
     </div>
   );

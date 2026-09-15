@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
 import ConfirmModal from '../components/ConfirmModal';
+import AssignModal from '../components/AssignModal';
 import PaginationControl from '../components/PaginationControl';
 import {
   STATUS_OPTIONS,
@@ -37,6 +38,7 @@ export default function Dashboard() {
   // Modal State
   const [activeStatusReq, setActiveStatusReq] = useState(null); // solicitud cuyo estado se edita
   const [activePriorityReq, setActivePriorityReq] = useState(null); // solicitud cuya prioridad se edita
+  const [activeAssignReq, setActiveAssignReq] = useState(null); // solicitud a asignar
   const [pendingStatus, setPendingStatus] = useState(null); // estado elegido pendiente de confirmar (nota)
   const [modalSubmitting, setModalSubmitting] = useState(false);
 
@@ -352,6 +354,7 @@ export default function Dashboard() {
                   {renderSortableHeader("Módulo Afectado", "module_name")}
                   {renderSortableHeader("Estado", "status")}
                   {renderSortableHeader("Prioridad", "priority")}
+                  <th scope="col" className="th-sort">Asignado a</th>
                   {renderSortableHeader("Fecha", "created_at")}
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
@@ -387,6 +390,18 @@ export default function Dashboard() {
                           {req.priority}
                         </span>
                       </td>
+                      <td className="col-assigned">
+                        <div className="assigned-info" style={{ fontSize: '0.85rem' }}>
+                          {req.assigned_to_name ? (
+                            <><span style={{ color: 'var(--color-text)' }}>👤 {req.assigned_to_name}</span><br/></>
+                          ) : null}
+                          {req.assigned_department_name ? (
+                            <span style={{ color: 'var(--color-primary)' }}>🏢 {req.assigned_department_name}</span>
+                          ) : (
+                            !req.assigned_to_name && <span className="text-muted">Sin asignar</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="col-date">
                         <span className="date-text">{new Date(req.created_at).toLocaleDateString()}</span>
                       </td>
@@ -411,6 +426,17 @@ export default function Dashboard() {
                           <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Detalle
                           </Link>
+                          {user && (user.role !== 'requester' || user.es_jefe) && (
+                            <button
+                              type="button"
+                              className="btn-action-pill"
+                              style={{ backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', border: '1px solid currentColor' }}
+                              onClick={() => setActiveAssignReq(req)}
+                              title="Asignar solicitud"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Asignar
+                            </button>
+                          )}
                           {user && user.role !== 'requester' && (
                             <button
                               type="button"
@@ -486,6 +512,14 @@ export default function Dashboard() {
         confirmClassName="btn-danger"
         submitting={deleting}
         submittingLabel="Eliminando..."
+      />
+
+      {/* Modal de Asignación */}
+      <AssignModal 
+        isOpen={Boolean(activeAssignReq)} 
+        onClose={() => setActiveAssignReq(null)} 
+        request={activeAssignReq} 
+        onAssignComplete={fetchRequests} 
       />
     </div>
   );
