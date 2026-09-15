@@ -824,11 +824,11 @@ export default function RequestForm() {
             <div className="success-messages">
               <div className="success-message-thanks">
                 <span className="success-msg-icon">🙏</span>
-                <p>Gracias por utilizar el sistema de solicitudes de la Dirección de Sistemas de Información.</p>
+                <p>Gracias por utilizar el sistema de solicitudes de la Dirección de Sistemas e Información.</p>
               </div>
               <div className="success-message-attention">
                 <span className="success-msg-icon">📋</span>
-                <p>Su requerimiento será atendido a la brevedad por el equipo especializado. Recibirá una notificación por correo electrónico con el avance de su gestión.</p>
+                <p>Su requerimiento será atendido a la brevedad por el equipo especializado. Recibirá una notificación con el avance de su solicitud.</p>
               </div>
             </div>
 
