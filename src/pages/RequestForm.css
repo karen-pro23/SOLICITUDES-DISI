@@ -450,6 +450,13 @@
   flex: 1;
 }
 
+.upload-notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .upload-notice-close {
   background: transparent;
   border: none;
@@ -1033,9 +1040,24 @@
 }
 
 .success-msg-icon {
-  font-size: 1.35rem;
   flex-shrink: 0;
   margin-top: 0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.success-message-thanks .success-msg-icon {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.success-message-attention .success-msg-icon {
+  background: #dbeafe;
+  color: #2563eb;
 }
 
 .success-message-thanks p,
