@@ -1,13 +1,6 @@
 const pool = require('../db/pool');
 
-const VALID_TRANSITIONS = {
-  PENDIENTE:  ['EN_PROCESO', 'RECHAZADA', 'ASIGNADA'],
-  ASIGNADA:   ['EN_PROCESO', 'RECHAZADA'],
-  RECHAZADA:  ['PENDIENTE'],
-  EN_PROCESO: ['EN_PRUEBAS', 'ASIGNADA', 'PENDIENTE'],
-  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO'],
-  COMPLETADA: [],
-};
+// VALID_TRANSITIONS se eliminó para permitir cualquier cambio de estado
 
 const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
@@ -239,14 +232,7 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
 
-  // Validar transición
-  const allowed = VALID_TRANSITIONS[request.status];
-  if (!allowed || !allowed.includes(newStatus)) {
-    throw Object.assign(
-      new Error(`Transición inválida de ${request.status} a ${newStatus}`),
-      { status: 400 }
-    );
-  }
+  // Transiciones libres: se permite cualquier cambio de estado (ya no se valida en backend)
 
   // RECHAZADA requiere motivo
   if (newStatus === 'RECHAZADA' && !rejectionReason) {
