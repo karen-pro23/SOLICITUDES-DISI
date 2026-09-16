@@ -89,7 +89,7 @@ export default function UserManagement() {
             </div>
             <div className="form-group">
               <label>Rol</label>
-              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value.toLocaleUpperCase()})}>
+              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
                 <option value="requester">SOLICITANTE</option>
                 <option value="developer">DESARROLLADOR</option>
                 <option value="admin">ADMINISTRADOR</option>
