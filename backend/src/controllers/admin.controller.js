@@ -112,6 +112,45 @@ async function getDepartments(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function createDepartment(req, res, next) {
+  try {
+    const { name, code, description, is_it } = req.body;
+    const result = await pool.query(
+      `INSERT INTO departments (name, code, description, is_it)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [normalizeText(name), normalizeText(code), description ? normalizeText(description) : null, is_it ?? false]
+    );
+    res.status(201).json({ department: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'El departamento ya existe' });
+    next(err);
+  }
+}
+
+async function updateDepartment(req, res, next) {
+  try {
+    const { name, code, is_active, description, is_it } = req.body;
+    const result = await pool.query(
+      `UPDATE departments SET name = COALESCE($1, name), code = COALESCE($2, code),
+       is_active = COALESCE($3, is_active), description = COALESCE($4, description),
+       is_it = COALESCE($5, is_it)
+       WHERE department_id = $6 RETURNING *`,
+      [name ? normalizeText(name) : null, code ? normalizeText(code) : null, is_active ?? null, description ? normalizeText(description) : null, is_it ?? null, parseInt(req.params.id, 10)]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Departamento no encontrado' });
+    res.json({ department: result.rows[0] });
+  } catch (err) { next(err); }
+}
+
+async function deleteDepartment(req, res, next) {
+  try {
+    const result = await pool.query('DELETE FROM departments WHERE department_id = $1 RETURNING *',
+      [parseInt(req.params.id, 10)]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Departamento no encontrado' });
+    res.json({ message: 'Departamento eliminado' });
+  } catch (err) { next(err); }
+}
+
 // Métricas
 async function getMetrics(req, res, next) {
   try {
@@ -144,5 +183,5 @@ async function getMetrics(req, res, next) {
 module.exports = {
   getModules, createModule, updateModule, deleteModule,
   getRequestTypes, createRequestType, updateRequestType, deleteRequestType,
-  getDepartments, getMetrics,
+  getDepartments, createDepartment, updateDepartment, deleteDepartment, getMetrics,
 };

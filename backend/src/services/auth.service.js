@@ -6,9 +6,9 @@ const config = require('../config/env');
 
 async function login(email, password) {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.password_hash, u.role, u.department_id, d.name as department_name
+    `SELECT u.user_id, u.full_name, u.email, u.password_hash, u.role, u.department_id, u.es_jefe, d.name as department_name
      FROM users u
-     JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN departments d ON d.department_id = u.department_id
      WHERE LOWER(u.email) = LOWER($1) AND u.is_active = true`,
     [email]
   );
@@ -36,6 +36,7 @@ async function login(email, password) {
       role: user.role,
       departmentId: user.department_id,
       departmentName: user.department_name,
+      es_jefe: user.es_jefe,
     },
   };
 }
@@ -47,6 +48,7 @@ function generateAccessToken(user) {
       email: user.email,
       role: user.role,
       departmentId: user.department_id,
+      es_jefe: user.es_jefe,
     },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
@@ -74,7 +76,7 @@ async function refresh(refreshTokenValue) {
   const tokenHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
 
   const result = await pool.query(
-    `SELECT rt.*, u.email, u.role, u.department_id, u.user_id, u.full_name
+    `SELECT rt.*, u.email, u.role, u.department_id, u.es_jefe, u.user_id, u.full_name
      FROM refresh_tokens rt
      JOIN users u ON u.user_id = rt.user_id
      WHERE rt.token_hash = $1 AND rt.is_revoked = false AND rt.expires_at > now()`,
@@ -110,6 +112,7 @@ async function refresh(refreshTokenValue) {
     email: tokenRecord.email,
     role: tokenRecord.role,
     department_id: tokenRecord.department_id,
+    es_jefe: tokenRecord.es_jefe,
   });
 
   return {
@@ -142,9 +145,9 @@ function verifyAccessToken(token) {
 
 async function getUserById(userId) {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id, d.name as department_name
+    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id, u.es_jefe, d.name as department_name
      FROM users u
-     JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN departments d ON d.department_id = u.department_id
      WHERE u.user_id = $1`,
     [userId]
   );

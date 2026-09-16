@@ -7,7 +7,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'requester', departmentId: '' });
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'requester', departmentId: '', es_jefe: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function UserManagement() {
   }, []);
 
   function resetForm() {
-    setForm({ fullName: '', email: '', password: '', role: 'requester', departmentId: '' });
+    setForm({ fullName: '', email: '', password: '', role: 'requester', departmentId: '', es_jefe: false });
     setEditing(null);
   }
 
@@ -55,7 +55,8 @@ export default function UserManagement() {
       email: user.email,
       password: '',
       role: user.role,
-      departmentId: user.department_id,
+      departmentId: user.department_id || '',
+      es_jefe: user.es_jefe || false,
     });
   }
 
@@ -88,21 +89,27 @@ export default function UserManagement() {
             </div>
             <div className="form-group">
               <label>Rol</label>
-              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value.toLocaleUpperCase()})}>
+              <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
                 <option value="requester">SOLICITANTE</option>
                 <option value="developer">DESARROLLADOR</option>
                 <option value="admin">ADMINISTRADOR</option>
               </select>
             </div>
           </div>
-          <div className="form-group">
-            <label>Departamento</label>
-            <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value.toLocaleUpperCase()})} required>
-              <option value="">Seleccionar...</option>
-              {departments.map((d) => (
-                <option key={d.department_id} value={d.department_id}>{d.name}</option>
-              ))}
-            </select>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Departamento</label>
+              <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value})}>
+                <option value="">Seleccionar (Ninguno)</option>
+                {departments.map((d) => (
+                  <option key={d.department_id} value={d.department_id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input type="checkbox" id="es_jefe" checked={form.es_jefe} onChange={(e) => setForm({...form, es_jefe: e.target.checked})} style={{ width: 'auto', margin: 0 }} />
+              <label htmlFor="es_jefe" style={{ margin: 0 }}>Es Jefe de Departamento</label>
+            </div>
           </div>
           <div className="form-actions">
             {editing && <button type="button" className="btn btn-outline" onClick={resetForm}>Cancelar</button>}
@@ -118,6 +125,7 @@ export default function UserManagement() {
             <th>Email</th>
             <th>Rol</th>
             <th>Departamento</th>
+            <th>Es Jefe</th>
             <th>Activo</th>
             <th></th>
           </tr>
@@ -128,7 +136,8 @@ export default function UserManagement() {
               <td>{u.full_name}</td>
               <td>{u.email}</td>
               <td>{u.role}</td>
-              <td>{u.department_name}</td>
+              <td>{u.department_name || '-'}</td>
+              <td>{u.es_jefe ? '✓' : '✗'}</td>
               <td>{u.is_active ? '✓' : '✗'}</td>
               <td>
                 <button className="btn btn-sm btn-outline" onClick={() => handleEdit(u)}>Editar</button>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 const adminCards = [
   { to: '/admin/users', title: 'Usuarios', desc: 'Gestionar usuarios del sistema' },
   { to: '/admin/modules', title: 'Módulos y Tipos', desc: 'Configurar módulos y tipos de solicitud' },
+  { to: '/admin/departments', title: 'Departamentos', desc: 'Gestionar áreas de la organización' },
   { to: '/admin/metrics', title: 'Métricas', desc: 'Dashboard de métricas de gestión' },
 ];
 

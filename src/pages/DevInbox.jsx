@@ -22,24 +22,20 @@ import './DevInbox.css';
 
 const STATUS_OPTIONS = [
   { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'ASIGNADA', label: 'Asignada' },
   { value: 'EN_PROCESO', label: 'En Proceso' },
   { value: 'EN_PRUEBAS', label: 'En Pruebas' },
   { value: 'COMPLETADA', label: 'Completada' },
   { value: 'RECHAZADA', label: 'Rechazada' },
 ];
 
-const STATUS_ORDER = ['PENDIENTE', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA', 'RECHAZADA'];
+const STATUS_ORDER = ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA', 'RECHAZADA'];
 
-const STATUS_TRANSITIONS = {
-  PENDIENTE: ['EN_PROCESO', 'RECHAZADA'],
-  EN_PROCESO: ['EN_PRUEBAS', 'PENDIENTE', 'RECHAZADA'],
-  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO', 'RECHAZADA'],
-  COMPLETADA: ['EN_PRUEBAS'],
-  RECHAZADA: ['PENDIENTE'],
-};
+// STATUS_TRANSITIONS se eliminó para permitir cualquier cambio de estado
 
 const COLUMN_CONFIG = [
   { key: 'PENDIENTE', label: 'Pendientes', icon: '', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+  { key: 'ASIGNADA', label: 'Asignadas', icon: '', color: '#0369a1', bg: '#e0f2fe' },
   { key: 'EN_PROCESO', label: 'En Proceso', icon: '', color: 'var(--color-primary)', bg: 'var(--color-primary-bg)' },
   { key: 'EN_PRUEBAS', label: 'En Pruebas', icon: '', color: 'var(--color-accent)', bg: 'var(--color-accent-bg)' },
   { key: 'COMPLETADA', label: 'Completadas', icon: '', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
@@ -301,12 +297,7 @@ export default function DevInbox() {
 
     if (!targetStatus || targetStatus === request.status) return;
 
-    // Validar transición permitida
-    const allowed = STATUS_TRANSITIONS[request.status] || [];
-    if (!allowed.includes(targetStatus)) {
-      toast(`No se puede mover de "${STATUS_LABELS[request.status]}" a "${STATUS_LABELS[targetStatus]}" directamente.`);
-      return;
-    }
+    // Transiciones libres: cualquier estado es permitido (ya se validó que sea distinto arriba)
 
     // Confirmar para módulos no-Sistemas al pasar a EN_PROCESO
     if (targetStatus === 'EN_PROCESO' && !request.is_systems) {
@@ -353,9 +344,9 @@ export default function DevInbox() {
     }
   }
 
-  // Transiciones posibles según el estado actual
+  // Transiciones posibles según el estado actual (ahora libres)
   function getAllowedTransitions(currentStatus) {
-    return STATUS_TRANSITIONS[currentStatus] || [];
+    return STATUS_ORDER.filter(s => s !== currentStatus);
   }
 
   function handleStatusOptionClick(statusValue, req) {

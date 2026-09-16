@@ -12,6 +12,7 @@ import RequestDetail from './pages/RequestDetail';
 import AdminPanel from './pages/AdminPanel';
 import UserManagement from './pages/UserManagement';
 import ModuleManagement from './pages/ModuleManagement';
+import DepartmentManagement from './pages/DepartmentManagement';
 import MetricsDashboard from './pages/MetricsDashboard';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/modules" element={<ModuleManagement />} />
+          <Route path="/admin/departments" element={<DepartmentManagement />} />
           <Route path="/admin/metrics" element={<MetricsDashboard />} />
         </Route>
 

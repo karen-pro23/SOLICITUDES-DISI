@@ -1,31 +1,35 @@
 const pool = require('../db/pool');
 
-const VALID_TRANSITIONS = {
-  PENDIENTE:  ['EN_PROCESO', 'RECHAZADA'],
-  RECHAZADA:  ['PENDIENTE'],
-  EN_PROCESO: ['EN_PRUEBAS'],
-  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO'],
-  COMPLETADA: [],
-};
+// VALID_TRANSITIONS se eliminó para permitir cualquier cambio de estado
 
 const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
-async function findAll(filters, userId, userRole, userDeptId) {
+async function findAll(filters, userId, userRole, userDeptId, isBoss) {
   let baseSql = `FROM requests r
                  LEFT JOIN users creator ON creator.user_id = r.created_by
                  LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
                  LEFT JOIN modules m ON m.module_id = r.module_id
                  LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
                  LEFT JOIN departments d ON d.department_id = r.department_id
-                 LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id`;
+                 LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
+                 LEFT JOIN departments assigned_d ON assigned_d.department_id = r.assigned_department_id`;
   const conditions = [];
   const values = [];
   let idx = 1;
 
-  // Admin y developer ven todo; requester solo su departamento
-  if (userRole === 'requester' && userDeptId) {
-    conditions.push(`r.department_id = $${idx++}`);
+  // Lógica de Control de Acceso
+  if (userRole === 'admin' || userDeptId == null) {
+    // Caso A: Admin o sin departamento, ve todas
+  } else if (isBoss) {
+    // Caso B: Jefe de departamento, ve las asignadas a su depto o creadas en su depto
+    conditions.push(`(r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`);
     values.push(userDeptId);
+    idx++;
+  } else {
+    // Caso C: Empleado, ve las que tiene asignadas o las que creó
+    conditions.push(`(r.assigned_to = $${idx} OR r.created_by = $${idx})`);
+    values.push(userId);
+    idx++;
   }
 
   if (filters.status) {
@@ -79,7 +83,8 @@ async function findAll(filters, userId, userRole, userDeptId) {
              m.name as module_name,
              m.is_systems,
              rt.name as request_type_name,
-             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name,
+             assigned_d.name as assigned_department_name
              ${baseSql} ${whereClause}`;
 
   const queryValues = [...values];
@@ -90,7 +95,7 @@ async function findAll(filters, userId, userRole, userDeptId) {
     queryValues.push(filters.cursor);
   }
 
-  querySql += ` ORDER BY
+  let orderByClause = ` ORDER BY
     CASE r.priority
       WHEN 'alta' THEN 3
       WHEN 'media' THEN 2
@@ -98,6 +103,38 @@ async function findAll(filters, userId, userRole, userDeptId) {
       ELSE 0
     END DESC,
     r.created_at DESC`;
+
+  if (!filters.cursor && filters.sort) {
+    const validSortColumns = {
+      'ticket_code': 'r.ticket_code',
+      'created_by_name': 'creator.full_name',
+      'module_name': 'm.name',
+      'status': `CASE r.status
+                   WHEN 'PENDIENTE' THEN 1
+                   WHEN 'ASIGNADA' THEN 2
+                   WHEN 'EN_PROCESO' THEN 3
+                   WHEN 'EN_PRUEBAS' THEN 4
+                   WHEN 'COMPLETADA' THEN 5
+                   WHEN 'RECHAZADA' THEN 6
+                   ELSE 0
+                 END`,
+      'priority': `CASE r.priority
+                     WHEN 'alta' THEN 3
+                     WHEN 'media' THEN 2
+                     WHEN 'baja' THEN 1
+                     ELSE 0
+                   END`,
+      'assigned_to_name': 'assignee.full_name',
+      'created_at': 'r.created_at'
+    };
+
+    if (validSortColumns[filters.sort]) {
+      const order = filters.order && filters.order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      orderByClause = ` ORDER BY ${validSortColumns[filters.sort]} ${order} NULLS LAST, r.request_id ASC`;
+    }
+  }
+
+  querySql += orderByClause;
 
   if (!filters.cursor) {
     querySql += ` LIMIT $${qIdx++} OFFSET $${qIdx++}`;
@@ -133,14 +170,15 @@ async function findAll(filters, userId, userRole, userDeptId) {
   };
 }
 
-async function findById(requestId, userRole, userDeptId) {
+async function findById(requestId, userRole, userDeptId, isBoss, userId) {
   let sql = `SELECT r.*,
              creator.full_name as created_by_name,
              assignee.full_name as assigned_to_name,
              m.name as module_name,
              m.is_systems,
              rt.name as request_type_name,
-             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name
+             COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name,
+             assigned_d.name as assigned_department_name
              FROM requests r
              LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
@@ -148,12 +186,21 @@ async function findById(requestId, userRole, userDeptId) {
              LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
              LEFT JOIN departments d ON d.department_id = r.department_id
              LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
+             LEFT JOIN departments assigned_d ON assigned_d.department_id = r.assigned_department_id
              WHERE r.request_id = $1`;
   const values = [requestId];
+  let idx = 2;
 
-  if (userRole === 'requester' && userDeptId) {
-    sql += ' AND r.department_id = $2';
-    values.push(userDeptId);
+  if (userRole !== 'admin' && userDeptId != null) {
+    if (isBoss) {
+      sql += ` AND (r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`;
+      values.push(userDeptId);
+      idx++;
+    } else if (userId != null) {
+      sql += ` AND (r.assigned_to = $${idx} OR r.created_by = $${idx})`;
+      values.push(userId);
+      idx++;
+    }
   }
 
   const result = await pool.query(sql, values);
@@ -178,21 +225,14 @@ async function create(data, userId, userDeptId) {
   return result.rows[0];
 }
 
-async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId) {
+async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss) {
   // Verificar que la solicitud existe y es accesible
-  const request = await findById(requestId, userRole, userDeptId);
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
 
-  // Validar transición
-  const allowed = VALID_TRANSITIONS[request.status];
-  if (!allowed || !allowed.includes(newStatus)) {
-    throw Object.assign(
-      new Error(`Transición inválida de ${request.status} a ${newStatus}`),
-      { status: 400 }
-    );
-  }
+  // Transiciones libres: se permite cualquier cambio de estado (ya no se valida en backend)
 
   // RECHAZADA requiere motivo
   if (newStatus === 'RECHAZADA' && !rejectionReason) {
@@ -238,9 +278,9 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
   }
 }
 
-async function updatePriority(requestId, priority, userRole, userDeptId) {
+async function updatePriority(requestId, priority, userRole, userDeptId, isBoss, userId) {
   // Verificar que la solicitud existe y es accesible
-  const request = await findById(requestId, userRole, userDeptId);
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
@@ -265,30 +305,47 @@ async function updatePriority(requestId, priority, userRole, userDeptId) {
   return result.rows[0];
 }
 
-async function assign(requestId, assigneeId, userRole, userDeptId) {
-  const request = await findById(requestId, userRole, userDeptId);
+async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId) {
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
 
-  // Solo admin o developer pueden asignar
-  if (userRole === 'requester') {
-    throw Object.assign(new Error('No tienes permiso para asignar'), { status: 403 });
+  // Verificar que el asignado existe
+  if (assigneeId) {
+    const userResult = await pool.query(
+      `SELECT user_id FROM users WHERE user_id = $1 AND is_active = true`,
+      [assigneeId]
+    );
+    if (userResult.rows.length === 0) {
+      throw Object.assign(new Error('Empleado no encontrado'), { status: 404 });
+    }
   }
 
-  // Verificar que el asignado existe y es developer
-  const userResult = await pool.query(
-    `SELECT user_id FROM users WHERE user_id = $1 AND role IN ('developer', 'admin') AND is_active = true`,
-    [assigneeId]
-  );
-  if (userResult.rows.length === 0) {
-    throw Object.assign(new Error('Desarrollador no encontrado'), { status: 404 });
-  }
+  // Update
+  const client = await pool.connect();
+  let result;
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
+    
+    result = await client.query(
+      `UPDATE requests SET assigned_to = $1, assigned_department_id = $2, status = 'ASIGNADA', version_number = version_number + 1 WHERE request_id = $3 AND version_number = $4 RETURNING *`,
+      [assigneeId || null, assignedDepartmentId || null, requestId, request.version_number]
+    );
 
-  const result = await pool.query(
-    `UPDATE requests SET assigned_to = $1 WHERE request_id = $2 RETURNING *`,
-    [assigneeId, requestId]
-  );
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw Object.assign(new Error('Conflicto de concurrencia. Intentá de nuevo.'), { status: 409 });
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
 
   return result.rows[0];
 }
@@ -313,8 +370,8 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-async function remove(requestId, userRole, userDeptId) {
-  const request = await findById(requestId, userRole, userDeptId);
+async function remove(requestId, userRole, userDeptId, isBoss, userId) {
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
