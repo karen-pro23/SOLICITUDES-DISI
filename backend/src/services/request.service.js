@@ -118,10 +118,11 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
       'module_name': 'm.name',
       'status': `CASE r.status
                    WHEN 'PENDIENTE' THEN 1
-                   WHEN 'EN_PROCESO' THEN 2
-                   WHEN 'EN_PRUEBAS' THEN 3
-                   WHEN 'COMPLETADA' THEN 4
-                   WHEN 'RECHAZADA' THEN 5
+                   WHEN 'ASIGNADA' THEN 2
+                   WHEN 'EN_PROCESO' THEN 3
+                   WHEN 'EN_PRUEBAS' THEN 4
+                   WHEN 'COMPLETADA' THEN 5
+                   WHEN 'RECHAZADA' THEN 6
                    ELSE 0
                  END`,
       'priority': `CASE r.priority
@@ -130,6 +131,7 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
                      WHEN 'baja' THEN 1
                      ELSE 0
                    END`,
+      'assigned_to_name': 'assignee.full_name',
       'created_at': 'r.created_at'
     };
 

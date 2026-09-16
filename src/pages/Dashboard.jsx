@@ -284,6 +284,12 @@ export default function Dashboard() {
             Pendientes
           </button>
           <button
+            className={`tab-btn ${filters.status === 'ASIGNADA' ? 'active' : ''}`}
+            onClick={() => handleStatusTab('ASIGNADA')}
+          >
+            Asignadas
+          </button>
+          <button
             className={`tab-btn ${filters.status === 'EN_PROCESO' ? 'active' : ''}`}
             onClick={() => handleStatusTab('EN_PROCESO')}
           >
@@ -354,7 +360,7 @@ export default function Dashboard() {
                   {renderSortableHeader("Módulo Afectado", "module_name")}
                   {renderSortableHeader("Estado", "status")}
                   {renderSortableHeader("Prioridad", "priority")}
-                  <th scope="col" className="th-sort">Asignado a</th>
+                  {renderSortableHeader("Asignado a", "assigned_to_name")}
                   {renderSortableHeader("Fecha", "created_at")}
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
