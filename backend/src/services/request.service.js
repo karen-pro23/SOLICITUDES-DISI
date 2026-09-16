@@ -25,8 +25,8 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
   let idx = 1;
 
   // Lógica de Control de Acceso
-  if (userDeptId == null) {
-    // Caso A: Sin departamento, ve todas
+  if (userRole === 'admin' || userDeptId == null) {
+    // Caso A: Admin o sin departamento, ve todas
   } else if (isBoss) {
     // Caso B: Jefe de departamento, ve las asignadas a su depto o creadas en su depto
     conditions.push(`(r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`);
@@ -198,7 +198,7 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId) {
   const values = [requestId];
   let idx = 2;
 
-  if (userDeptId != null) {
+  if (userRole !== 'admin' && userDeptId != null) {
     if (isBoss) {
       sql += ` AND (r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`;
       values.push(userDeptId);
