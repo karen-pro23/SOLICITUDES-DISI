@@ -31,14 +31,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_ORDER = ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA', 'RECHAZADA'];
 
-const STATUS_TRANSITIONS = {
-  PENDIENTE: ['ASIGNADA', 'EN_PROCESO', 'RECHAZADA'],
-  ASIGNADA: ['EN_PROCESO', 'RECHAZADA'],
-  EN_PROCESO: ['ASIGNADA', 'EN_PRUEBAS', 'PENDIENTE', 'RECHAZADA'],
-  EN_PRUEBAS: ['COMPLETADA', 'EN_PROCESO', 'RECHAZADA'],
-  COMPLETADA: ['EN_PRUEBAS'],
-  RECHAZADA: ['PENDIENTE'],
-};
+// STATUS_TRANSITIONS se eliminó para permitir cualquier cambio de estado
 
 const COLUMN_CONFIG = [
   { key: 'PENDIENTE', label: 'Pendientes', icon: '', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
@@ -304,12 +297,7 @@ export default function DevInbox() {
 
     if (!targetStatus || targetStatus === request.status) return;
 
-    // Validar transición permitida
-    const allowed = STATUS_TRANSITIONS[request.status] || [];
-    if (!allowed.includes(targetStatus)) {
-      toast(`No se puede mover de "${STATUS_LABELS[request.status]}" a "${STATUS_LABELS[targetStatus]}" directamente.`);
-      return;
-    }
+    // Transiciones libres: cualquier estado es permitido (ya se validó que sea distinto arriba)
 
     // Confirmar para módulos no-Sistemas al pasar a EN_PROCESO
     if (targetStatus === 'EN_PROCESO' && !request.is_systems) {
@@ -356,9 +344,9 @@ export default function DevInbox() {
     }
   }
 
-  // Transiciones posibles según el estado actual
+  // Transiciones posibles según el estado actual (ahora libres)
   function getAllowedTransitions(currentStatus) {
-    return STATUS_TRANSITIONS[currentStatus] || [];
+    return STATUS_ORDER.filter(s => s !== currentStatus);
   }
 
   function handleStatusOptionClick(statusValue, req) {
