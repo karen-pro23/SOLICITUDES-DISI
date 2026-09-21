@@ -21,10 +21,16 @@ async function getByRequest(requestId, userRole) {
   const comments = result.rows;
   if (comments.length > 0) {
     const commentIds = comments.map(c => c.comment_id);
-    const attachmentsResult = await pool.query(
-      `SELECT * FROM request_attachments WHERE comment_id = ANY($1::bigint[]) ORDER BY uploaded_at`,
-      [commentIds]
-    );
+    let attachmentsResult;
+    try {
+      attachmentsResult = await pool.query(
+        `SELECT * FROM request_attachments WHERE comment_id = ANY($1::bigint[]) ORDER BY uploaded_at`,
+        [commentIds]
+      );
+    } catch (_) {
+      // Si la columna comment_id no existe aún (migración 014 no aplicada), devolver vacío
+      attachmentsResult = { rows: [] };
+    }
     
     // Mapear attachments a cada comentario
     const attachmentsByComment = {};

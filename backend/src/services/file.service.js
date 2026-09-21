@@ -89,12 +89,23 @@ async function saveAttachment(requestId, file, fileType, commentId = null) {
   }
 
   // Guardar en BD (con comment_id opcional)
-  const result = await pool.query(
-    `INSERT INTO request_attachments (request_id, file_name, file_path, file_type, mime_type, file_size, comment_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
-    [requestId, safeName, resolvedPath, fileType, file.mimetype, file.size, commentId]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO request_attachments (request_id, file_name, file_path, file_type, mime_type, file_size, comment_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [requestId, safeName, resolvedPath, fileType, file.mimetype, file.size, commentId]
+    );
+  } catch (_) {
+    // Si la columna comment_id no existe aún (migración 014 no aplicada), guardar sin ella
+    result = await pool.query(
+      `INSERT INTO request_attachments (request_id, file_name, file_path, file_type, mime_type, file_size)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [requestId, safeName, resolvedPath, fileType, file.mimetype, file.size]
+    );
+  }
 
   return result.rows[0];
 }
