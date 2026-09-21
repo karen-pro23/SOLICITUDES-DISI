@@ -57,7 +57,7 @@ async function create(requestId, authorId, content, isInternal) {
     `INSERT INTO request_comments (request_id, author_id, content, is_internal)
      VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [requestId, authorId, cleanContent || null, isInternal || false]
+    [requestId, authorId, cleanContent || '(sin texto)', isInternal || false]
   );
 
   // Devolver con nombre del autor
