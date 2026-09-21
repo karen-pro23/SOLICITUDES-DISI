@@ -8,4 +8,4 @@ UPDATE request_status_history SET from_status = 'COMPLETADA' WHERE from_status =
 
 ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_status_check;
 ALTER TABLE requests ADD CONSTRAINT requests_status_check
-  CHECK (status IN ('PENDIENTE','RECHAZADA','EN_PROCESO','EN_PRUEBAS','COMPLETADA'));
+  CHECK (status IN ('PENDIENTE','RECHAZADA','EN_PROCESO','EN_PRUEBAS','COMPLETADA','ASIGNADA'));
