@@ -42,7 +42,7 @@ function sanitizeFileName(name) {
   return `${safeBase}${safeExt}` || 'archivo';
 }
 
-async function saveAttachment(requestId, file, fileType) {
+async function saveAttachment(requestId, file, fileType, commentId = null) {
   // Validar MIME type
   if (!ALLOWED_MIMES.includes(file.mimetype)) {
     fs.unlink(file.path, () => {});
@@ -88,12 +88,12 @@ async function saveAttachment(requestId, file, fileType) {
     throw err;
   }
 
-  // Guardar en BD
+  // Guardar en BD (con comment_id opcional)
   const result = await pool.query(
-    `INSERT INTO request_attachments (request_id, file_name, file_path, file_type, mime_type, file_size)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO request_attachments (request_id, file_name, file_path, file_type, mime_type, file_size, comment_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [requestId, safeName, resolvedPath, fileType, file.mimetype, file.size]
+    [requestId, safeName, resolvedPath, fileType, file.mimetype, file.size, commentId]
   );
 
   return result.rows[0];

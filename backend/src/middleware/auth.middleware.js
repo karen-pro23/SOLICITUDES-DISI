@@ -15,6 +15,9 @@ function authenticate(req, res, next) {
       email: decoded.email,
       role: decoded.role,
       departmentId: decoded.departmentId ? Number(decoded.departmentId) : null,
+      es_jefe: decoded.es_jefe || false,
+      is_jefe_departamento: decoded.is_jefe_departamento || false,
+      areaId: decoded.areaId ? Number(decoded.areaId) : null,
     };
     if (Number.isNaN(req.user.userId)) {
       return res.status(401).json({ error: 'Token inválido: userId' });

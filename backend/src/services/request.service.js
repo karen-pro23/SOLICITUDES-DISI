@@ -4,7 +4,7 @@ const pool = require('../db/pool');
 
 const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
-async function findAll(filters, userId, userRole, userDeptId, isBoss) {
+async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss = false) {
   let baseSql = `FROM requests r
                  LEFT JOIN users creator ON creator.user_id = r.created_by
                  LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
@@ -12,7 +12,8 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
                  LEFT JOIN request_types rt ON rt.request_type_id = r.request_type_id
                  LEFT JOIN departments d ON d.department_id = r.department_id
                  LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
-                 LEFT JOIN departments assigned_d ON assigned_d.department_id = r.assigned_department_id`;
+                 LEFT JOIN departments assigned_d ON assigned_d.department_id = r.assigned_department_id
+                 LEFT JOIN areas a ON a.area_id = r.area_id`;
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -20,13 +21,18 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
   // Lógica de Control de Acceso
   if (userRole === 'admin' || userDeptId == null) {
     // Caso A: Admin o sin departamento, ve todas
-  } else if (isBoss) {
-    // Caso B: Jefe de departamento, ve las asignadas a su depto o creadas en su depto
-    conditions.push(`(r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`);
+  } else if (isDeptBoss) {
+    // Caso B: Jefe de departamento, ve TODAS las asignadas a su depto (incluyendo todas las áreas)
+    conditions.push(`(r.department_id = $${idx} OR r.assigned_department_id = $${idx} OR creator.department_id = $${idx})`);
     values.push(userDeptId);
     idx++;
+  } else if (isBoss) {
+    // Caso C: Jefe de área, ve las asignadas a su área o creadas en su área
+    conditions.push(`(r.area_id = $${idx} OR (r.created_by = $${idx} AND r.area_id IS NULL))`);
+    values.push(userId);
+    idx++;
   } else {
-    // Caso C: Empleado, ve las que tiene asignadas o las que creó
+    // Caso D: Empleado, ve las que tiene asignadas o las que creó
     conditions.push(`(r.assigned_to = $${idx} OR r.created_by = $${idx})`);
     values.push(userId);
     idx++;
@@ -170,7 +176,7 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss) {
   };
 }
 
-async function findById(requestId, userRole, userDeptId, isBoss, userId) {
+async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
   let sql = `SELECT r.*,
              creator.full_name as created_by_name,
              assignee.full_name as assigned_to_name,
@@ -178,7 +184,8 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId) {
              m.is_systems,
              rt.name as request_type_name,
              COALESCE(d.name, creator_d.name, 'SIN DEPARTAMENTO') as department_name,
-             assigned_d.name as assigned_department_name
+             assigned_d.name as assigned_department_name,
+             a.name as area_name
              FROM requests r
              LEFT JOIN users creator ON creator.user_id = r.created_by
              LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
@@ -187,14 +194,21 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId) {
              LEFT JOIN departments d ON d.department_id = r.department_id
              LEFT JOIN departments creator_d ON creator_d.department_id = creator.department_id
              LEFT JOIN departments assigned_d ON assigned_d.department_id = r.assigned_department_id
+             LEFT JOIN areas a ON a.area_id = r.area_id
              WHERE r.request_id = $1`;
   const values = [requestId];
   let idx = 2;
 
   if (userRole !== 'admin' && userDeptId != null) {
-    if (isBoss) {
-      sql += ` AND (r.assigned_department_id = $${idx} OR assignee.department_id = $${idx} OR r.department_id = $${idx})`;
+    if (isDeptBoss) {
+      // Jefe de departamento ve TODAS las solicitudes de su departamento
+      sql += ` AND (r.department_id = $${idx} OR r.assigned_department_id = $${idx} OR creator.department_id = $${idx})`;
       values.push(userDeptId);
+      idx++;
+    } else if (isBoss) {
+      // Jefe de área ve las de su área
+      sql += ` AND (r.area_id = $${idx} OR (r.created_by = $${idx} AND r.area_id IS NULL))`;
+      values.push(userId);
       idx++;
     } else if (userId != null) {
       sql += ` AND (r.assigned_to = $${idx} OR r.created_by = $${idx})`;
@@ -225,9 +239,9 @@ async function create(data, userId, userDeptId) {
   return result.rows[0];
 }
 
-async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss) {
+async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss, isDeptBoss = false) {
   // Verificar que la solicitud existe y es accesible
-  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
@@ -278,9 +292,9 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
   }
 }
 
-async function updatePriority(requestId, priority, userRole, userDeptId, isBoss, userId) {
+async function updatePriority(requestId, priority, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
   // Verificar que la solicitud existe y es accesible
-  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
@@ -305,8 +319,8 @@ async function updatePriority(requestId, priority, userRole, userDeptId, isBoss,
   return result.rows[0];
 }
 
-async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId) {
-  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
+async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, areaId = null) {
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }
@@ -322,6 +336,17 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
     }
   }
 
+  // Verificar que el área existe si se proporciona
+  if (areaId) {
+    const areaResult = await pool.query(
+      `SELECT area_id FROM areas WHERE area_id = $1 AND is_active = true`,
+      [areaId]
+    );
+    if (areaResult.rows.length === 0) {
+      throw Object.assign(new Error('Área no encontrada'), { status: 404 });
+    }
+  }
+
   // Update
   const client = await pool.connect();
   let result;
@@ -330,8 +355,8 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
     await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
     
     result = await client.query(
-      `UPDATE requests SET assigned_to = $1, assigned_department_id = $2, status = 'ASIGNADA', version_number = version_number + 1 WHERE request_id = $3 AND version_number = $4 RETURNING *`,
-      [assigneeId || null, assignedDepartmentId || null, requestId, request.version_number]
+      `UPDATE requests SET assigned_to = $1, assigned_department_id = $2, area_id = $3, status = 'ASIGNADA', version_number = version_number + 1 WHERE request_id = $4 AND version_number = $5 RETURNING *`,
+      [assigneeId || null, assignedDepartmentId || null, areaId || null, requestId, request.version_number]
     );
 
     if (result.rows.length === 0) {
@@ -370,8 +395,8 @@ async function getHistory(requestId) {
   return result.rows;
 }
 
-async function remove(requestId, userRole, userDeptId, isBoss, userId) {
-  const request = await findById(requestId, userRole, userDeptId, isBoss, userId);
+async function remove(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
   }

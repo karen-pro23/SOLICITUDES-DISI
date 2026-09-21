@@ -16,7 +16,31 @@ async function getByRequest(requestId, userRole) {
            ORDER BY c.created_at`;
   }
   const result = await pool.query(sql, [requestId]);
-  return result.rows;
+  
+  // Obtener attachments para todos los comentarios de esta solicitud
+  const comments = result.rows;
+  if (comments.length > 0) {
+    const commentIds = comments.map(c => c.comment_id);
+    const attachmentsResult = await pool.query(
+      `SELECT * FROM request_attachments WHERE comment_id = ANY($1::bigint[]) ORDER BY uploaded_at`,
+      [commentIds]
+    );
+    
+    // Mapear attachments a cada comentario
+    const attachmentsByComment = {};
+    for (const att of attachmentsResult.rows) {
+      if (!attachmentsByComment[att.comment_id]) {
+        attachmentsByComment[att.comment_id] = [];
+      }
+      attachmentsByComment[att.comment_id].push(att);
+    }
+    
+    for (const comment of comments) {
+      comment.attachments = attachmentsByComment[comment.comment_id] || [];
+    }
+  }
+  
+  return comments;
 }
 
 async function create(requestId, authorId, content, isInternal) {

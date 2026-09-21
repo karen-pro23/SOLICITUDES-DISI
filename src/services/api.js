@@ -161,8 +161,19 @@ export async function assignRequest(id, data) {
   return res.data;
 }
 
-export async function addComment(requestId, content, isInternal = false) {
-  const { data } = await api.post(`/requests/${requestId}/comments`, { content, isInternal });
+export async function addComment(requestId, content, isInternal = false, files = []) {
+  const formData = new FormData();
+  formData.append('content', content);
+  formData.append('isInternal', isInternal);
+  
+  // Agregar archivos si existen
+  for (const file of files) {
+    formData.append('files', file);
+  }
+  
+  const { data } = await api.post(`/requests/${requestId}/comments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 }
 
@@ -223,6 +234,31 @@ export async function generateResponse(requestId, tipoRespuesta, observaciones) 
     observaciones,
   });
   return data.respuesta;
+}
+
+// Area endpoints
+export async function getAreasByDepartment(departmentId) {
+  const { data } = await api.get(`/areas/department/${departmentId}`);
+  return data.areas;
+}
+
+export async function createArea(departmentId, name, description) {
+  const { data } = await api.post('/areas', { departmentId, name, description });
+  return data.area;
+}
+
+export async function updateArea(areaId, name, description, isActive) {
+  const { data } = await api.patch(`/areas/${areaId}`, { name, description, isActive });
+  return data.area;
+}
+
+export async function deleteArea(areaId) {
+  await api.delete(`/areas/${areaId}`);
+}
+
+export async function getMyAreas() {
+  const { data } = await api.get('/areas/my-areas');
+  return data.areas;
 }
 
 export default api;

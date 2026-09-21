@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { getDepartments, getUsersByDepartment, assignRequest } from '../services/api';
+import { getDepartments, getUsersByDepartment, assignRequest, getAreasByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 export default function AssignModal({ isOpen, onClose, request, onAssignComplete }) {
   const { user } = useAuth();
   const [departments, setDepartments] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
+  const [selectedArea, setSelectedArea] = useState('');
   const [selectedEmp, setSelectedEmp] = useState('');
   const [loadingDepts, setLoadingDepts] = useState(true);
+  const [loadingAreas, setLoadingAreas] = useState(false);
   const [loadingEmps, setLoadingEmps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,20 +36,30 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         .finally(() => setLoadingDepts(false));
       
       // Reset state
+      setSelectedArea(request?.area_id || '');
       setSelectedEmp(request?.empleado_asignado_id || '');
+      setAreas([]);
       setEmployees([]);
     }
   }, [isOpen, request]);
 
   useEffect(() => {
     if (selectedDept) {
+      setLoadingAreas(true);
+      getAreasByDepartment(selectedDept)
+        .then(setAreas)
+        .catch(() => toast.error('Error al cargar áreas'))
+        .finally(() => setLoadingAreas(false));
+      
       setLoadingEmps(true);
       getUsersByDepartment(selectedDept)
         .then(setEmployees)
         .catch(() => toast.error('Error al cargar empleados'))
         .finally(() => setLoadingEmps(false));
     } else {
+      setAreas([]);
       setEmployees([]);
+      setSelectedArea('');
       setSelectedEmp('');
     }
   }, [selectedDept]);
@@ -64,7 +77,8 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
       
       await assignRequest(request.request_id, {
         assignedDepartmentId: selectedDept || null,
-        assigneeId: selectedEmp || null
+        assigneeId: selectedEmp || null,
+        areaId: selectedArea || null
       });
       toast.success('Solicitud asignada con éxito');
       onAssignComplete();
@@ -97,7 +111,8 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
                 value={selectedDept} 
                 onChange={(e) => {
                   setSelectedDept(e.target.value);
-                  setSelectedEmp(''); // Reset employee on dept change
+                  setSelectedArea('');
+                  setSelectedEmp('');
                 }}
                 disabled={loadingDepts || submitting || (user.role === 'requester' && user.es_jefe)}
               >
@@ -109,12 +124,28 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
             </div>
 
             <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label htmlFor="emp-select">2. Asignar a Empleado (Opcional)</label>
+              <label htmlFor="area-select">2. Asignar a Área (Opcional)</label>
+              <select 
+                id="area-select"
+                value={selectedArea} 
+                onChange={(e) => setSelectedArea(e.target.value)}
+                disabled={!selectedDept || loadingAreas || submitting}
+              >
+                <option value="">-- Sin asignar a área específica --</option>
+                {areas.map(a => (
+                  <option key={a.area_id} value={a.area_id}>{a.name}</option>
+                ))}
+              </select>
+              {loadingAreas && <span style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>Cargando áreas...</span>}
+            </div>
+
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label htmlFor="emp-select">3. Asignar a Empleado (Opcional)</label>
               <select 
                 id="emp-select"
                 value={selectedEmp} 
                 onChange={(e) => setSelectedEmp(e.target.value)}
-                disabled={!selectedDept || loadingEmps || submitting} // Only allow picking employee if a dept is selected
+                disabled={!selectedDept || loadingEmps || submitting}
               >
                 <option value="">-- Sin asignar a empleado específico --</option>
                 {employees.map(e => (

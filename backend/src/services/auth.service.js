@@ -49,6 +49,8 @@ function generateAccessToken(user) {
       role: user.role,
       departmentId: user.department_id,
       es_jefe: user.es_jefe,
+      is_jefe_departamento: user.is_jefe_departamento || false,
+      areaId: user.area_id || null,
     },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }

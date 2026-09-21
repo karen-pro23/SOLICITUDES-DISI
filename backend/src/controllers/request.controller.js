@@ -10,7 +10,8 @@ async function getAll(req, res, next) {
       req.user.userId,
       req.user.role,
       req.user.departmentId,
-      req.user.es_jefe
+      req.user.es_jefe,
+      req.user.is_jefe_departamento
     );
     res.json(result);
   } catch (err) { next(err); }
@@ -22,7 +23,9 @@ async function getById(req, res, next) {
       parseInt(req.params.id, 10),
       req.user.role,
       req.user.departmentId,
-      req.user.es_jefe
+      req.user.es_jefe,
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -84,7 +87,8 @@ async function updateStatus(req, res, next) {
       req.user.userId,
       req.user.role,
       req.user.departmentId,
-      req.user.es_jefe
+      req.user.es_jefe,
+      req.user.is_jefe_departamento
     );
     res.json({ request });
   } catch (err) {
@@ -104,7 +108,8 @@ async function updatePriority(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     res.json({ request });
   } catch (err) {
@@ -115,7 +120,7 @@ async function updatePriority(req, res, next) {
 
 async function assign(req, res, next) {
   try {
-    const { assigneeId, assignedDepartmentId } = req.body;
+    const { assigneeId, assignedDepartmentId, areaId } = req.body;
     if (!assigneeId && !assignedDepartmentId) return res.status(400).json({ error: 'Debe especificar el empleado o el departamento para asignar' });
 
     const request = await requestService.assign(
@@ -125,7 +130,9 @@ async function assign(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento,
+      areaId ? parseInt(areaId, 10) : null
     );
     res.json({ request });
   } catch (err) {
@@ -145,7 +152,8 @@ async function getAttachmentDownload(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -169,7 +177,8 @@ async function getAttachmentPreview(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -198,7 +207,8 @@ async function deleteAttachment(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -213,7 +223,8 @@ async function remove(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.userId
+      req.user.userId,
+      req.user.is_jefe_departamento
     );
     res.json({ message: 'Solicitud eliminada con éxito', request: deleted });
   } catch (err) {

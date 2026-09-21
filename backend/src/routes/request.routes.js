@@ -74,6 +74,6 @@ router.delete('/:id/attachments/:fileId', deleteAttachment);
 
 // Comentarios (rutas explícitas)
 router.get('/:id/comments', commentController.getAll);
-router.post('/:id/comments', commentController.create);
+router.post('/:id/comments', upload.array('files', 3), commentController.create);
 
 module.exports = router;

@@ -39,6 +39,8 @@ export default function RequestDetail() {
   const [comment, setComment] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [commentFiles, setCommentFiles] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Modales de vista previa
   const [imagePreviewModal, setImagePreviewModal] = useState(null);
@@ -136,21 +138,70 @@ export default function RequestDetail() {
 
   async function handleComment(e) {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim() && commentFiles.length === 0) return;
     setSubmitting(true);
     try {
-      const result = await addComment(request.request_id, comment, isInternal);
+      const result = await addComment(request.request_id, comment, isInternal, commentFiles);
       setData((prev) => ({
         ...prev,
         comments: [...prev.comments, result.comment],
       }));
       setComment('');
       setIsInternal(false);
+      setCommentFiles([]);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al enviar comentario');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleFileSelect(e) {
+    const files = Array.from(e.target.files);
+    if (commentFiles.length + files.length > 3) {
+      toast.error('Máximo 3 archivos por comentario');
+      return;
+    }
+    setCommentFiles(prev => [...prev, ...files]);
+  }
+
+  function removeCommentFile(index) {
+    setCommentFiles(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setIsDragOver(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (commentFiles.length + files.length > 3) {
+      toast.error('Máximo 3 archivos por comentario');
+      return;
+    }
+    setCommentFiles(prev => [...prev, ...files]);
+  }
+
+  function getFileIcon(mimeType) {
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType === 'application/pdf') return '📄';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '📊';
+    if (mimeType === 'text/csv') return '📊';
+    return '📎';
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   async function handleClassify() {
@@ -595,6 +646,59 @@ export default function RequestDetail() {
                 placeholder="Escriba un comentario..."
                 rows={3}
               />
+              
+              {/* Adjuntos del comentario */}
+              {(user.role === 'admin' || user.role === 'developer') && (
+                <div 
+                  className={`comment-attach-zone ${isDragOver ? 'drag-over' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <div className="comment-attach-header">
+                    <label className="comment-attach-btn">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                      </svg>
+                      Adjuntar archivos
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.xlsx,.xls,.csv"
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    <span className="comment-attach-limit">{commentFiles.length}/3 archivos</span>
+                  </div>
+                  
+                  {commentFiles.length > 0 && (
+                    <div className="comment-attach-list">
+                      {commentFiles.map((file, index) => (
+                        <div key={index} className="comment-attach-item">
+                          <span className="comment-attach-icon">{getFileIcon(file.type)}</span>
+                          <span className="comment-attach-name">{file.name}</span>
+                          <span className="comment-attach-size">{formatFileSize(file.size)}</span>
+                          <button
+                            type="button"
+                            className="comment-attach-remove"
+                            onClick={() => removeCommentFile(index)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {commentFiles.length === 0 && (
+                    <p className="comment-attach-hint">
+                      Arrastra archivos aquí o haz clic en "Adjuntar archivos"
+                    </p>
+                  )}
+                </div>
+              )}
+              
               <div className="comment-actions">
                 {(user.role === 'admin' || user.role === 'developer') && (
                   <label className="internal-check">
@@ -606,7 +710,7 @@ export default function RequestDetail() {
                     Comentario interno (solo visible para sistemas)
                   </label>
                 )}
-                <button type="submit" className="btn btn-primary btn-sm" disabled={!comment.trim() || submitting}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={(!comment.trim() && commentFiles.length === 0) || submitting}>
                   Enviar
                 </button>
               </div>
@@ -624,6 +728,46 @@ export default function RequestDetail() {
                     </span>
                   </div>
                   <p>{parseMarkdown(c.content)}</p>
+                  
+                  {/* Adjuntos del comentario */}
+                  {c.attachments && c.attachments.length > 0 && (
+                    <div className="comment-attachments">
+                      {c.attachments.map((att) => (
+                        <div key={att.attachment_id} className="comment-attachment-item">
+                          <span className="comment-attachment-icon">{getFileIcon(att.mime_type)}</span>
+                          <span className="comment-attachment-name">{att.file_name}</span>
+                          <span className="comment-attachment-size">{formatFileSize(att.file_size)}</span>
+                          <div className="comment-attachment-actions">
+                            {att.mime_type.startsWith('image/') && (
+                              <button
+                                type="button"
+                                className="attachment-btn attachment-btn-preview"
+                                onClick={() => setImagePreviewModal({ src: getAttachmentPreviewUrl(request.request_id, att.attachment_id), alt: att.file_name })}
+                              >
+                                Ver
+                              </button>
+                            )}
+                            {att.mime_type === 'application/pdf' && (
+                              <button
+                                type="button"
+                                className="attachment-btn attachment-btn-preview"
+                                onClick={() => setPdfPreviewModal({ url: getAttachmentPreviewUrl(request.request_id, att.attachment_id), name: att.file_name })}
+                              >
+                                Ver
+                              </button>
+                            )}
+                            <a
+                              href={getAttachmentDownloadUrl(request.request_id, att.attachment_id)}
+                              className="attachment-btn attachment-btn-download"
+                              download
+                            >
+                              ⬇️
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {comments.length === 0 && (
