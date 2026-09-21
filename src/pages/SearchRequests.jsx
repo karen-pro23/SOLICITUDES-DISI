@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { searchPublicRequests, getPublicRequest, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
+import { searchPublicRequests, getPublicRequest } from '../services/api';
 import toast from 'react-hot-toast';
 import PublicHeader from '../components/PublicHeader';
 import StatusBadge from '../components/StatusBadge';
@@ -366,7 +366,7 @@ export default function SearchRequests() {
                               <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{formatFileSize(att.file_size)}</span>
                               {att.mime_type?.startsWith('image/') && (
                                 <button
-                                  onClick={() => setImagePreviewModal({ src: getAttachmentPreviewUrl(selectedRequest.request.request_id, att.attachment_id), alt: att.file_name })}
+                                  onClick={() => setImagePreviewModal({ src: `/api/public/requests/${selectedRequest.request.request_id}/attachments/${att.attachment_id}/preview`, alt: att.file_name })}
                                   style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                 >
                                   Ver
@@ -374,14 +374,14 @@ export default function SearchRequests() {
                               )}
                               {att.mime_type === 'application/pdf' && (
                                 <button
-                                  onClick={() => setPdfPreviewModal({ url: getAttachmentPreviewUrl(selectedRequest.request.request_id, att.attachment_id), name: att.file_name })}
+                                  onClick={() => setPdfPreviewModal({ url: `/api/public/requests/${selectedRequest.request.request_id}/attachments/${att.attachment_id}/preview`, name: att.file_name })}
                                   style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                 >
                                   Ver
                                 </button>
                               )}
                               <a
-                                href={getAttachmentDownloadUrl(selectedRequest.request.request_id, att.attachment_id)}
+                                href={`/api/public/requests/${selectedRequest.request.request_id}/attachments/${att.attachment_id}/download`}
                                 style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#dcfce7', color: '#166534', border: 'none', borderRadius: '4px', textDecoration: 'none' }}
                                 download
                               >

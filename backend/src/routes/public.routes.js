@@ -67,6 +67,34 @@ router.get('/types', getRequestTypes);
 router.get('/departments', getDepartments);
 router.get('/search', searchRequests);
 router.get('/requests/:id', getRequestPublic);
+router.get('/requests/:id/attachments/:fileId/preview', async (req, res, next) => {
+  try {
+    const fileService = require('../services/file.service');
+    const attachment = await fileService.getAttachment(parseInt(req.params.fileId, 10));
+    if (!attachment) return res.status(404).json({ error: 'Archivo no encontrado' });
+    const fs = require('fs');
+    if (!fs.existsSync(attachment.file_path)) {
+      return res.status(404).json({ error: 'Archivo no encontrado en disco' });
+    }
+    res.setHeader('Content-Type', attachment.mime_type);
+    res.setHeader('Content-Disposition', `inline; filename="${attachment.file_name}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    fs.createReadStream(attachment.file_path).pipe(res);
+  } catch (err) { next(err); }
+});
+router.get('/requests/:id/attachments/:fileId/download', async (req, res, next) => {
+  try {
+    const fileService = require('../services/file.service');
+    const attachment = await fileService.getAttachment(parseInt(req.params.fileId, 10));
+    if (!attachment) return res.status(404).json({ error: 'Archivo no encontrado' });
+    res.download(attachment.file_path, attachment.file_name, {
+      headers: {
+        'Content-Disposition': `attachment; filename="${attachment.file_name}"`,
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  } catch (err) { next(err); }
+});
 router.get('/persona/:cedula', getPersona);
 router.post('/persona', createOrGetPersona);
 router.post('/requests', handlePublicUploadMiddleware, createRequest);
