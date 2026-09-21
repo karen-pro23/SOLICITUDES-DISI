@@ -16,6 +16,9 @@ const { authenticate } = require('./middleware/auth.middleware');
 
 const app = express();
 
+// Trust proxy (necesario para rate-limit detrás de nginx/pm2)
+app.set('trust proxy', 1);
+
 // Security (Configurado para permitir ver recursos/adjuntos en iFrames y Modales)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
