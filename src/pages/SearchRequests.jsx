@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { searchPublicRequests, getPublicRequest } from '../services/api';
+import { searchPublicRequests, getPublicRequest, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
 import PublicHeader from '../components/PublicHeader';
 import StatusBadge from '../components/StatusBadge';
+import ImagePreviewModal from '../components/ImagePreviewModal';
+import PdfPreviewModal from '../components/PdfPreviewModal';
 
 // Parsea **bold** y *italic* básico a JSX
 function parseMarkdown(text) {
@@ -24,6 +26,20 @@ function parseMarkdown(text) {
   return parts;
 }
 
+function getFileIcon(mimeType) {
+  if (mimeType?.startsWith('image/')) return '🖼️';
+  if (mimeType === 'application/pdf') return '📄';
+  if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) return '📊';
+  if (mimeType === 'text/csv') return '📊';
+  return '📎';
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const PRIORITY_COLORS = {
   alta: { bg: '#fee2e2', color: '#dc2626' },
   media: { bg: '#fef3c7', color: '#d97706' },
@@ -37,6 +53,8 @@ export default function SearchRequests() {
   const [searched, setSearched] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [imagePreviewModal, setImagePreviewModal] = useState(null);
+  const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -337,6 +355,42 @@ export default function SearchRequests() {
                         <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{new Date(c.created_at).toLocaleString()}</span>
                       </div>
                       <p style={{ fontSize: '0.875rem', color: '#475569', margin: 0, lineHeight: 1.6 }}>{parseMarkdown(c.content)}</p>
+                      
+                      {/* Archivos adjuntos del comentario */}
+                      {c.attachments && c.attachments.length > 0 && (
+                        <div style={{ marginTop: '0.625rem', paddingTop: '0.625rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                          {c.attachments.map((att) => (
+                            <div key={att.attachment_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.375rem 0.625rem', background: 'white', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}>
+                              <span>{getFileIcon(att.mime_type)}</span>
+                              <span style={{ flex: 1, fontWeight: 500, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{formatFileSize(att.file_size)}</span>
+                              {att.mime_type?.startsWith('image/') && (
+                                <button
+                                  onClick={() => setImagePreviewModal({ src: getAttachmentPreviewUrl(selectedRequest.request.request_id, att.attachment_id), alt: att.file_name })}
+                                  style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Ver
+                                </button>
+                              )}
+                              {att.mime_type === 'application/pdf' && (
+                                <button
+                                  onClick={() => setPdfPreviewModal({ url: getAttachmentPreviewUrl(selectedRequest.request.request_id, att.attachment_id), name: att.file_name })}
+                                  style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                  Ver
+                                </button>
+                              )}
+                              <a
+                                href={getAttachmentDownloadUrl(selectedRequest.request.request_id, att.attachment_id)}
+                                style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#dcfce7', color: '#166534', border: 'none', borderRadius: '4px', textDecoration: 'none' }}
+                                download
+                              >
+                                ⬇️
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -378,6 +432,24 @@ export default function SearchRequests() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Modal de vista previa de imagen */}
+        {imagePreviewModal && (
+          <ImagePreviewModal
+            src={imagePreviewModal.src}
+            alt={imagePreviewModal.alt}
+            onClose={() => setImagePreviewModal(null)}
+          />
+        )}
+
+        {/* Modal de vista previa de PDF */}
+        {pdfPreviewModal && (
+          <PdfPreviewModal
+            url={pdfPreviewModal.url}
+            name={pdfPreviewModal.name}
+            onClose={() => setPdfPreviewModal(null)}
+          />
         )}
       </div>
     </div>

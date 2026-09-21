@@ -267,10 +267,37 @@ async function getRequestPublic(req, res, next) {
       [parseInt(id, 10)]
     );
 
+    // Obtener attachments de los comentarios
+    const comments = commentsResult.rows;
+    if (comments.length > 0) {
+      const commentIds = comments.map(c => c.comment_id);
+      let attachmentsResult;
+      try {
+        attachmentsResult = await pool.query(
+          `SELECT * FROM request_attachments WHERE comment_id = ANY($1::bigint[]) ORDER BY uploaded_at`,
+          [commentIds]
+        );
+      } catch (_) {
+        attachmentsResult = { rows: [] };
+      }
+
+      const attachmentsByComment = {};
+      for (const att of attachmentsResult.rows) {
+        if (!attachmentsByComment[att.comment_id]) {
+          attachmentsByComment[att.comment_id] = [];
+        }
+        attachmentsByComment[att.comment_id].push(att);
+      }
+
+      for (const comment of comments) {
+        comment.attachments = attachmentsByComment[comment.comment_id] || [];
+      }
+    }
+
     res.json({
       request: result.rows[0],
       history: historyResult.rows,
-      comments: commentsResult.rows,
+      comments: comments,
     });
   } catch (err) { next(err); }
 }
