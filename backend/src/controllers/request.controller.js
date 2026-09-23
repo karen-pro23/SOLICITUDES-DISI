@@ -1,6 +1,7 @@
 const requestService = require('../services/request.service');
 const fileService = require('../services/file.service');
 const commentService = require('../services/comment.service');
+const clickupService = require('../services/clickup.service');
 const pool = require('../db/pool');
 
 async function getAll(req, res, next) {
@@ -70,6 +71,19 @@ async function create(req, res, next) {
         }
       }
     }
+
+    // Crear tarea en ClickUp (asíncrono, no bloquea la respuesta)
+    clickupService.createTaskFromRequest(request, request.ticket_code)
+      .then(task => {
+        if (task) {
+          // Guardar el task_id de ClickUp en la solicitud
+          pool.query(
+            'UPDATE requests SET clickup_task_id = $1 WHERE request_id = $2',
+            [task.id, request.request_id]
+          ).catch(err => console.error('Error saving ClickUp task_id:', err.message));
+        }
+      })
+      .catch(err => console.error('Error creating ClickUp task:', err.message));
 
     res.status(201).json({ request, attachments });
   } catch (err) { next(err); }

@@ -22,4 +22,8 @@ module.exports = {
   googleAI: {
     apiKey: process.env.GOOGLE_AI_API_KEY || '',
   },
+  clickup: {
+    token: process.env.CLICKUP_API_TOKEN || '',
+    listId: process.env.CLICKUP_LIST_ID || '',
+  },
 };
