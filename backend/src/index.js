@@ -61,6 +61,9 @@ app.use(cookieParser());
 // Archivos estáticos (Subimos 2 niveles desde backend/src para llegar a la raíz /uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
+// APK descargable
+app.use('/downloads', express.static(path.join(__dirname, '../../downloads')));
+
 // Health check
 app.get('/api/health', async (req, res) => {
   try {

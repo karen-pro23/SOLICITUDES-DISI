@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// Detectar si está corriendo en Capacitor (app móvil)
+const isCapacitor = window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost';
+const API_BASE = isCapacitor ? 'http://192.168.16.204:3001/api' : '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   withCredentials: true,
 });
 
@@ -93,12 +97,14 @@ export async function getPublicRequest(id) {
 }
 
 // Attachment helpers — build URLs that go through the auth proxy
+const ATTACHMENT_BASE = isCapacitor ? 'http://192.168.16.204:3001' : '';
+
 export function getAttachmentDownloadUrl(requestId, fileId) {
-  return `/api/requests/${requestId}/attachments/${fileId}/download`;
+  return `${ATTACHMENT_BASE}/api/requests/${requestId}/attachments/${fileId}/download`;
 }
 
 export function getAttachmentPreviewUrl(requestId, fileId) {
-  return `/api/requests/${requestId}/attachments/${fileId}/preview`;
+  return `${ATTACHMENT_BASE}/api/requests/${requestId}/attachments/${fileId}/preview`;
 }
 
 // Authenticated API

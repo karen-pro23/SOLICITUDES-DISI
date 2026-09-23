@@ -93,6 +93,18 @@ export default function LoginPage() {
         <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>
           ← Volver al inicio
         </a>
+        <a href="http://192.168.16.204:3001/downloads/solicitudes-disi.apk" 
+           download
+           style={{ 
+             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+             marginTop: '0.75rem', padding: '0.75rem', fontSize: '0.8125rem', 
+             color: '#22c55e', textDecoration: 'none', fontWeight: 600,
+             background: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px',
+             border: '1px solid rgba(34, 197, 94, 0.2)', transition: 'all 0.15s'
+           }}
+        >
+          📱 Descargar App Android
+        </a>
       </div>
     </div>
   );
