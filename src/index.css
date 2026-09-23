@@ -136,3 +136,157 @@ input, textarea, select {
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); }
+
+/* ═══════════════════════════════════════════════════════
+   Touch-Friendly Mobile Styles
+   ═══════════════════════════════════════════════════════ */
+
+/* Safe area for Capacitor */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Minimum touch targets 44px */
+button, a, input, select, textarea, [role="button"] {
+  min-height: 44px;
+}
+
+/* Touch-friendly buttons */
+.btn {
+  min-height: 44px;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+}
+
+/* Touch-friendly inputs */
+input, select, textarea {
+  min-height: 44px;
+  font-size: 16px !important; /* Prevents iOS zoom */
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 2px solid var(--color-gray-200);
+  background: white;
+  transition: border-color 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Touch-friendly select */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.5rem;
+}
+
+/* Touch-friendly links */
+a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Prevent text selection on touch */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Better tap highlight */
+.tap-highlight {
+  -webkit-tap-highlight-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  
+  .btn {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+  
+  .btn-sm {
+    width: auto;
+    min-height: 40px;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important;
+    padding: 0.875rem 1rem;
+  }
+  
+  /* Modal mobile */
+  .modal-card {
+    margin: 1rem;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+  
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .modal-footer {
+    padding: 1rem 1.5rem;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 0.75rem;
+  }
+  
+  .modal-footer .btn {
+    flex: 1;
+  }
+}
