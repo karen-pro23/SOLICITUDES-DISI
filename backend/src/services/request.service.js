@@ -18,24 +18,46 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
   const values = [];
   let idx = 1;
 
-  // Lógica de Control de Acceso
-  if (userRole === 'admin' || userDeptId == null) {
-    // Caso A: Admin o sin departamento, ve todas
-  } else if (isDeptBoss) {
-    // Caso B: Jefe de departamento, ve TODAS las asignadas a su depto (incluyendo todas las áreas)
-    conditions.push(`(r.department_id = $${idx} OR r.assigned_department_id = $${idx} OR creator.department_id = $${idx})`);
-    values.push(userDeptId);
-    idx++;
-  } else if (isBoss) {
-    // Caso C: Jefe de área, ve las asignadas a su área o creadas en su área
-    conditions.push(`(r.area_id = $${idx} OR (r.created_by = $${idx} AND r.area_id IS NULL))`);
-    values.push(userId);
-    idx++;
-  } else {
-    // Caso D: Empleado, ve las que tiene asignadas o las que creó
-    conditions.push(`(r.assigned_to = $${idx} OR r.created_by = $${idx})`);
-    values.push(userId);
-    idx++;
+  // Lógica de Control de Acceso por Rol
+  switch (userRole) {
+    case 'admin':
+    case 'director':
+    case 'sub_director':
+      // Ven TODO — sin filtros
+      break;
+
+    case 'recepcion':
+      // Ven TODAS las solicitudes (para poder asignarlas)
+      break;
+
+    case 'jefe_area':
+      // Ven las solicitudes de SU área
+      if (userDeptId) {
+        conditions.push(`(r.area_id IN (SELECT area_id FROM areas WHERE department_id = $${idx}) OR (r.created_by = $${idx + 1} AND r.area_id IS NULL))`);
+        values.push(userDeptId, userId);
+        idx += 2;
+      }
+      break;
+
+    case 'developer':
+    case 'tecnico':
+      // Ven las asignadas a ellos o las que crearon
+      conditions.push(`(r.assigned_to = $${idx} OR r.created_by = $${idx})`);
+      values.push(userId);
+      idx++;
+      break;
+
+    case 'requester':
+      // Solo ven sus propias solicitudes
+      conditions.push(`r.created_by = $${idx}`);
+      values.push(userId);
+      idx++;
+      break;
+
+    default:
+      // Sin rol conocido, no ve nada
+      conditions.push(`1 = 0`);
+      break;
   }
 
   if (filters.status) {
@@ -199,22 +221,39 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
   const values = [requestId];
   let idx = 2;
 
-  if (userRole !== 'admin' && userDeptId != null) {
-    if (isDeptBoss) {
-      // Jefe de departamento ve TODAS las solicitudes de su departamento
-      sql += ` AND (r.department_id = $${idx} OR r.assigned_department_id = $${idx} OR creator.department_id = $${idx})`;
-      values.push(userDeptId);
-      idx++;
-    } else if (isBoss) {
-      // Jefe de área ve las de su área
-      sql += ` AND (r.area_id = $${idx} OR (r.created_by = $${idx} AND r.area_id IS NULL))`;
-      values.push(userId);
-      idx++;
-    } else if (userId != null) {
+  // Control de acceso por rol
+  switch (userRole) {
+    case 'admin':
+    case 'director':
+    case 'sub_director':
+    case 'recepcion':
+      // Ven todo — sin filtros adicionales
+      break;
+
+    case 'jefe_area':
+      if (userDeptId) {
+        sql += ` AND (r.area_id IN (SELECT area_id FROM areas WHERE department_id = $${idx}) OR r.created_by = $${idx + 1})`;
+        values.push(userDeptId, userId);
+        idx += 2;
+      }
+      break;
+
+    case 'developer':
+    case 'tecnico':
       sql += ` AND (r.assigned_to = $${idx} OR r.created_by = $${idx})`;
       values.push(userId);
       idx++;
-    }
+      break;
+
+    case 'requester':
+      sql += ` AND r.created_by = $${idx}`;
+      values.push(userId);
+      idx++;
+      break;
+
+    default:
+      sql += ` AND 1 = 0`;
+      break;
   }
 
   const result = await pool.query(sql, values);

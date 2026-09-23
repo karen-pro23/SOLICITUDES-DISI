@@ -13,9 +13,12 @@ function normalizeText(str) {
 async function findAll() {
   const result = await pool.query(
     `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
-            d.name as department_name, u.is_active, u.es_jefe, u.created_at
+            d.name as department_name, u.area_id, a.name as area_name,
+            u.is_active, u.es_jefe, u.created_at
      FROM users u
      LEFT JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN areas a ON a.area_id = u.area_id
+     WHERE u.role != 'requester'
      ORDER BY u.created_at DESC`
   );
   return result.rows;

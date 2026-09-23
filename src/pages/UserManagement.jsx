@@ -3,11 +3,31 @@ import { getUsers, createUser, updateUser, deleteUser, getDepartments } from '..
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
+const ROLES = [
+  { value: 'director', label: 'Director' },
+  { value: 'sub_director', label: 'Sub Director' },
+  { value: 'recepcion', label: 'Recepción' },
+  { value: 'jefe_area', label: 'Jefe de Área' },
+  { value: 'developer', label: 'Desarrollador' },
+  { value: 'tecnico', label: 'Técnico' },
+];
+
+const ROLE_LABELS = {
+  director: 'Director',
+  sub_director: 'Sub Director',
+  recepcion: 'Recepción',
+  jefe_area: 'Jefe de Área',
+  developer: 'Desarrollador',
+  tecnico: 'Técnico',
+  admin: 'Admin',
+  requester: 'Solicitante',
+};
+
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'requester', departmentId: '', es_jefe: false });
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'developer', departmentId: '', es_jefe: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +38,7 @@ export default function UserManagement() {
   }, []);
 
   function resetForm() {
-    setForm({ fullName: '', email: '', password: '', role: 'requester', departmentId: '', es_jefe: false });
+    setForm({ fullName: '', email: '', password: '', role: 'developer', departmentId: '', es_jefe: false });
     setEditing(null);
   }
 
@@ -90,9 +110,9 @@ export default function UserManagement() {
             <div className="form-group">
               <label>Rol</label>
               <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
-                <option value="requester">SOLICITANTE</option>
-                <option value="developer">DESARROLLADOR</option>
-                <option value="admin">ADMINISTRADOR</option>
+                {ROLES.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -125,7 +145,7 @@ export default function UserManagement() {
             <th>Email</th>
             <th>Rol</th>
             <th>Departamento</th>
-            <th>Es Jefe</th>
+            <th>Área</th>
             <th>Activo</th>
             <th></th>
           </tr>
@@ -135,9 +155,9 @@ export default function UserManagement() {
             <tr key={u.user_id}>
               <td>{u.full_name}</td>
               <td>{u.email}</td>
-              <td>{u.role}</td>
+              <td>{ROLE_LABELS[u.role] || u.role}</td>
               <td>{u.department_name || '-'}</td>
-              <td>{u.es_jefe ? '✓' : '✗'}</td>
+              <td>{u.area_name || '-'}</td>
               <td>{u.is_active ? '✓' : '✗'}</td>
               <td>
                 <button className="btn btn-sm btn-outline" onClick={() => handleEdit(u)}>Editar</button>
