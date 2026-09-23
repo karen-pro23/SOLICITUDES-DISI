@@ -1,26 +1,13 @@
-const fs = require('fs');
-const path = require('path');
+const config = require('../config/env');
 
 const CLICKUP_API_BASE = 'https://api.clickup.com/api/v2';
 
-// Leer token del MCP ClickUp (fuente de verdad)
 function getToken() {
-  // 1. Variable de entorno tiene prioridad
-  if (process.env.CLICKUP_API_TOKEN) return process.env.CLICKUP_API_TOKEN;
-  
-  // 2. Leer del .env del MCP ClickUp
-  try {
-    const mcpEnvPath = path.resolve('/home/adrianvergel/MCP-CLICKUP/.env');
-    const content = fs.readFileSync(mcpEnvPath, 'utf-8');
-    const match = content.match(/CLICKUP_API_KEY=(.+)/);
-    if (match) return match[1].trim();
-  } catch (_) {}
-  
-  return '';
+  return config.clickup?.token || '';
 }
 
 function getListId() {
-  return process.env.CLICKUP_LIST_ID || '1201070000000718';
+  return config.clickup?.listId || '1201070000000718';
 }
 
 /**
