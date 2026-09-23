@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState({ key: null, dir: null });
   const seqRef = useRef(0);
   const [metrics, setMetrics] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // list | kanban
 
   // Modal State
   const [activeStatusReq, setActiveStatusReq] = useState(null); // solicitud cuyo estado se edita
@@ -227,9 +228,31 @@ export default function Dashboard() {
             Recepción, atención y resolución de solicitudes de los departamentos.
           </p>
         </div>
-        <Link to="/requests/new" className="btn btn-primary">
-          + Nueva Solicitud
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '0.375rem 0.75rem', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                background: viewMode === 'list' ? 'white' : 'transparent',
+                boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                fontWeight: 600, fontSize: '0.75rem', color: viewMode === 'list' ? '#0f172a' : '#64748b',
+              }}
+            >📋 Lista</button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              style={{
+                padding: '0.375rem 0.75rem', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                background: viewMode === 'kanban' ? 'white' : 'transparent',
+                boxShadow: viewMode === 'kanban' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                fontWeight: 600, fontSize: '0.75rem', color: viewMode === 'kanban' ? '#0f172a' : '#64748b',
+              }}
+            >📊 Kanban</button>
+          </div>
+          <Link to="/requests/new" className="btn btn-primary btn-sm">
+            + Nueva
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards de Resumen */}
@@ -340,7 +363,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Tabla de Bandeja de Solicitudes */}
+      {/* Vista de Solicitudes */}
       {loading && requests.length === 0 ? (
         <p className="text-muted" style={{ textAlign: 'center', padding: '3rem 0' }}>
           Cargando bandeja de solicitudes...
@@ -349,19 +372,18 @@ export default function Dashboard() {
         <div className="empty-state">
           <p>No se encontraron solicitudes en esta categoría.</p>
         </div>
-      ) : (
+      ) : viewMode === 'list' ? (
+        /* ═══ VISTA LISTA ═══ */
         <>
           <div className="table-responsive">
             <table className="table request-table">
               <thead>
                 <tr>
                   {renderSortableHeader("Código / Ticket", "ticket_code")}
-                  {renderSortableHeader("Solicitante y Origen", "created_by_name")}
-                  {renderSortableHeader("Módulo Afectado", "module_name")}
-                  {renderSortableHeader("Estado", "status")}
-                  {renderSortableHeader("Prioridad", "priority")}
-                  {renderSortableHeader("Asignado a", "assigned_to_name")}
-                  {renderSortableHeader("Fecha", "created_at")}
+                  {renderSortableHeader("Solicitante", "created_by_name")}
+                  <th>Estado</th>
+                  <th>Prioridad</th>
+                  <th>Asignado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
@@ -372,7 +394,6 @@ export default function Dashboard() {
                     <tr key={req.request_id} className="request-table-row">
                       <td className="col-ticket">
                         <Link to={`/requests/${req.request_id}`} className="ticket-badge-link">
-                          <svg className="ticket-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>
                           <span className="ticket-code-text">{req.ticket_code}</span>
                         </Link>
                       </td>
@@ -381,12 +402,9 @@ export default function Dashboard() {
                           <div className="user-avatar">{initial}</div>
                           <div>
                             <div className="user-name">{req.created_by_name || 'Usuario'}</div>
-                            <div className="user-dept">{req.department_name || 'Sin departamento'}</div>
+                            <div className="user-dept">{req.department_name || ''}</div>
                           </div>
                         </div>
-                      </td>
-                      <td className="col-module">
-                        <span className="module-tag">{req.module_name}</span>
                       </td>
                       <td className="col-status">
                         <StatusBadge status={req.status} />
@@ -397,61 +415,25 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="col-assigned">
-                        <div className="assigned-info" style={{ fontSize: '0.85rem' }}>
-                          {req.assigned_to_name ? (
-                            <><span style={{ color: 'var(--color-text)' }}>👤 {req.assigned_to_name}</span><br/></>
-                          ) : null}
-                          {req.assigned_department_name ? (
-                            <span style={{ color: 'var(--color-primary)' }}>🏢 {req.assigned_department_name}</span>
-                          ) : (
-                            !req.assigned_to_name && <span className="text-muted">Sin asignar</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="col-date">
-                        <span className="date-text">{new Date(req.created_at).toLocaleDateString()}</span>
+                        <span style={{ fontSize: '0.8125rem' }}>
+                          {req.assigned_to_name || <span className="text-muted">—</span>}
+                        </span>
                       </td>
                       <td className="col-actions" style={{ textAlign: 'right' }}>
                         <div className="row-actions-group">
-                          <button
-                            type="button"
-                            className="btn-action-pill btn-action-status"
-                            onClick={() => setActiveStatusReq(req)}
-                            title="Cambiar estado de la solicitud"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Estado
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action-pill btn-action-priority"
-                            onClick={() => setActivePriorityReq(req)}
-                            title="Cambiar prioridad de la solicitud"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> Prioridad
-                          </button>
-                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Detalle
-                          </Link>
+                          <button type="button" className="btn-action-pill btn-action-status"
+                            onClick={() => setActiveStatusReq(req)} title="Estado">⚙️</button>
+                          <button type="button" className="btn-action-pill btn-action-priority"
+                            onClick={() => setActivePriorityReq(req)} title="Prioridad">🔥</button>
+                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">👁️</Link>
                           {user && (user.role !== 'requester' || user.es_jefe) && (
-                            <button
-                              type="button"
-                              className="btn-action-pill"
-                              style={{ backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)', border: '1px solid currentColor' }}
-                              onClick={() => setActiveAssignReq(req)}
-                              title="Asignar solicitud"
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Asignar
-                            </button>
+                            <button type="button" className="btn-action-pill"
+                              style={{ background: '#eef2ff', color: '#6366f1' }}
+                              onClick={() => setActiveAssignReq(req)} title="Asignar">👤</button>
                           )}
                           {user && user.role !== 'requester' && (
-                            <button
-                              type="button"
-                              className="btn-action-pill btn-action-delete"
-                              onClick={() => handleDeleteRequest(req)}
-                              title="Eliminar solicitud"
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </button>
+                            <button type="button" className="btn-action-pill btn-action-delete"
+                              onClick={() => handleDeleteRequest(req)} title="Eliminar">🗑️</button>
                           )}
                         </div>
                       </td>
@@ -461,19 +443,69 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-
           <PaginationControl
             currentPage={pagination?.page || page}
             totalPages={pagination?.totalPages || 1}
             totalItems={pagination?.totalItems || requests.length}
             limit={limit}
             onPageChange={(newPage) => setPage(newPage)}
-            onLimitChange={(newLimit) => {
-              setLimit(newLimit);
-              setPage(1);
-            }}
+            onLimitChange={(newLimit) => { setLimit(newLimit); setPage(1); }}
           />
         </>
+      ) : (
+        /* ═══ VISTA KANBAN ═══ */
+        <div className="kanban-board">
+          {['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'EN_PRUEBAS', 'COMPLETADA'].map(status => {
+            const statusRequests = requests.filter(r => r.status === status);
+            const statusColors = {
+              PENDIENTE: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+              ASIGNADA: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
+              EN_PROCESO: { bg: '#e0e7ff', border: '#6366f1', text: '#4338ca' },
+              EN_PRUEBAS: { bg: '#fce7f3', border: '#ec4899', text: '#9d174d' },
+              COMPLETADA: { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+            };
+            const sc = statusColors[status] || statusColors.PENDIENTE;
+            return (
+              <div key={status} className="kanban-column">
+                <div className="kanban-column-header" style={{ borderTopColor: sc.border }}>
+                  <span className="kanban-column-title">{status.replace('_', ' ')}</span>
+                  <span className="kanban-column-count" style={{ background: sc.bg, color: sc.text }}>
+                    {statusRequests.length}
+                  </span>
+                </div>
+                <div className="kanban-column-body">
+                  {statusRequests.length === 0 ? (
+                    <div className="kanban-empty">Sin solicitudes</div>
+                  ) : (
+                    statusRequests.map(req => (
+                      <Link to={`/requests/${req.request_id}`} key={req.request_id} className="kanban-card">
+                        <div className="kanban-card-header">
+                          <span className="kanban-card-code">{req.ticket_code}</span>
+                          <span className={`priority-pill priority-${req.priority}`} style={{ fontSize: '0.625rem', padding: '0.1rem 0.375rem' }}>
+                            {req.priority}
+                          </span>
+                        </div>
+                        <div className="kanban-card-title">{req.process_description?.substring(0, 60)}...</div>
+                        <div className="kanban-card-footer">
+                          <span className="kanban-card-user">👤 {req.created_by_name || '—'}</span>
+                          {req.assigned_to_name && (
+                            <span className="kanban-card-assigned">→ {req.assigned_to_name}</span>
+                          )}
+                        </div>
+                        <div className="kanban-card-actions">
+                          <button type="button" className="kanban-action-btn" onClick={(e) => { e.preventDefault(); setActiveStatusReq(req); }}>⚙️</button>
+                          {user && (user.role !== 'requester' || user.es_jefe) && (
+                            <button type="button" className="kanban-action-btn" onClick={(e) => { e.preventDefault(); setActiveAssignReq(req); }}>👤</button>
+                          )}
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Modal de Estado */}
