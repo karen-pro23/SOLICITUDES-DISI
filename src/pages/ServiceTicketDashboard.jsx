@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { getServiceTickets, acceptServiceTicket, closeServiceTicket, getServiceTicketStats, getServiceTypes } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -135,7 +136,7 @@ export default function ServiceTicketDashboard() {
                     <tr key={t.ticket_id} style={{ borderBottom: '1px solid #f1f5f9' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={tdStyle}><code style={{ fontWeight: 700, color: '#6366f1', fontSize: '0.8125rem' }}>{t.ticket_code}</code></td>
+                      <td style={tdStyle}><Link to={`/requests/${t.request_id}`} style={{ fontWeight: 700, color: '#6366f1', fontSize: '0.8125rem', textDecoration: 'none' }}>{t.ticket_code}</Link></td>
                       <td style={tdStyle}>
                         <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{t.requester_name}</div>
                         <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{t.department_name || ''}</div>
