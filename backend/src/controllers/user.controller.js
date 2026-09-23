@@ -31,7 +31,7 @@ async function getByArea(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { fullName, email, password, role, departmentId } = req.body;
+    const { fullName, email, password, role, departmentId, areaId, cedula, es_jefe } = req.body;
     if (!fullName || !email || !password || !role) {
       return res.status(400).json({ error: 'Todos los campos básicos son requeridos' });
     }
@@ -48,7 +48,10 @@ async function update(req, res, next) {
     const user = await userService.update(parseInt(req.params.id, 10), req.body);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ user });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'El email ya existe' });
+    next(err);
+  }
 }
 
 async function remove(req, res, next) {

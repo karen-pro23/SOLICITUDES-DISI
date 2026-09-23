@@ -66,10 +66,11 @@ async function getByArea(areaId) {
 async function create(data) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const result = await pool.query(
-    `INSERT INTO users (full_name, email, password_hash, role, department_id, es_jefe)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING user_id, full_name, email, role, department_id, es_jefe, is_active, created_at`,
-    [normalizeText(data.fullName), data.email.toLowerCase().trim(), passwordHash, data.role, data.departmentId || null, data.es_jefe || false]
+    `INSERT INTO users (full_name, email, password_hash, role, department_id, area_id, cedula, es_jefe)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, is_active, created_at`,
+    [normalizeText(data.fullName), data.email.toLowerCase().trim(), passwordHash, data.role, 
+     data.departmentId || null, data.areaId || null, data.cedula || null, data.es_jefe || false]
   );
   return result.rows[0];
 }
@@ -83,6 +84,8 @@ async function update(userId, data) {
   if (data.email) { fields.push(`email = $${idx++}`); values.push(data.email.toLowerCase().trim()); }
   if (data.role) { fields.push(`role = $${idx++}`); values.push(data.role); }
   if (data.departmentId !== undefined) { fields.push(`department_id = $${idx++}`); values.push(data.departmentId || null); }
+  if (data.areaId !== undefined) { fields.push(`area_id = $${idx++}`); values.push(data.areaId || null); }
+  if (data.cedula !== undefined) { fields.push(`cedula = $${idx++}`); values.push(data.cedula || null); }
   if (data.es_jefe !== undefined) { fields.push(`es_jefe = $${idx++}`); values.push(data.es_jefe); }
   if (data.isActive !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.isActive); }
   if (data.password) {
@@ -96,7 +99,7 @@ async function update(userId, data) {
   values.push(userId);
   const result = await pool.query(
     `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${idx}
-     RETURNING user_id, full_name, email, role, department_id, es_jefe, is_active, created_at`,
+     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, is_active, created_at`,
     values
   );
   return result.rows[0];

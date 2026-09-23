@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser, deleteUser, getDepartments } from '../services/api';
+import { getUsers, createUser, updateUser, deleteUser, getDepartments, getAreasByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
 
@@ -26,8 +26,9 @@ const ROLE_LABELS = {
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'developer', departmentId: '', es_jefe: false });
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,8 +38,19 @@ export default function UserManagement() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Cargar áreas cuando cambia el departamento
+  useEffect(() => {
+    if (form.departmentId) {
+      getAreasByDepartment(form.departmentId)
+        .then(setAreas)
+        .catch(() => setAreas([]));
+    } else {
+      setAreas([]);
+    }
+  }, [form.departmentId]);
+
   function resetForm() {
-    setForm({ fullName: '', email: '', password: '', role: 'developer', departmentId: '', es_jefe: false });
+    setForm({ fullName: '', email: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
     setEditing(null);
   }
 
@@ -74,8 +86,10 @@ export default function UserManagement() {
       fullName: user.full_name,
       email: user.email,
       password: '',
+      cedula: user.cedula || '',
       role: user.role,
       departmentId: user.department_id || '',
+      areaId: user.area_id || '',
       es_jefe: user.es_jefe || false,
     });
   }
@@ -85,50 +99,73 @@ export default function UserManagement() {
   return (
     <div className="admin-page">
       <div className="page-header">
-        <h1>Usuarios</h1>
+        <h1>Usuarios del Equipo</h1>
+        <p style={{ color: '#64748b', fontSize: '0.875rem' }}>Gestionar personal del equipo (no incluye solicitantes)</p>
       </div>
 
       <div className="admin-form-card">
         <h3>{editing ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
         <form onSubmit={handleSubmit} className="admin-form">
+          {/* Fila 1: Nombre + Cédula */}
           <div className="form-row">
             <div className="form-group">
-              <label>Nombre</label>
+              <label>Nombre completo *</label>
               <input value={form.fullName} onChange={(e) => setForm({...form, fullName: e.target.value.toLocaleUpperCase()})} required />
             </div>
             <div className="form-group">
-              <label>Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value.toLocaleUpperCase()})} required />
+              <label>Cédula</label>
+              <input value={form.cedula} onChange={(e) => setForm({...form, cedula: e.target.value})} placeholder="Ej: 12345678" />
             </div>
           </div>
+          
+          {/* Fila 2: Email + Contraseña */}
           <div className="form-row">
+            <div className="form-group">
+              <label>Email (usuario para ingresar) *</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} required />
+            </div>
             <div className="form-group">
               <label>Contraseña {editing && '(dejar vacío para mantener)'}</label>
               <input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})}
                 required={!editing} />
             </div>
+          </div>
+          
+          {/* Fila 3: Rol + Departamento */}
+          <div className="form-row">
             <div className="form-group">
-              <label>Rol</label>
+              <label>Rol *</label>
               <select value={form.role} onChange={(e) => setForm({...form, role: e.target.value})}>
                 {ROLES.map(r => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
             </div>
-          </div>
-          <div className="form-row">
             <div className="form-group">
               <label>Departamento</label>
-              <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value})}>
-                <option value="">Seleccionar (Ninguno)</option>
+              <select value={form.departmentId} onChange={(e) => setForm({...form, departmentId: e.target.value, areaId: ''})}>
+                <option value="">Seleccionar...</option>
                 {departments.map((d) => (
                   <option key={d.department_id} value={d.department_id}>{d.name}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Fila 4: Área + Jefe */}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Área</label>
+              <select value={form.areaId} onChange={(e) => setForm({...form, areaId: e.target.value})} disabled={!form.departmentId}>
+                <option value="">Seleccionar área...</option>
+                {areas.map((a) => (
+                  <option key={a.area_id} value={a.area_id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input type="checkbox" id="es_jefe" checked={form.es_jefe} onChange={(e) => setForm({...form, es_jefe: e.target.checked})} style={{ width: 'auto', margin: 0 }} />
-              <label htmlFor="es_jefe" style={{ margin: 0 }}>Es Jefe de Departamento</label>
+              <label htmlFor="es_jefe" style={{ margin: 0 }}>Es Jefe de Área</label>
             </div>
           </div>
           <div className="form-actions">
@@ -142,6 +179,7 @@ export default function UserManagement() {
         <thead>
           <tr>
             <th>Nombre</th>
+            <th>Cédula</th>
             <th>Email</th>
             <th>Rol</th>
             <th>Departamento</th>
@@ -154,6 +192,7 @@ export default function UserManagement() {
           {users.map((u) => (
             <tr key={u.user_id}>
               <td>{u.full_name}</td>
+              <td>{u.cedula || '-'}</td>
               <td>{u.email}</td>
               <td>{ROLE_LABELS[u.role] || u.role}</td>
               <td>{u.department_name || '-'}</td>
