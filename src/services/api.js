@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 // Detectar si está corriendo en Capacitor (app móvil)
-const isCapacitor = window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost';
+// En Capacitor: hostname es 'localhost' pero NO hay puerto en la URL
+const isCapacitor = window.location.protocol === 'capacitor:' 
+  || (window.location.hostname === 'localhost' && !window.location.port)
+  || window.location.href.startsWith('capacitor://');
 const API_BASE = isCapacitor ? 'http://192.168.16.204:3001/api' : '/api';
 
 const api = axios.create({
