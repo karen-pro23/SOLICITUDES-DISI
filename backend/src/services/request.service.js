@@ -397,7 +397,14 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
     await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
     
     result = await client.query(
-      `UPDATE requests SET assigned_to = $1, assigned_department_id = $2, area_id = $3, status = 'ASIGNADA', version_number = version_number + 1 WHERE request_id = $4 AND version_number = $5 RETURNING *`,
+      `UPDATE requests SET 
+        assigned_to = $1, 
+        assigned_department_id = $2, 
+        area_id = $3, 
+        status = CASE WHEN status = 'PENDIENTE' THEN 'ASIGNADA' ELSE status END,
+        version_number = version_number + 1 
+       WHERE request_id = $4 AND version_number = $5 
+       RETURNING *`,
       [assigneeId || null, assignedDepartmentId || null, areaId || null, requestId, request.version_number]
     );
 
