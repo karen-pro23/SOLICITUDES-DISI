@@ -285,7 +285,7 @@ export default function RequestForm() {
 
   const getStep2ErrorsMap = () => {
     const errs = {};
-    if (!form.moduleId) {
+    if (!form.moduleId && form.requestTypeId !== '8') {
       errs.moduleId = 'Seleccioná el Módulo o Sistema donde ocurrió la falla o necesidad.';
     }
     if (!form.requestTypeId) {
@@ -1140,6 +1140,7 @@ export default function RequestForm() {
                   )}
 
                   <div className="form-row">
+                    {form.requestTypeId !== '8' && (
                     <div className="form-group">
                       <label htmlFor="moduleId">Módulo / Sistema Afectado *</label>
                       <select
@@ -1148,8 +1149,8 @@ export default function RequestForm() {
                         value={form.moduleId}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        required
-                        aria-required="true"
+                        required={form.requestTypeId !== '8'}
+                        aria-required={form.requestTypeId !== '8'}
                         className={(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId ? 'input-error' : undefined}
                       >
                         <option value="">-- Seleccionar módulo afectado --</option>
@@ -1163,6 +1164,7 @@ export default function RequestForm() {
                         <span className="field-error-text">⚠️ {step2Errors.moduleId}</span>
                       )}
                     </div>
+                    )}
 
                     <div className="form-group">
                       <label htmlFor="requestTypeId">Tipo de Requerimiento *</label>
