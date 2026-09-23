@@ -8,7 +8,7 @@ const router = Router();
 router.get('/department/:id', getByDepartment);
 router.get('/area/:id', getByArea);
 
-router.use(requireRole('admin'));
+router.use(requireRole('admin', 'super_admin'));
 router.get('/', getAll);
 router.get('/:id', getById);
 router.post('/', create);

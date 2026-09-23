@@ -7,7 +7,7 @@ const {
 } = require('../controllers/admin.controller');
 
 const router = Router();
-router.use(requireRole('admin'));
+router.use(requireRole('admin', 'super_admin'));
 
 // Módulos
 router.get('/modules', getModules);
