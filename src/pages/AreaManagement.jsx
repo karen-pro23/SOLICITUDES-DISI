@@ -47,7 +47,7 @@ export default function AreaManagement() {
         } catch (_) {}
       }
       setAllAreas(allAreasList);
-    } catch () {
+    } catch (err) {
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
