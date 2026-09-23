@@ -274,7 +274,7 @@ async function create(data, userId, userDeptId) {
       process_description, current_behavior, expected_behavior, extension)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [userId, userDeptId, moduleId, requestTypeId, cleanPriority,
+    [userId, userDeptId, moduleId || null, requestTypeId, cleanPriority,
      processDescription, currentBehavior, expectedBehavior, extension || null]
   );
 

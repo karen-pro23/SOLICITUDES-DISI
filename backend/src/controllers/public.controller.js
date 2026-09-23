@@ -106,7 +106,7 @@ async function createRequest(req, res, next) {
     }
 
     const deptId = parseInt(departmentId, 10);
-    const modId = parseInt(moduleId, 10);
+    const modId = moduleId ? parseInt(moduleId, 10) : null;
     const typeId = parseInt(requestTypeId, 10);
 
     // Buscar o crear persona por cédula (sin acentos, mayúsculas, con email)
