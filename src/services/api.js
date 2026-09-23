@@ -102,8 +102,8 @@ export function getAttachmentPreviewUrl(requestId, fileId) {
 }
 
 // Authenticated API
-export async function login(email, password) {
-  const { data } = await api.post('/auth/login', { email, password });
+export async function login(username, password) {
+  const { data } = await api.post('/auth/login', { username, password });
   if (data.refreshToken) {
     localStorage.setItem('refreshToken', data.refreshToken);
   }
