@@ -46,6 +46,20 @@ async function getByDepartment(departmentId) {
   return result.rows;
 }
 
+async function getByArea(areaId) {
+  const result = await pool.query(
+    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id, u.area_id,
+            d.name as department_name, a.name as area_name, u.is_active, u.es_jefe, u.created_at
+     FROM users u
+     LEFT JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN areas a ON a.area_id = u.area_id
+     WHERE u.area_id = $1 AND u.is_active = true
+     ORDER BY u.full_name ASC`,
+    [areaId]
+  );
+  return result.rows;
+}
+
 async function create(data) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const result = await pool.query(
@@ -89,4 +103,4 @@ async function remove(userId) {
   await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
 }
 
-module.exports = { findAll, findById, getByDepartment, create, update, remove };
+module.exports = { findAll, findById, getByDepartment, getByArea, create, update, remove };

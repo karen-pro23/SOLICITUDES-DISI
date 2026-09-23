@@ -1,11 +1,12 @@
 const { Router } = require('express');
-const { getAll, getById, getByDepartment, create, update, remove } = require('../controllers/user.controller');
+const { getAll, getById, getByDepartment, getByArea, create, update, remove } = require('../controllers/user.controller');
 const { requireRole } = require('../middleware/auth.middleware');
 
 const router = Router();
 
 // Accesible por Jefes y admins
 router.get('/department/:id', getByDepartment);
+router.get('/area/:id', getByArea);
 
 router.use(requireRole('admin'));
 router.get('/', getAll);

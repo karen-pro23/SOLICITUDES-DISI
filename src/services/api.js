@@ -202,6 +202,11 @@ export async function getUsersByDepartment(deptId) {
   return data.users;
 }
 
+export async function getUsersByArea(areaId) {
+  const { data } = await api.get(`/admin/users/area/${areaId}`);
+  return data.users;
+}
+
 export async function createUser(userData) {
   const { data } = await api.post('/admin/users', userData);
   return data.user;

@@ -22,6 +22,13 @@ async function getByDepartment(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getByArea(req, res, next) {
+  try {
+    const users = await userService.getByArea(parseInt(req.params.id, 10));
+    res.json({ users });
+  } catch (err) { next(err); }
+}
+
 async function create(req, res, next) {
   try {
     const { fullName, email, password, role, departmentId } = req.body;
@@ -51,4 +58,4 @@ async function remove(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getAll, getById, getByDepartment, create, update, remove };
+module.exports = { getAll, getById, getByDepartment, getByArea, create, update, remove };

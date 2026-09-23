@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getDepartments, getUsersByDepartment, assignRequest, getAreasByDepartment } from '../services/api';
+import { getDepartments, getUsersByDepartment, getUsersByArea, assignRequest, getAreasByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,10 +21,8 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
       setLoadingDepts(true);
       getDepartments()
         .then((allDepts) => {
-          // Filtramos primero todos los que son internos (is_it)
           let validDepts = allDepts.filter(d => d.is_it);
           if (user.role === 'requester' && user.es_jefe) {
-            // Un jefe solo puede ver su propio departamento
             validDepts = validDepts.filter(d => d.department_id === user.departmentId);
             setSelectedDept(user.departmentId);
           } else {
@@ -35,7 +33,6 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         .catch(() => toast.error('Error al cargar departamentos'))
         .finally(() => setLoadingDepts(false));
       
-      // Reset state
       setSelectedArea(request?.area_id || '');
       setSelectedEmp(request?.empleado_asignado_id || '');
       setAreas([]);
@@ -43,6 +40,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
     }
   }, [isOpen, request]);
 
+  // Paso 1: Se selecciona depto → carga áreas
   useEffect(() => {
     if (selectedDept) {
       setLoadingAreas(true);
@@ -50,19 +48,35 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         .then(setAreas)
         .catch(() => toast.error('Error al cargar áreas'))
         .finally(() => setLoadingAreas(false));
-      
+    } else {
+      setAreas([]);
+    }
+    // Al cambiar depto, limpiar área y empleados
+    setSelectedArea('');
+    setSelectedEmp('');
+    setEmployees([]);
+  }, [selectedDept]);
+
+  // Paso 2: Se selecciona área → carga empleados de esa área
+  useEffect(() => {
+    if (selectedArea) {
+      setLoadingEmps(true);
+      getUsersByArea(selectedArea)
+        .then(setEmployees)
+        .catch(() => toast.error('Error al cargar empleados del área'))
+        .finally(() => setLoadingEmps(false));
+    } else if (selectedDept) {
+      // Sin área seleccionada → mostrar todos los empleados del depto
       setLoadingEmps(true);
       getUsersByDepartment(selectedDept)
         .then(setEmployees)
         .catch(() => toast.error('Error al cargar empleados'))
         .finally(() => setLoadingEmps(false));
     } else {
-      setAreas([]);
       setEmployees([]);
-      setSelectedArea('');
-      setSelectedEmp('');
     }
-  }, [selectedDept]);
+    setSelectedEmp('');
+  }, [selectedArea, selectedDept]);
 
   if (!isOpen) return null;
 
