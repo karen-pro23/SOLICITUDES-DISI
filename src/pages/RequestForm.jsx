@@ -1140,32 +1140,6 @@ export default function RequestForm() {
                   )}
 
                   <div className="form-row">
-                    {form.requestTypeId !== '8' && (
-                    <div className="form-group">
-                      <label htmlFor="moduleId">Módulo / Sistema Afectado *</label>
-                      <select
-                        id="moduleId"
-                        name="moduleId"
-                        value={form.moduleId}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        required={form.requestTypeId !== '8'}
-                        aria-required={form.requestTypeId !== '8'}
-                        className={(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId ? 'input-error' : undefined}
-                      >
-                        <option value="">-- Seleccionar módulo afectado --</option>
-                        {modules.map((m) => (
-                          <option key={m.module_id} value={m.module_id}>
-                            💻 {m.name}
-                          </option>
-                        ))}
-                      </select>
-                      {(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId && (
-                        <span className="field-error-text">⚠️ {step2Errors.moduleId}</span>
-                      )}
-                    </div>
-                    )}
-
                     <div className="form-group">
                       <label htmlFor="requestTypeId">Tipo de Requerimiento *</label>
                       <select
@@ -1189,6 +1163,32 @@ export default function RequestForm() {
                         <span className="field-error-text">⚠️ {step2Errors.requestTypeId}</span>
                       )}
                     </div>
+
+                    {form.requestTypeId !== '8' && (
+                    <div className="form-group">
+                      <label htmlFor="moduleId">Módulo / Sistema Afectado *</label>
+                      <select
+                        id="moduleId"
+                        name="moduleId"
+                        value={form.moduleId}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        required
+                        aria-required="true"
+                        className={(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId ? 'input-error' : undefined}
+                      >
+                        <option value="">-- Seleccionar módulo afectado --</option>
+                        {modules.map((m) => (
+                          <option key={m.module_id} value={m.module_id}>
+                            💻 {m.name}
+                          </option>
+                        ))}
+                      </select>
+                      {(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId && (
+                        <span className="field-error-text">⚠️ {step2Errors.moduleId}</span>
+                      )}
+                    </div>
+                    )}
                   </div>
 
                   <div className="form-row">
