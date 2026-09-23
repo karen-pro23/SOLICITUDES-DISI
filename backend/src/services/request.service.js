@@ -409,7 +409,7 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
         assigned_department_id = $2, 
         area_id = $3, 
         status = CASE WHEN status = 'PENDIENTE' THEN 'ASIGNADA' ELSE status END,
-        service_start_time = CASE WHEN status = 'PENDIENTE' AND $1 IS NOT NULL THEN now() ELSE service_start_time END,
+        service_start_time = CASE WHEN status = 'PENDIENTE' THEN now() ELSE service_start_time END,
         version_number = version_number + 1 
        WHERE request_id = $4 AND version_number = $5 
        RETURNING *`,
