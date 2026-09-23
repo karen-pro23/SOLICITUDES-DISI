@@ -10,13 +10,13 @@ const router = Router();
 router.use(authenticate);
 
 // Rutas para jefes (ven áreas de su departamento) — ANTES de /:areaId
-router.get('/my-areas', requireRole(['admin', 'developer']), getAreasByUser);
+router.get('/my-areas', requireRole(['super_admin', 'admin', 'developer', 'jefe_area', 'recepcion']), getAreasByUser);
 
-// Rutas para admin
-router.get('/department/:departmentId', requireRole(['admin']), getByDepartment);
-router.post('/', requireRole(['admin']), create);
-router.patch('/:areaId', requireRole(['admin']), update);
-router.delete('/:areaId', requireRole(['admin']), remove);
-router.get('/:areaId', requireRole(['admin']), getById);
+// Rutas para admin/super_admin
+router.get('/department/:departmentId', requireRole(['super_admin', 'admin', 'recepcion']), getByDepartment);
+router.post('/', requireRole(['super_admin', 'admin']), create);
+router.patch('/:areaId', requireRole(['super_admin', 'admin']), update);
+router.delete('/:areaId', requireRole(['super_admin', 'admin']), remove);
+router.get('/:areaId', requireRole(['super_admin', 'admin', 'recepcion']), getById);
 
 module.exports = router;
