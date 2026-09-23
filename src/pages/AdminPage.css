@@ -687,3 +687,71 @@
     gap: 0.75rem;
   }
 }
+
+/* ── Mobile Touch Overrides ────────────────────── */
+
+@media (max-width: 768px) {
+  .admin-page {
+    padding: 0;
+  }
+  
+  .admin-card {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+  }
+  
+  .admin-form-card {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+  
+  .admin-form {
+    max-width: 100%;
+  }
+  
+  .admin-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+  
+  .admin-table {
+    min-width: 600px;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    padding: 0.75rem 0.625rem;
+    font-size: 0.8125rem;
+  }
+  
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+  }
+  
+  .btn-sm {
+    min-height: 36px;
+    padding: 0.5rem 0.875rem;
+  }
+  
+  .mgmt-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .mgmt-search {
+    width: 100%;
+  }
+  
+  .mgmt-search input {
+    min-height: 44px;
+  }
+  
+  select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
