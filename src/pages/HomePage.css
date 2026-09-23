@@ -1,0 +1,216 @@
+/* ═══════════════════════════════════════════════════════
+   HomePage — Landing Page Responsive
+   ═══════════════════════════════════════════════════════ */
+
+.home-page {
+  min-height: 100vh;
+  background: var(--surface-bg, #f8fafc);
+}
+
+.home-main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+  text-align: center;
+}
+
+/* ── Logo ─────────────────────────────────── */
+
+.home-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  color: white;
+  font-weight: 900;
+  font-size: 2rem;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25);
+}
+
+/* ── Title ────────────────────────────────── */
+
+.home-title {
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.home-subtitle {
+  font-size: 1.0625rem;
+  color: #475569;
+  margin-bottom: 3rem;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* ── Cards Grid ───────────────────────────── */
+
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Card Base ────────────────────────────── */
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2rem 1.75rem;
+  background: white;
+  border-radius: 1rem;
+  border: 2px solid #e2e8f0;
+  text-decoration: none;
+  color: #0f172a;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  text-align: left;
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.1);
+}
+
+.home-card:active {
+  transform: translateY(-1px);
+}
+
+/* ── Card Variants ────────────────────────── */
+
+.home-card-blue:hover {
+  border-color: #2563eb;
+  box-shadow: 0 12px 24px -4px rgba(37, 99, 235, 0.15);
+}
+
+.home-card-green:hover {
+  border-color: #10b981;
+  box-shadow: 0 12px 24px -4px rgba(16, 185, 129, 0.15);
+}
+
+.home-card-orange:hover {
+  border-color: #ea580c;
+  box-shadow: 0 12px 24px -4px rgba(234, 88, 12, 0.15);
+}
+
+/* ── Card Content ─────────────────────────── */
+
+.home-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.home-card-icon-blue { background: #eff6ff; color: #2563eb; }
+.home-card-icon-green { background: #ecfdf5; color: #10b981; }
+.home-card-icon-orange { background: #fff7ed; color: #ea580c; }
+
+.home-card-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 0.375rem;
+  color: #0f172a;
+}
+
+.home-card-desc {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.home-card-link {
+  margin-top: 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Responsive — Mobile
+   ═══════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .home-main {
+    padding: 2rem 1rem;
+  }
+
+  .home-logo {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+    border-radius: 16px;
+    margin-bottom: 1.25rem;
+  }
+
+  .home-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .home-subtitle {
+    font-size: 0.9375rem;
+    margin-bottom: 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .home-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .home-card {
+    padding: 1.5rem 1.25rem;
+    border-radius: 14px;
+  }
+
+  .home-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .home-card-title {
+    font-size: 1.0625rem;
+  }
+
+  .home-card-desc {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-main {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .home-title {
+    font-size: 1.5rem;
+  }
+
+  .home-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .home-card {
+    padding: 1.25rem 1rem;
+  }
+}
