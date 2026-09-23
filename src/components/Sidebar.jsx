@@ -109,12 +109,19 @@ const subDirectorLinks = [
   { to: '/admin/metrics', label: 'Métricas', icon: icons.metrics },
 ];
 
+const jefeStLinks = [
+  { to: '/servicio-tecnico', label: 'Servicio Técnico', icon: icons.inbox },
+  { to: '/dashboard', label: 'Solicitudes ST', icon: icons.requests },
+  { to: '/admin/metrics', label: 'Métricas', icon: icons.metrics },
+];
+
 const linkMap = {
   requester: requesterLinks,
   developer: developerLinks,
   tecnico: tecnicoLinks,
   recepcion: recepcionLinks,
   jefe_area: jefeAreaLinks,
+  jefe_st: jefeStLinks,
   director: directorLinks,
   sub_director: subDirectorLinks,
   super_admin: directorLinks,

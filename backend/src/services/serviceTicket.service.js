@@ -102,6 +102,19 @@ async function accept(ticketId, technicianId) {
   return result.rows[0] || null;
 }
 
+async function assign(ticketId, technicianId) {
+  const result = await pool.query(
+    `UPDATE requests SET 
+      assigned_to = $1, 
+      status = 'ASIGNADA',
+      version_number = version_number + 1
+     WHERE request_id = $2 AND status = 'PENDIENTE' AND request_type_id = $3
+     RETURNING *`,
+    [technicianId, ticketId, ST_REQUEST_TYPE_ID]
+  );
+  return result.rows[0] || null;
+}
+
 async function close(ticketId, data) {
   const result = await pool.query(
     `UPDATE requests SET 

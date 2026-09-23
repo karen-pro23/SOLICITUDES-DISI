@@ -287,6 +287,11 @@ export async function acceptServiceTicket(id) {
   return data.ticket;
 }
 
+export async function assignServiceTicket(id, technicianId) {
+  const { data } = await api.patch(`/service-tickets/${id}/assign`, { technicianId });
+  return data.ticket;
+}
+
 export async function closeServiceTicket(id, data) {
   const { data: result } = await api.patch(`/service-tickets/${id}/close`, data, {
     headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},

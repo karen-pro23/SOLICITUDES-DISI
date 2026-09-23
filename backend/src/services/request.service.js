@@ -28,6 +28,11 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
       // Ven TODO — sin filtros
       break;
 
+    case 'jefe_st':
+      // Jefe de servicio técnico ve solo solicitudes tipo Servicio Técnico (type_id = 8)
+      conditions.push(`r.request_type_id = 8`);
+      break;
+
     case 'recepcion':
       // Ven TODAS las solicitudes (para poder asignarlas)
       break;

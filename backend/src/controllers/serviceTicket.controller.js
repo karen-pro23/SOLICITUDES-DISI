@@ -36,6 +36,17 @@ async function accept(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Autenticado: asignar técnico (jefe_st)
+async function assign(req, res, next) {
+  try {
+    const { technicianId } = req.body;
+    if (!technicianId) return res.status(400).json({ error: 'Técnico requerido' });
+    const ticket = await serviceTicketService.assign(parseInt(req.params.id, 10), parseInt(technicianId, 10));
+    if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no está pendiente' });
+    res.json({ ticket });
+  } catch (err) { next(err); }
+}
+
 // Autenticado: cerrar con archivos
 async function close(req, res, next) {
   try {
@@ -87,4 +98,4 @@ async function getServiceTypes(req, res, next) {
   res.json({ serviceTypes: serviceTicketService.SERVICE_TYPES });
 }
 
-module.exports = { findAll, getByCode, getById, accept, close, rate, getStats, getServiceTypes };
+module.exports = { findAll, getByCode, getById, accept, assign, close, rate, getStats, getServiceTypes };

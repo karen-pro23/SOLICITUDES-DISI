@@ -10,6 +10,7 @@ const ROLES = [
   { value: 'sub_director', label: 'Sub Director', color: '#6366f1', bg: '#eef2ff' },
   { value: 'recepcion', label: 'Recepción', color: '#0891b2', bg: '#ecfeff' },
   { value: 'jefe_area', label: 'Jefe de Área', color: '#d97706', bg: '#fffbeb' },
+  { value: 'jefe_st', label: 'Jefe Servicio Técnico', color: '#0d9488', bg: '#f0fdfa' },
   { value: 'developer', label: 'Desarrollador', color: '#059669', bg: '#ecfdf5' },
   { value: 'tecnico', label: 'Técnico', color: '#0284c7', bg: '#f0f9ff' },
 ];
@@ -18,8 +19,8 @@ const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.value, r]));
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin', director: 'Director', sub_director: 'Sub Director',
-  recepcion: 'Recepción', jefe_area: 'Jefe de Área', developer: 'Desarrollador',
-  tecnico: 'Técnico', admin: 'Admin', requester: 'Solicitante',
+  recepcion: 'Recepción', jefe_area: 'Jefe de Área', jefe_st: 'Jefe Serv. Técnico',
+  developer: 'Desarrollador', tecnico: 'Técnico', admin: 'Admin', requester: 'Solicitante',
 };
 
 const thStyle = { padding: '0.875rem 1rem', fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', borderBottom: '2px solid #e2e8f0', background: '#f8fafc', whiteSpace: 'nowrap' };
