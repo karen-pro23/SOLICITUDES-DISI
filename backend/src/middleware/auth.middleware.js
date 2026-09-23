@@ -29,8 +29,10 @@ function authenticate(req, res, next) {
 }
 
 function requireRole(...roles) {
+  // Aplanar si se pasa un array como primer argumento
+  const flatRoles = roles.flat();
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user || !flatRoles.includes(req.user.role)) {
       return res.status(403).json({ error: 'No tienes permiso para esta acción' });
     }
     next();
