@@ -3,7 +3,7 @@
   "appName": "Solicitudes DISI",
   "webDir": "dist",
   "server": {
-    "url": "http://192.168.16.204:3001",
+    "androidScheme": "http",
     "cleartext": true
   },
   "android": {
