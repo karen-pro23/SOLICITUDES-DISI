@@ -1,4 +1,5 @@
 const serviceTicketService = require('../services/serviceTicket.service');
+const fileService = require('../services/file.service');
 
 // Autenticado: listar solicitudes de servicio técnico
 async function findAll(req, res, next) {
@@ -35,13 +36,28 @@ async function accept(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Autenticado: cerrar
+// Autenticado: cerrar con archivos
 async function close(req, res, next) {
   try {
     const { serviceType, closeObservations } = req.body;
     const ticket = await serviceTicketService.close(parseInt(req.params.id, 10), { serviceType, closeObservations });
     if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no está en proceso' });
-    res.json({ ticket });
+
+    // Procesar archivos adjuntos si vienen
+    const attachments = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileType = file.mimetype.startsWith('image/') ? 'screenshot' : 'document';
+        try {
+          const attachment = await fileService.saveAttachment(ticket.request_id, file, fileType);
+          attachments.push(attachment);
+        } catch (err) {
+          console.error('Error saving service ticket attachment:', err.message);
+        }
+      }
+    }
+
+    res.json({ ticket, attachments });
   } catch (err) { next(err); }
 }
 

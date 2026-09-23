@@ -21,6 +21,7 @@ export default function ServiceTicketDashboard() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closeForm, setCloseForm] = useState({ serviceType: '', closeObservations: '' });
+  const [closeFiles, setCloseFiles] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,11 +60,18 @@ export default function ServiceTicketDashboard() {
   async function handleClose() {
     setSubmitting(true);
     try {
-      await closeServiceTicket(selectedTicket.ticket_id, closeForm);
+      const formData = new FormData();
+      formData.append('serviceType', closeForm.serviceType);
+      formData.append('closeObservations', closeForm.closeObservations);
+      for (const file of closeFiles) {
+        formData.append('files', file);
+      }
+      await closeServiceTicket(selectedTicket.request_id, formData);
       toast.success(`Ticket ${selectedTicket.ticket_code} cerrado`);
       setShowCloseModal(false);
       setSelectedTicket(null);
       setCloseForm({ serviceType: '', closeObservations: '' });
+      setCloseFiles([]);
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al cerrar');
@@ -172,7 +180,7 @@ export default function ServiceTicketDashboard() {
               <h3>Cerrar Ticket {selectedTicket?.ticket_code}</h3>
               <button className="modal-close-btn" onClick={() => setShowCloseModal(false)}>✕</button>
             </div>
-            <div className="modal-body">
+              <div className="modal-body">
               <div className="form-group">
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Tipo de Servicio</label>
                 <select value={closeForm.serviceType} onChange={e => setCloseForm({...closeForm, serviceType: e.target.value})} style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}>
@@ -185,6 +193,16 @@ export default function ServiceTicketDashboard() {
                 <textarea value={closeForm.closeObservations} onChange={e => setCloseForm({...closeForm, closeObservations: e.target.value.toLocaleUpperCase()})} rows={4}
                   style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', resize: 'vertical' }}
                   placeholder="Describa la solución aplicada..." />
+              </div>
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Fotos del Trabajo (opcional)</label>
+                <input type="file" multiple accept="image/*,.pdf" onChange={e => setCloseFiles(Array.from(e.target.files))}
+                  style={{ width: '100%', padding: '0.5rem', border: '2px dashed #e2e8f0', borderRadius: '8px', fontSize: '0.8125rem' }} />
+                {closeFiles.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
+                    {closeFiles.length} archivo(s) seleccionado(s)
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer">

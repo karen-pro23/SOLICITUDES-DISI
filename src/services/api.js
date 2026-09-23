@@ -288,7 +288,9 @@ export async function acceptServiceTicket(id) {
 }
 
 export async function closeServiceTicket(id, data) {
-  const { data: result } = await api.patch(`/service-tickets/${id}/close`, data);
+  const { data: result } = await api.patch(`/service-tickets/${id}/close`, data, {
+    headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  });
   return result.ticket;
 }
 
