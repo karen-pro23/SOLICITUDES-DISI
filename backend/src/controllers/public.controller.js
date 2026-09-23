@@ -2,6 +2,7 @@ const pool = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const requestService = require('../services/request.service');
 const fileService = require('../services/file.service');
+const clickupService = require('../services/clickup.service');
 
 // Normaliza texto: elimina acentos y convierte a mayúsculas
 function normalizeText(str) {
@@ -171,6 +172,22 @@ async function createRequest(req, res, next) {
         }
       }
     }
+
+    // Crear tarea en ClickUp (asíncrono, no bloquea)
+    console.log(`[ClickUp] Intentando crear tarea para ${request.ticket_code}...`);
+    clickupService.createTaskFromRequest(request, request.ticket_code)
+      .then(task => {
+        if (task) {
+          console.log(`[ClickUp] Tarea creada: ${task.id} para ${request.ticket_code}`);
+          pool.query(
+            'UPDATE requests SET clickup_task_id = $1 WHERE request_id = $2',
+            [task.id, request.request_id]
+          ).catch(err => console.error('[ClickUp] Error guardando task_id:', err.message));
+        } else {
+          console.log(`[ClickUp] No se creó tarea para ${request.ticket_code} (token o listId vacío)`);
+        }
+      })
+      .catch(err => console.error('[ClickUp] Error creando tarea:', err.message));
 
     res.status(201).json({ request, attachments });
   } catch (err) { next(err); }
