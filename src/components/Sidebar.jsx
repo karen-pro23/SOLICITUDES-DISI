@@ -71,19 +71,49 @@ const developerLinks = [
   { to: '/dashboard', label: 'Todas las Solicitudes', icon: icons.requests },
 ];
 
-const adminLinks = [
+const tecnicoLinks = [
+  { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+  { to: '/dashboard', label: 'Mis Asignadas', icon: icons.requests },
+];
+
+const recepcionLinks = [
+  { to: '/dashboard', label: 'Todas las Solicitudes', icon: icons.requests },
+  { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+];
+
+const jefeAreaLinks = [
+  { to: '/dashboard', label: 'Solicitudes del Área', icon: icons.requests },
+  { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+  { to: '/admin/users', label: 'Usuarios del Área', icon: icons.users },
+];
+
+const directorLinks = [
   { to: '/dashboard', label: 'Solicitudes', icon: icons.requests },
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
   { to: '/admin', label: 'Panel Admin', icon: icons.admin },
   { to: '/admin/users', label: 'Usuarios', icon: icons.users },
   { to: '/admin/modules', label: 'Módulos', icon: icons.modules },
+  { to: '/admin/departments', label: 'Departamentos', icon: icons.admin },
+  { to: '/admin/areas', label: 'Áreas', icon: icons.modules },
+  { to: '/admin/metrics', label: 'Métricas', icon: icons.metrics },
+];
+
+const subDirectorLinks = [
+  { to: '/dashboard', label: 'Solicitudes', icon: icons.requests },
+  { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+  { to: '/admin/users', label: 'Usuarios', icon: icons.users },
   { to: '/admin/metrics', label: 'Métricas', icon: icons.metrics },
 ];
 
 const linkMap = {
   requester: requesterLinks,
   developer: developerLinks,
-  admin: adminLinks,
+  tecnico: tecnicoLinks,
+  recepcion: recepcionLinks,
+  jefe_area: jefeAreaLinks,
+  director: directorLinks,
+  sub_director: subDirectorLinks,
+  admin: directorLinks,
 };
 
 export default function Sidebar({ role, collapsed, toggleCollapse, onNavClick }) {

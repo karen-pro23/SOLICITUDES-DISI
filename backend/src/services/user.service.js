@@ -14,6 +14,7 @@ async function findAll() {
   const result = await pool.query(
     `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
             d.name as department_name, u.area_id, a.name as area_name,
+            u.cedula, u.phone, u.position, u.start_date, u.photo_url,
             u.is_active, u.es_jefe, u.created_at
      FROM users u
      LEFT JOIN departments d ON d.department_id = u.department_id
@@ -27,9 +28,12 @@ async function findAll() {
 async function findById(userId) {
   const result = await pool.query(
     `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
-            d.name as department_name, u.is_active, u.es_jefe, u.created_at
+            d.name as department_name, u.area_id, a.name as area_name,
+            u.cedula, u.phone, u.position, u.start_date, u.photo_url,
+            u.is_active, u.es_jefe, u.created_at
      FROM users u
      LEFT JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN areas a ON a.area_id = u.area_id
      WHERE u.user_id = $1`,
     [userId]
   );
@@ -66,11 +70,12 @@ async function getByArea(areaId) {
 async function create(data) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const result = await pool.query(
-    `INSERT INTO users (full_name, email, password_hash, role, department_id, area_id, cedula, es_jefe)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, is_active, created_at`,
+    `INSERT INTO users (full_name, email, password_hash, role, department_id, area_id, cedula, es_jefe, phone, position, start_date)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
     [normalizeText(data.fullName), data.email.toLowerCase().trim(), passwordHash, data.role, 
-     data.departmentId || null, data.areaId || null, data.cedula || null, data.es_jefe || false]
+     data.departmentId || null, data.areaId || null, data.cedula || null, data.es_jefe || false,
+     data.phone || null, data.position || null, data.startDate || null]
   );
   return result.rows[0];
 }
@@ -86,6 +91,9 @@ async function update(userId, data) {
   if (data.departmentId !== undefined) { fields.push(`department_id = $${idx++}`); values.push(data.departmentId || null); }
   if (data.areaId !== undefined) { fields.push(`area_id = $${idx++}`); values.push(data.areaId || null); }
   if (data.cedula !== undefined) { fields.push(`cedula = $${idx++}`); values.push(data.cedula || null); }
+  if (data.phone !== undefined) { fields.push(`phone = $${idx++}`); values.push(data.phone || null); }
+  if (data.position !== undefined) { fields.push(`position = $${idx++}`); values.push(data.position || null); }
+  if (data.startDate !== undefined) { fields.push(`start_date = $${idx++}`); values.push(data.startDate || null); }
   if (data.es_jefe !== undefined) { fields.push(`es_jefe = $${idx++}`); values.push(data.es_jefe); }
   if (data.isActive !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.isActive); }
   if (data.password) {
@@ -99,7 +107,7 @@ async function update(userId, data) {
   values.push(userId);
   const result = await pool.query(
     `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${idx}
-     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, is_active, created_at`,
+     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
     values
   );
   return result.rows[0];
@@ -109,4 +117,10 @@ async function remove(userId) {
   await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
 }
 
-module.exports = { findAll, findById, getByDepartment, getByArea, create, update, remove };
+async function resetPassword(userId, newPassword) {
+  const hash = await bcrypt.hash(newPassword, 10);
+  await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hash, userId]);
+  return true;
+}
+
+module.exports = { findAll, findById, getByDepartment, getByArea, create, update, remove, resetPassword };
