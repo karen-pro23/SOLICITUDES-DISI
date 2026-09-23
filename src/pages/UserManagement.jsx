@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import './AdminPage.css';
 
 const ROLES = [
+  { value: 'super_admin', label: 'Super Administrador' },
   { value: 'director', label: 'Director' },
   { value: 'sub_director', label: 'Sub Director' },
   { value: 'recepcion', label: 'Recepción' },
@@ -13,6 +14,7 @@ const ROLES = [
 ];
 
 const ROLE_LABELS = {
+  super_admin: 'Super Admin',
   director: 'Director',
   sub_director: 'Sub Director',
   recepcion: 'Recepción',

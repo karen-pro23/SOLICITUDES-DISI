@@ -20,9 +20,11 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
 
   // Lógica de Control de Acceso por Rol
   switch (userRole) {
+    case 'super_admin':
     case 'admin':
     case 'director':
     case 'sub_director':
+    case 'recepcion':
       // Ven TODO — sin filtros
       break;
 
@@ -223,6 +225,7 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
 
   // Control de acceso por rol
   switch (userRole) {
+    case 'super_admin':
     case 'admin':
     case 'director':
     case 'sub_director':

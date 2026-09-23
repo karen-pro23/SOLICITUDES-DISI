@@ -113,6 +113,7 @@ const linkMap = {
   jefe_area: jefeAreaLinks,
   director: directorLinks,
   sub_director: subDirectorLinks,
+  super_admin: directorLinks,
   admin: directorLinks,
 };
 
