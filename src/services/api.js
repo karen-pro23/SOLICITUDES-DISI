@@ -266,4 +266,50 @@ export async function getMyAreas() {
   return data.areas;
 }
 
+// Service Ticket endpoints
+export async function createServiceTicket(data) {
+  const { data: result } = await api.post('/service-tickets', data);
+  return result.ticket;
+}
+
+export async function getServiceTickets(params = {}) {
+  const { data } = await api.get('/service-tickets', { params });
+  return data;
+}
+
+export async function getServiceTicket(code) {
+  const { data } = await api.get(`/service-tickets/${code}`);
+  return data.ticket;
+}
+
+export async function acceptServiceTicket(id) {
+  const { data } = await api.patch(`/service-tickets/${id}/accept`);
+  return data.ticket;
+}
+
+export async function closeServiceTicket(id, data) {
+  const { data: result } = await api.patch(`/service-tickets/${id}/close`, data);
+  return result.ticket;
+}
+
+export async function getPublicServiceTicket(code) {
+  const { data } = await api.get(`/service-tickets/public/${code}`);
+  return data.ticket;
+}
+
+export async function rateServiceTicket(code, satisfaction) {
+  const { data } = await api.patch(`/service-tickets/public/${code}/rate`, { satisfaction });
+  return data.ticket;
+}
+
+export async function getServiceTicketStats() {
+  const { data } = await api.get('/service-tickets/stats');
+  return data.stats;
+}
+
+export async function getServiceTypes() {
+  const { data } = await api.get('/service-tickets/service-types');
+  return data.serviceTypes;
+}
+
 export default api;

@@ -12,6 +12,7 @@ const adminRoutes = require('./routes/admin.routes');
 const publicRoutes = require('./routes/public.routes');
 const aiRoutes = require('./routes/ai.routes');
 const areaRoutes = require('./routes/area.routes');
+const serviceTicketRoutes = require('./routes/serviceTicket.routes');
 const { authenticate } = require('./middleware/auth.middleware');
 
 const app = express();
@@ -78,6 +79,7 @@ app.use('/api/requests', authenticate, requestRoutes);
 app.use('/api/admin', authenticate, adminRoutes);
 app.use('/api/ai', authenticate, aiRoutes);
 app.use('/api/areas', areaRoutes);
+app.use('/api/service-tickets', serviceTicketRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

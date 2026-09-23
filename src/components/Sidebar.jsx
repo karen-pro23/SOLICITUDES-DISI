@@ -69,16 +69,19 @@ const requesterLinks = [
 const developerLinks = [
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
   { to: '/dashboard', label: 'Todas las Solicitudes', icon: icons.requests },
+  { to: '/servicio-tecnico', label: 'Servicio Técnico', icon: icons.inbox },
 ];
 
 const tecnicoLinks = [
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
   { to: '/dashboard', label: 'Mis Asignadas', icon: icons.requests },
+  { to: '/servicio-tecnico', label: 'Servicio Técnico', icon: icons.inbox },
 ];
 
 const recepcionLinks = [
   { to: '/dashboard', label: 'Todas las Solicitudes', icon: icons.requests },
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+  { to: '/servicio-tecnico', label: 'Servicio Técnico', icon: icons.inbox },
 ];
 
 const jefeAreaLinks = [
@@ -90,6 +93,7 @@ const jefeAreaLinks = [
 const directorLinks = [
   { to: '/dashboard', label: 'Solicitudes', icon: icons.requests },
   { to: '/dev/inbox', label: 'Bandeja de Entrada', icon: icons.inbox },
+  { to: '/servicio-tecnico', label: 'Servicio Técnico', icon: icons.inbox },
   { to: '/admin', label: 'Panel Admin', icon: icons.admin },
   { to: '/admin/users', label: 'Usuarios', icon: icons.users },
   { to: '/admin/modules', label: 'Módulos', icon: icons.modules },

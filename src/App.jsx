@@ -14,6 +14,9 @@ import UserManagement from './pages/UserManagement';
 import ModuleManagement from './pages/ModuleManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
 import AreaManagement from './pages/AreaManagement';
+import ServiceTicketDashboard from './pages/ServiceTicketDashboard';
+import ServiceTicketForm from './pages/ServiceTicketForm';
+import ServiceTicketRate from './pages/ServiceTicketRate';
 import MetricsDashboard from './pages/MetricsDashboard';
 
 export default function App() {
@@ -29,6 +32,9 @@ export default function App() {
 
         {/* Formulario público para crear solicitud */}
         <Route path="/solicitud" element={<RequestForm />} />
+        <Route path="/servicio-tecnico/nuevo" element={<ServiceTicketForm />} />
+        <Route path="/servicio-tecnico/calificar" element={<ServiceTicketRate />} />
+        <Route path="/servicio-tecnico/calificar/:code" element={<ServiceTicketRate />} />
 
         {/* Acceso para el equipo de Desarrollo / Sistemas */}
         <Route path="/login" element={<LoginPage />} />
@@ -44,6 +50,7 @@ export default function App() {
           <Route path="/admin/modules" element={<ModuleManagement />} />
           <Route path="/admin/departments" element={<DepartmentManagement />} />
           <Route path="/admin/areas" element={<AreaManagement />} />
+          <Route path="/servicio-tecnico" element={<ServiceTicketDashboard />} />
           <Route path="/admin/metrics" element={<MetricsDashboard />} />
         </Route>
 
