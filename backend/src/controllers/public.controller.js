@@ -94,6 +94,7 @@ async function createRequest(req, res, next) {
       processDescription,
       currentBehavior,
       expectedBehavior,
+      extension,
     } = req.body;
 
     if (!cedula || !nombre || !apellido || !applicantEmail || !departmentId) {
@@ -151,6 +152,7 @@ async function createRequest(req, res, next) {
       processDescription: normalizeText(processDescription),
       currentBehavior: normalizeText(currentBehavior),
       expectedBehavior: normalizeText(expectedBehavior),
+      extension: extension || null,
     };
 
     const request = await requestService.create(requestData, userId, deptId);

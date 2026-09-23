@@ -153,6 +153,7 @@ export default function RequestForm() {
     processDescription: '',
     currentBehavior: '',
     expectedBehavior: '',
+    extension: '',
   });
   const [personaFound, setPersonaFound] = useState(false);
   const [personaLoading, setPersonaLoading] = useState(false);
@@ -717,6 +718,7 @@ export default function RequestForm() {
       fd.append('processDescription', form.processDescription);
       fd.append('currentBehavior', form.currentBehavior);
       fd.append('expectedBehavior', form.expectedBehavior);
+      if (form.extension) fd.append('extension', form.extension);
 
       for (const item of screenshots) fd.append('screenshots', item.file);
       for (const item of documents) fd.append('documents', item.file);
@@ -763,6 +765,7 @@ export default function RequestForm() {
       processDescription: '',
       currentBehavior: '',
       expectedBehavior: '',
+      extension: '',
     });
     setPersonaFound(false);
     setScreenshots([]);
@@ -1084,6 +1087,19 @@ export default function RequestForm() {
                       {(touched.departmentId || attemptedNext[1]) && step1Errors.departmentId && (
                         <span className="field-error-text">⚠️ {step1Errors.departmentId}</span>
                       )}
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="extension">Extensión Telefónica</label>
+                      <input
+                        type="text"
+                        id="extension"
+                        name="extension"
+                        value={form.extension}
+                        onChange={handleChange}
+                        placeholder="Ej: 2842"
+                        className="input"
+                      />
+                      <span className="field-help">Opcional — requerido para Servicio Técnico</span>
                     </div>
                   </div>
 
