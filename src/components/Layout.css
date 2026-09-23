@@ -314,12 +314,14 @@
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    width: 260px !important;
+    width: 280px !important;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .app-layout.mobile-open .sidebar {
     transform: translateX(0);
-    box-shadow: 10px 0 25px rgba(0, 0, 0, 0.3);
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.4);
   }
 
   .header {
@@ -336,6 +338,33 @@
 
   .content {
     padding: 1rem;
+  }
+
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .sidebar-logo {
+    padding: 1rem 1.25rem;
+  }
+
+  .sidebar-nav {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .sidebar-link {
+    padding: 0.625rem 0.875rem;
+    margin: 0.125rem 0;
+    border-radius: 8px;
+  }
+
+  .sidebar-link-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sidebar-link-text {
+    font-size: 0.875rem;
   }
 }
 

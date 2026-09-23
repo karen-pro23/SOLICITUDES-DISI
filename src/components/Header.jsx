@@ -1,5 +1,17 @@
 import { useAuth } from '../context/AuthContext';
 
+const ROLE_LABELS = {
+  super_admin: 'Super Admin',
+  director: 'Director',
+  sub_director: 'Sub Director',
+  recepcion: 'Recepción',
+  jefe_area: 'Jefe de Área',
+  developer: 'Desarrollador',
+  tecnico: 'Técnico',
+  admin: 'Administrador',
+  requester: 'Solicitante',
+};
+
 export default function Header({ user, toggleMobileMenu }) {
   const { logout } = useAuth();
 
@@ -30,10 +42,9 @@ export default function Header({ user, toggleMobileMenu }) {
             <span className="header-user">{user.fullName}</span>
             <div className="header-user-meta">
               <span className="header-role">
-                {user.role === 'admin' ? 'Administrador'
-                  : user.role === 'developer' ? 'Desarrollador' : 'Solicitante'}
+                {ROLE_LABELS[user.role] || user.role}
               </span>
-              <span className="header-dept">{user.departmentName}</span>
+              {user.departmentName && <span className="header-dept">{user.departmentName}</span>}
             </div>
           </div>
         </div>
