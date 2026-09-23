@@ -1,4 +1,6 @@
 const authService = require('../services/auth.service');
+const jwt = require('jsonwebtoken');
+const config = require('../config/env');
 
 async function login(req, res, next) {
   try {
@@ -72,6 +74,28 @@ async function me(req, res, next) {
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
+
+    // Regenerar token cookie con el rol actual de la BD
+    const freshToken = jwt.sign(
+      {
+        userId: user.user_id,
+        email: user.email,
+        role: user.role,
+        departmentId: user.department_id,
+        es_jefe: user.es_jefe,
+        is_jefe_departamento: user.is_jefe_departamento || false,
+        areaId: user.area_id || null,
+      },
+      config.jwt.secret,
+      { expiresIn: config.jwt.expiresIn }
+    );
+    res.cookie('token', freshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000,
+    });
+
     res.json({ user });
   } catch (err) {
     next(err);
