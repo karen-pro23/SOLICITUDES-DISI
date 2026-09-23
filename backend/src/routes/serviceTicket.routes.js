@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config/env');
 const { authenticate } = require('../middleware/auth.middleware');
 const {
-  findAll, getByCode, getById, accept, assign, close, rate, getStats, getServiceTypes
+  findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes
 } = require('../controllers/serviceTicket.controller');
 
 const router = Router();
@@ -46,6 +46,7 @@ router.get('/service-types', authenticate, getServiceTypes);
 router.get('/:code', authenticate, getByCode);
 router.get('/:id', authenticate, getById);
 router.patch('/:id/accept', authenticate, accept);
+router.patch('/:id/reject', authenticate, reject);
 router.patch('/:id/assign', authenticate, assign);
 router.patch('/:id/close', authenticate, upload.array('files', 5), close);
 

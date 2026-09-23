@@ -287,6 +287,11 @@ export async function acceptServiceTicket(id) {
   return data.ticket;
 }
 
+export async function rejectServiceTicket(id, reason) {
+  const { data } = await api.patch(`/service-tickets/${id}/reject`, { reason });
+  return data.ticket;
+}
+
 export async function assignServiceTicket(id, technicianId) {
   const { data } = await api.patch(`/service-tickets/${id}/assign`, { technicianId });
   return data.ticket;

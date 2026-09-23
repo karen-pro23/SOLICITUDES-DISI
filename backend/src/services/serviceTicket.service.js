@@ -102,6 +102,19 @@ async function accept(ticketId, technicianId) {
   return result.rows[0] || null;
 }
 
+async function reject(ticketId, reason) {
+  const result = await pool.query(
+    `UPDATE requests SET 
+      status = 'RECHAZADA',
+      rejection_reason = $1,
+      version_number = version_number + 1
+     WHERE request_id = $2 AND status IN ('PENDIENTE', 'ASIGNADA') AND request_type_id = $3
+     RETURNING *`,
+    [reason || 'Rechazado por servicio técnico', ticketId, ST_REQUEST_TYPE_ID]
+  );
+  return result.rows[0] || null;
+}
+
 async function assign(ticketId, technicianId) {
   const result = await pool.query(
     `UPDATE requests SET 

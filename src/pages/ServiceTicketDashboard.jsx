@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getServiceTickets, acceptServiceTicket, assignServiceTicket, closeServiceTicket, getServiceTicketStats, getServiceTypes, getUsersByDepartment } from '../services/api';
+import { getServiceTickets, acceptServiceTicket, rejectServiceTicket, assignServiceTicket, closeServiceTicket, getServiceTicketStats, getUsersByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import './AdminPage.css';
@@ -33,6 +33,8 @@ export default function ServiceTicketDashboard() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const [closeForm, setCloseForm] = useState({ serviceType: '', closeObservations: '' });
   const [closeFiles, setCloseFiles] = useState([]);
   const [technicians, setTechnicians] = useState([]);
@@ -76,6 +78,22 @@ export default function ServiceTicketDashboard() {
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al aceptar');
+    }
+  }
+
+  async function handleReject() {
+    setSubmitting(true);
+    try {
+      await rejectServiceTicket(selectedTicket.request_id, rejectReason);
+      toast.success(`Ticket ${selectedTicket.ticket_code} rechazado`);
+      setShowRejectModal(false);
+      setSelectedTicket(null);
+      setRejectReason('');
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al rechazar');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -291,6 +309,9 @@ export default function ServiceTicketDashboard() {
                                   {user.role !== 'requester' && (
                                     <button className="btn btn-sm btn-success" onClick={() => handleAccept(t)}>Aceptar</button>
                                   )}
+                                  {user.role !== 'requester' && (
+                                    <button className="btn btn-sm btn-danger" onClick={() => { setSelectedTicket(t); setShowRejectModal(true); }}>Rechazar</button>
+                                  )}
                                 </>
                               )}
                               {t.status === 'EN_PROCESO' && user.role !== 'requester' && (
@@ -373,6 +394,32 @@ export default function ServiceTicketDashboard() {
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowCloseModal(false)} disabled={submitting}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleClose} disabled={submitting}>{submitting ? 'Cerrando...' : 'Cerrar Ticket'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rechazar */}
+      {showRejectModal && (
+        <div className="modal-overlay" onClick={() => setShowRejectModal(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header" style={{ borderBottom: '2px solid #fecaca' }}>
+              <h3 style={{ color: '#dc2626' }}>Rechazar Ticket {selectedTicket?.ticket_code}</h3>
+              <button className="modal-close-btn" onClick={() => setShowRejectModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+                Indicá el motivo del rechazo para notificar al solicitante.
+              </p>
+              <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value.toLocaleUpperCase())} rows={4}
+                style={{ width: '100%', padding: '0.625rem', border: '2px solid #fecaca', borderRadius: '8px', fontSize: '0.875rem', resize: 'vertical' }}
+                placeholder="Motivo del rechazo..." />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowRejectModal(false)} disabled={submitting}>Cancelar</button>
+              <button className="btn btn-danger" onClick={handleReject} disabled={submitting}>
+                {submitting ? 'Rechazando...' : 'Confirmar Rechazo'}
+              </button>
             </div>
           </div>
         </div>
