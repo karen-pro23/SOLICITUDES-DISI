@@ -264,18 +264,18 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
 }
 
 async function create(data, userId, userDeptId) {
-  const { moduleId, requestTypeId, priority, processDescription, currentBehavior, expectedBehavior } = data;
+  const { moduleId, requestTypeId, priority, processDescription, currentBehavior, expectedBehavior, extension } = data;
   const cleanPriority = ['baja', 'media', 'alta'].includes((priority || '').toLowerCase().trim())
     ? priority.toLowerCase().trim()
     : 'media';
 
   const result = await pool.query(
     `INSERT INTO requests (created_by, department_id, module_id, request_type_id, priority,
-      process_description, current_behavior, expected_behavior)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      process_description, current_behavior, expected_behavior, extension)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [userId, userDeptId, moduleId, requestTypeId, cleanPriority,
-     processDescription, currentBehavior, expectedBehavior]
+     processDescription, currentBehavior, expectedBehavior, extension || null]
   );
 
   return result.rows[0];
@@ -298,8 +298,9 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     );
   }
 
-  // COMPLETADA marca completed_at
+  // COMPLETADA marca completed_at y service_close_time
   const completedAt = newStatus === 'COMPLETADA' ? new Date() : null;
+  const closeTime = newStatus === 'COMPLETADA' ? new Date() : null;
 
   // Registrar el cambio en el historial vía trigger de BD:
   // el trigger lee el actor real de la variable de sesión app.current_user_id,
@@ -313,10 +314,11 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     // Optimistic locking con version_number
     const result = await client.query(
       `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
+              service_close_time = COALESCE($6, service_close_time),
               version_number = version_number + 1
        WHERE request_id = $4 AND version_number = $5
        RETURNING *`,
-      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number]
+      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number, closeTime]
     );
 
     if (result.rows.length === 0) {
@@ -402,6 +404,7 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
         assigned_department_id = $2, 
         area_id = $3, 
         status = CASE WHEN status = 'PENDIENTE' THEN 'ASIGNADA' ELSE status END,
+        service_start_time = CASE WHEN status = 'PENDIENTE' AND $1 IS NOT NULL THEN now() ELSE service_start_time END,
         version_number = version_number + 1 
        WHERE request_id = $4 AND version_number = $5 
        RETURNING *`,
