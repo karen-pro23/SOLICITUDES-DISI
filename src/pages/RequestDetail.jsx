@@ -379,6 +379,41 @@ export default function RequestDetail() {
               </div>
             )}
 
+            {/* Servicio Técnico - Info adicional */}
+            {request.request_type_name === 'SERVICIO TÉCNICO' && (
+              <div className="detail-section" style={{ background: '#f0f9ff', borderRadius: '10px', padding: '1rem', border: '1px solid #bae6fd' }}>
+                <h3 style={{ color: '#0369a1' }}>Servicio Técnico</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+                  {request.extension && (
+                    <div><strong>Extensión:</strong> {request.extension}</div>
+                  )}
+                  {request.service_start_time && (
+                    <div><strong>Hora Inicio:</strong> {new Date(request.service_start_time).toLocaleString()}</div>
+                  )}
+                  {request.service_close_time && (
+                    <div><strong>Hora Cierre:</strong> {new Date(request.service_close_time).toLocaleString()}</div>
+                  )}
+                  {request.service_start_time && request.service_close_time && (
+                    <div><strong>Tiempo:</strong> {Math.round((new Date(request.service_close_time) - new Date(request.service_start_time)) / 60000)} min</div>
+                  )}
+                  {request.service_type && (
+                    <div style={{ gridColumn: '1 / -1' }}><strong>Tipo Servicio:</strong> {request.service_type}</div>
+                  )}
+                  {request.close_observations && (
+                    <div style={{ gridColumn: '1 / -1' }}><strong>Obs. Cierre:</strong> {request.close_observations}</div>
+                  )}
+                  {request.satisfaction && (
+                    <div>
+                      <strong>Conformidad:</strong>{' '}
+                      <span style={{ color: request.satisfaction === 'satisfecho' ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                        {request.satisfaction === 'satisfecho' ? '😊 Satisfecho' : '😞 No Satisfecho'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {attachments.length > 0 && (
               <div className="detail-section">
                 <h3>Archivos Adjuntos ({attachments.length})</h3>
