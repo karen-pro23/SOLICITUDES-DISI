@@ -21,6 +21,7 @@ async function login(req, res, next) {
     res.json({
       user: result.user,
       refreshToken: result.refreshToken.token,
+      accessToken: result.accessToken,
     });
   } catch (err) {
     if (err.status === 401) {
@@ -46,7 +47,10 @@ async function refresh(req, res, next) {
       maxAge: 15 * 60 * 1000,
     });
 
-    res.json({ refreshToken: result.refreshToken.token });
+    res.json({ 
+      refreshToken: result.refreshToken.token,
+      accessToken: result.accessToken,
+    });
   } catch (err) {
     if (err.status === 401) {
       return res.status(401).json({ error: err.message });

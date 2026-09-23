@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 // Detectar si está corriendo en Capacitor (app móvil)
-// En Capacitor: hostname es 'localhost' pero NO hay puerto en la URL
 const isCapacitor = window.location.protocol === 'capacitor:' 
   || (window.location.hostname === 'localhost' && !window.location.port)
   || window.location.href.startsWith('capacitor://');
@@ -10,6 +9,15 @@ const API_BASE = isCapacitor ? 'http://192.168.16.204:3001/api' : '/api';
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
+});
+
+// Enviar token de localStorage como Bearer header (para Capacitor)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 let refreshPromise = null;
@@ -30,6 +38,7 @@ api.interceptors.response.use(
       const storedRefresh = localStorage.getItem('refreshToken');
       if (!storedRefresh) {
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('accessToken');
         window.location.href = '/login';
         return Promise.reject(error);
       }
@@ -42,11 +51,16 @@ api.interceptors.response.use(
         const { data } = await refreshPromise;
         refreshPromise = null;
         localStorage.setItem('refreshToken', data.refreshToken);
+        // Guardar access token para Capacitor
+        if (data.accessToken) {
+          localStorage.setItem('accessToken', data.accessToken);
+        }
 
         return api(originalRequest);
       } catch (refreshError) {
         refreshPromise = null;
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('accessToken');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -116,6 +130,10 @@ export async function login(username, password) {
   if (data.refreshToken) {
     localStorage.setItem('refreshToken', data.refreshToken);
   }
+  // Guardar access token para Capacitor (cookie httpOnly no funciona en apps)
+  if (data.accessToken) {
+    localStorage.setItem('accessToken', data.accessToken);
+  }
   return data;
 }
 
@@ -125,6 +143,7 @@ export async function logout() {
     await api.post('/auth/logout', { refreshToken });
   } finally {
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('accessToken');
   }
 }
 
