@@ -78,7 +78,8 @@ async function refresh(refreshTokenValue) {
   const tokenHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
 
   const result = await pool.query(
-    `SELECT rt.*, u.email, u.role, u.department_id, u.es_jefe, u.user_id, u.full_name
+    `SELECT rt.*, u.email, u.role, u.department_id, u.es_jefe, u.user_id, u.full_name,
+            u.is_jefe_departamento, u.area_id
      FROM refresh_tokens rt
      JOIN users u ON u.user_id = rt.user_id
      WHERE rt.token_hash = $1 AND rt.is_revoked = false AND rt.expires_at > now()`,
@@ -115,6 +116,8 @@ async function refresh(refreshTokenValue) {
     role: tokenRecord.role,
     department_id: tokenRecord.department_id,
     es_jefe: tokenRecord.es_jefe,
+    is_jefe_departamento: tokenRecord.is_jefe_departamento || false,
+    area_id: tokenRecord.area_id || null,
   });
 
   return {
@@ -147,9 +150,12 @@ function verifyAccessToken(token) {
 
 async function getUserById(userId) {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id, u.es_jefe, d.name as department_name
+    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id, u.es_jefe,
+            u.area_id, u.cedula, u.phone, u.position,
+            d.name as department_name, a.name as area_name
      FROM users u
      LEFT JOIN departments d ON d.department_id = u.department_id
+     LEFT JOIN areas a ON a.area_id = u.area_id
      WHERE u.user_id = $1`,
     [userId]
   );
