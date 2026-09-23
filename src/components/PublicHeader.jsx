@@ -40,6 +40,15 @@ export default function PublicHeader() {
       </div>
 
       <nav style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }} aria-label="Navegación principal">
+        <a
+          href="http://192.168.16.204:3001/downloads/solicitudes-disi.apk"
+          download
+          className="btn btn-sm"
+          style={{ fontSize: '0.75rem', color: '#22c55e', border: '1px solid #22c55e', background: 'rgba(34, 197, 94, 0.08)' }}
+        >
+          📱 App
+        </a>
+
         <Link
           to="/buscar"
           className={`btn ${isActive('/buscar') ? 'btn-primary' : 'btn-outline'} btn-sm`}
@@ -48,7 +57,7 @@ export default function PublicHeader() {
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          Buscar Solicitud
+          Buscar
         </Link>
 
         <Link
@@ -59,7 +68,7 @@ export default function PublicHeader() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Nueva Solicitud
+          Nueva
         </Link>
 
         {user ? (
@@ -70,11 +79,11 @@ export default function PublicHeader() {
               <rect x="14" y="14" width="7" height="7" />
               <rect x="3" y="14" width="7" height="7" />
             </svg>
-            Panel Interno
+            Panel
           </Link>
         ) : (
           <Link to="/login" className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem', opacity: 0.85 }}>
-            Acceso Personal
+            Acceso
           </Link>
         )}
       </nav>
