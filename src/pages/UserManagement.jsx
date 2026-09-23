@@ -44,7 +44,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
+  const [form, setForm] = useState({ fullName: '', email: '', username: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -80,6 +80,7 @@ export default function UserManagement() {
       result = result.filter(u =>
         u.full_name.toUpperCase().includes(term) ||
         u.email.toUpperCase().includes(term) ||
+        (u.username || '').toUpperCase().includes(term) ||
         (u.cedula || '').includes(term) ||
         (u.department_name || '').toUpperCase().includes(term) ||
         (u.area_name || '').toUpperCase().includes(term)
@@ -89,7 +90,7 @@ export default function UserManagement() {
   }, [users, search, filterRole]);
 
   function resetForm() {
-    setForm({ fullName: '', email: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
+    setForm({ fullName: '', email: '', username: '', password: '', cedula: '', role: 'developer', departmentId: '', areaId: '', es_jefe: false });
     setEditing(null);
     setShowForm(false);
   }
@@ -97,7 +98,7 @@ export default function UserManagement() {
   function handleEdit(user) {
     setEditing(user.user_id);
     setForm({
-      fullName: user.full_name, email: user.email, password: '', cedula: user.cedula || '',
+      fullName: user.full_name, email: user.email, username: user.username || '', password: '', cedula: user.cedula || '',
       role: user.role, departmentId: user.department_id || '', areaId: user.area_id || '', es_jefe: user.es_jefe || false,
     });
     setShowForm(true);
@@ -189,6 +190,7 @@ export default function UserManagement() {
               <thead>
                 <tr>
                   <th style={thStyle}>Usuario</th>
+                  <th style={thStyle}>Username</th>
                   <th style={thStyle}>Cédula</th>
                   <th style={thStyle}>Email</th>
                   <th style={thStyle}>Rol</th>
@@ -222,6 +224,7 @@ export default function UserManagement() {
                           </div>
                         </div>
                       </td>
+                      <td style={tdStyle}><code style={{ fontSize: '0.8125rem', color: '#6366f1', background: '#eef2ff', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{u.username || '-'}</code></td>
                       <td style={tdStyle}><span style={{ fontSize: '0.8125rem', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{u.cedula || '-'}</span></td>
                       <td style={tdStyle}><span style={{ fontSize: '0.8125rem', color: '#334155' }}>{u.email}</span></td>
                       <td style={tdStyle}>
@@ -267,10 +270,14 @@ export default function UserManagement() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={labelStyle}>Nombre completo *</label>
                     <input value={form.fullName} onChange={e => setForm({...form, fullName: e.target.value.toLocaleUpperCase()})} required style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Usuario (login) *</label>
+                    <input value={form.username} onChange={e => setForm({...form, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')})} placeholder="ej: carlos.lopez" required style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>Cédula</label>

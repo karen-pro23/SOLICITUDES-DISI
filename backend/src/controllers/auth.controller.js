@@ -4,12 +4,12 @@ const config = require('../config/env');
 
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
     }
 
-    const result = await authService.login(email, password);
+    const result = await authService.login(username, password);
 
     res.cookie('token', result.accessToken, {
       httpOnly: true,

@@ -4,13 +4,14 @@ const crypto = require('crypto');
 const pool = require('../db/pool');
 const config = require('../config/env');
 
-async function login(email, password) {
+async function login(username, password) {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.password_hash, u.role, u.department_id, u.es_jefe, d.name as department_name
+    `SELECT u.user_id, u.full_name, u.email, u.username, u.password_hash, u.role, u.department_id, u.es_jefe, 
+            u.is_jefe_departamento, u.area_id, d.name as department_name
      FROM users u
      LEFT JOIN departments d ON d.department_id = u.department_id
-     WHERE LOWER(u.email) = LOWER($1) AND u.is_active = true`,
-    [email]
+     WHERE LOWER(u.username) = LOWER($1) AND u.is_active = true`,
+    [username]
   );
 
   if (result.rows.length === 0) {
@@ -33,10 +34,13 @@ async function login(email, password) {
       userId: user.user_id,
       fullName: user.full_name,
       email: user.email,
+      username: user.username,
       role: user.role,
       departmentId: user.department_id,
       departmentName: user.department_name,
       es_jefe: user.es_jefe,
+      is_jefe_departamento: user.is_jefe_departamento || false,
+      areaId: user.area_id || null,
     },
   };
 }

@@ -69,11 +69,12 @@ async function getByArea(areaId) {
 
 async function create(data) {
   const passwordHash = await bcrypt.hash(data.password, 10);
+  const username = data.username || data.email.split('@')[0];
   const result = await pool.query(
-    `INSERT INTO users (full_name, email, password_hash, role, department_id, area_id, cedula, es_jefe, phone, position, start_date)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
-    [normalizeText(data.fullName), data.email.toLowerCase().trim(), passwordHash, data.role, 
+    `INSERT INTO users (full_name, email, username, password_hash, role, department_id, area_id, cedula, es_jefe, phone, position, start_date)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING user_id, full_name, email, username, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
+    [normalizeText(data.fullName), data.email.toLowerCase().trim(), username.toLowerCase(), passwordHash, data.role, 
      data.departmentId || null, data.areaId || null, data.cedula || null, data.es_jefe || false,
      data.phone || null, data.position || null, data.startDate || null]
   );
@@ -87,6 +88,7 @@ async function update(userId, data) {
 
   if (data.fullName) { fields.push(`full_name = $${idx++}`); values.push(normalizeText(data.fullName)); }
   if (data.email) { fields.push(`email = $${idx++}`); values.push(data.email.toLowerCase().trim()); }
+  if (data.username) { fields.push(`username = $${idx++}`); values.push(data.username.toLowerCase().trim()); }
   if (data.role) { fields.push(`role = $${idx++}`); values.push(data.role); }
   if (data.departmentId !== undefined) { fields.push(`department_id = $${idx++}`); values.push(data.departmentId || null); }
   if (data.areaId !== undefined) { fields.push(`area_id = $${idx++}`); values.push(data.areaId || null); }
@@ -107,7 +109,7 @@ async function update(userId, data) {
   values.push(userId);
   const result = await pool.query(
     `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${idx}
-     RETURNING user_id, full_name, email, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
+     RETURNING user_id, full_name, email, username, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
     values
   );
   return result.rows[0];

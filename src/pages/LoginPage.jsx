@@ -5,7 +5,7 @@ import './LoginPage.css';
 
 export default function LoginPage() {
   const { user, login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -15,13 +15,13 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
+    if (!username || !password) {
       setError('Complete todos los campos');
       return;
     }
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(username, password);
     } catch (err) {
       setError(err.response?.data?.error || 'Error al iniciar sesión');
     } finally {
@@ -34,17 +34,17 @@ export default function LoginPage() {
       <div className="login-card">
         <div className="login-header">
           <h1>Portal de Solicitudes</h1>
-          <p>Ingrese con sus credenciales</p>
+          <p>Ingrese con su usuario y contraseña</p>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label>Usuario</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value.toLocaleLowerCase())}
-              placeholder="tu@email.com"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLocaleLowerCase())}
+              placeholder="tu_usuario"
               autoFocus
             />
           </div>
@@ -61,6 +61,9 @@ export default function LoginPage() {
             {submitting ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
+        <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>
+          ← Volver al inicio
+        </a>
       </div>
     </div>
   );
