@@ -32,7 +32,7 @@ async function create(data) {
 }
 
 async function findAll(filters = {}) {
-  let sql = 'FROM service_tickets';
+  let sql = 'FROM service_tickets st';
   const conditions = [];
   const values = [];
   let idx = 1;
