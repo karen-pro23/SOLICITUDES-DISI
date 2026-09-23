@@ -1,12 +1,34 @@
-const config = require('../config/env');
+const fs = require('fs');
+const path = require('path');
 
 const CLICKUP_API_BASE = 'https://api.clickup.com/api/v2';
+
+// Leer token del MCP ClickUp (fuente de verdad)
+function getToken() {
+  // 1. Variable de entorno tiene prioridad
+  if (process.env.CLICKUP_API_TOKEN) return process.env.CLICKUP_API_TOKEN;
+  
+  // 2. Leer del .env del MCP ClickUp
+  try {
+    const mcpEnvPath = path.resolve('/home/adrianvergel/MCP-CLICKUP/.env');
+    const content = fs.readFileSync(mcpEnvPath, 'utf-8');
+    const match = content.match(/CLICKUP_API_KEY=(.+)/);
+    if (match) return match[1].trim();
+  } catch (_) {}
+  
+  return '';
+}
+
+function getListId() {
+  return process.env.CLICKUP_LIST_ID || '1201070000000718';
+}
 
 /**
  * Crea una tarea en ClickUp cuando se crea una solicitud
  */
 async function createTaskFromRequest(request, ticketCode) {
-  const { token, listId } = config.clickup;
+  const token = getToken();
+  const listId = getListId();
   
   if (!token || !listId) {
     console.log('ClickUp no configurado, saltando creación de tarea');
@@ -87,7 +109,7 @@ function buildDescription(request, ticketCode) {
  * Actualiza el estado de una tarea en ClickUp
  */
 async function updateTaskStatus(taskId, status) {
-  const { token } = config.clickup;
+  const token = getToken();
   
   if (!token || !taskId) return null;
 
