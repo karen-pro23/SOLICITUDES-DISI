@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { List, BarChart3, Smile, Frown, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getServiceTickets, acceptServiceTicket, rejectServiceTicket, assignServiceTicket, closeServiceTicket, getServiceTicketStats, getUsersByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
@@ -155,11 +156,11 @@ export default function ServiceTicketDashboard() {
           <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>Gestión de solicitudes de soporte técnico</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className={`btn ${view === 'list' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('list')} style={{ fontSize: '0.8125rem' }}>
-            📋 Lista
+          <button className={`btn ${view === 'list' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('list')} style={{ fontSize: '0.8125rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <List size={15} /> Lista
           </button>
-          <button className={`btn ${view === 'stats' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('stats')} style={{ fontSize: '0.8125rem' }}>
-            📊 Estadísticas
+          <button className={`btn ${view === 'stats' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('stats')} style={{ fontSize: '0.8125rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <BarChart3 size={15} /> Estadísticas
           </button>
         </div>
       </div>
@@ -208,11 +209,15 @@ export default function ServiceTicketDashboard() {
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
               <div style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#166534' }}>{stats.satisfied}</div>
-                <div style={{ fontSize: '0.75rem', color: '#166534' }}>😊 Satisfechos</div>
+                <div style={{ fontSize: '0.75rem', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                  <Smile size={14} /> Satisfechos
+                </div>
               </div>
               <div style={{ flex: 1, textAlign: 'center', padding: '1rem', background: '#fef2f2', borderRadius: '10px', border: '1px solid #fecaca' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#991b1b' }}>{stats.unsatisfied}</div>
-                <div style={{ fontSize: '0.75rem', color: '#991b1b' }}>😞 No Satisfechos</div>
+                <div style={{ fontSize: '0.75rem', color: '#991b1b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                  <Frown size={14} /> No Satisfechos
+                </div>
               </div>
             </div>
             <div style={{ textAlign: 'center', fontSize: '0.8125rem', color: '#64748b' }}>
@@ -336,7 +341,7 @@ export default function ServiceTicketDashboard() {
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <div className="modal-header">
               <h3>Asignar Técnico — {selectedTicket?.ticket_code}</h3>
-              <button className="modal-close-btn" onClick={() => setShowAssignModal(false)}>✕</button>
+              <button className="modal-close-btn" onClick={() => setShowAssignModal(false)} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
             <div className="modal-body">
               <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Seleccionar Técnico</label>
@@ -364,7 +369,7 @@ export default function ServiceTicketDashboard() {
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <h3>Cerrar Ticket {selectedTicket?.ticket_code}</h3>
-              <button className="modal-close-btn" onClick={() => setShowCloseModal(false)}>✕</button>
+              <button className="modal-close-btn" onClick={() => setShowCloseModal(false)} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -405,7 +410,7 @@ export default function ServiceTicketDashboard() {
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
             <div className="modal-header" style={{ borderBottom: '2px solid #fecaca' }}>
               <h3 style={{ color: '#dc2626' }}>Rechazar Ticket {selectedTicket?.ticket_code}</h3>
-              <button className="modal-close-btn" onClick={() => setShowRejectModal(false)}>✕</button>
+              <button className="modal-close-btn" onClick={() => setShowRejectModal(false)} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
             <div className="modal-body">
               <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
