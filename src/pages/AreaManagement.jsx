@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { X } from 'lucide-react';
 import { getAreasByDepartment, createArea, updateArea, deleteArea, getDepartments } from '../services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -282,7 +283,7 @@ export default function AreaManagement() {
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                 <DeptIcon /> {editingArea ? 'Editar Área' : 'Nueva Área'}
               </h3>
-              <button className="modal-close-btn" onClick={handleCloseForm}>✕</button>
+              <button className="modal-close-btn" onClick={handleCloseForm} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
