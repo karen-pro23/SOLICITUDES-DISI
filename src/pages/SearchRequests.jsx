@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Image, FileText, FileSpreadsheet, Paperclip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { searchPublicRequests, getPublicRequest } from '../services/api';
 import toast from 'react-hot-toast';
@@ -27,11 +28,11 @@ function parseMarkdown(text) {
 }
 
 function getFileIcon(mimeType) {
-  if (mimeType?.startsWith('image/')) return '🖼️';
-  if (mimeType === 'application/pdf') return '📄';
-  if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) return '📊';
-  if (mimeType === 'text/csv') return '📊';
-  return '📎';
+  if (mimeType?.startsWith('image/')) return <Image size={15} />;
+  if (mimeType === 'application/pdf') return <FileText size={15} />;
+  if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) return <FileSpreadsheet size={15} />;
+  if (mimeType === 'text/csv') return <FileSpreadsheet size={15} />;
+  return <Paperclip size={15} />;
 }
 
 function formatFileSize(bytes) {

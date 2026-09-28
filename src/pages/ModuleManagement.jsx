@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { X, Plus, Camera, FileText } from 'lucide-react';
 import { getModules as fetchModules, getRequestTypes as fetchTypes } from '../services/api';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -187,9 +188,10 @@ export default function ModuleManagement() {
             </div>
             <button
               className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               onClick={() => { cancelEditModule(); setShowModuleForm((v) => !v); }}
             >
-              {showModuleForm ? '✕ Cancelar' : '+ Nuevo'}
+              {showModuleForm ? <><X size={15} /> Cancelar</> : <><Plus size={15} /> Nuevo</>}
             </button>
           </div>
         </div>
@@ -296,9 +298,10 @@ export default function ModuleManagement() {
             </div>
             <button
               className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               onClick={() => { cancelEditType(); setShowTypeForm((v) => !v); }}
             >
-              {showTypeForm ? '✕ Cancelar' : '+ Nuevo'}
+              {showTypeForm ? <><X size={15} /> Cancelar</> : <><Plus size={15} /> Nuevo</>}
             </button>
           </div>
         </div>
@@ -383,10 +386,10 @@ export default function ModuleManagement() {
                 </div>
                 <div className="mgmt-card-tags">
                   <Badge variant={t.requires_screenshot ? 'green' : 'gray'}>
-                    {t.requires_screenshot ? '📷 Captura' : 'Sin captura'}
+                    {t.requires_screenshot ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><Camera size={12} /> Captura</span> : 'Sin captura'}
                   </Badge>
                   <Badge variant={t.requires_document ? 'green' : 'gray'}>
-                    {t.requires_document ? '📄 Documento' : 'Sin documento'}
+                    {t.requires_document ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><FileText size={12} /> Documento</span> : 'Sin documento'}
                   </Badge>
                 </div>
               </div>

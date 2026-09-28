@@ -1,4 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Check,
+  AlertTriangle,
+  User,
+  ClipboardList,
+  FileText,
+  Image,
+  FileSpreadsheet,
+  Zap,
+  Loader2,
+  Send,
+  X,
+  CheckCircle2,
+  XCircle,
+  Info,
+  Lightbulb,
+} from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getModules,
@@ -814,7 +831,7 @@ export default function RequestForm() {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'center' }}
               >
                 {copiedTicket ? (
-                  <>✓ Copiado al portapapeles</>
+                  <><Check size={14} /> Copiado al portapapeles</>
                 ) : (
                   <>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -887,7 +904,7 @@ export default function RequestForm() {
                 aria-current={currentStep === 1 ? 'step' : undefined}
               >
                 <div className="step-badge">
-                  {isStep1Valid ? '✓' : '1'}
+                  {isStep1Valid ? <Check size={14} strokeWidth={3} /> : '1'}
                 </div>
                 <div className="step-label">
                   <span className="step-title">1. Solicitante</span>
@@ -904,7 +921,7 @@ export default function RequestForm() {
                 aria-current={currentStep === 2 ? 'step' : undefined}
               >
                 <div className="step-badge">
-                  {isStep2Valid ? '✓' : '2'}
+                  {isStep2Valid ? <Check size={14} strokeWidth={3} /> : '2'}
                 </div>
                 <div className="step-label">
                   <span className="step-title">2. Clasificación</span>
@@ -921,7 +938,7 @@ export default function RequestForm() {
                 aria-current={currentStep === 3 ? 'step' : undefined}
               >
                 <div className="step-badge">
-                  {isStep3Valid ? '✓' : '3'}
+                  {isStep3Valid ? <Check size={14} strokeWidth={3} /> : '3'}
                 </div>
                 <div className="step-label">
                   <span className="step-title">3. Detalle y Evidencias</span>
@@ -932,7 +949,9 @@ export default function RequestForm() {
 
             {error && (
               <div className="alert alert-error" role="alert">
-                <span>⚠️ {error}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <AlertTriangle size={15} /> {error}
+                </span>
               </div>
             )}
 
@@ -941,7 +960,7 @@ export default function RequestForm() {
               {currentStep === 1 && (
                 <section className="form-section fade-in-step" aria-labelledby="step1-heading">
                   <h2 id="step1-heading">
-                    <span className="section-icon">👤</span> Datos del Solicitante
+                    <span className="section-icon"><User size={18} /></span> Datos del Solicitante
                   </h2>
                   <p className="section-desc">
                     Identificate con tu Cédula de Identidad para verificar tus datos institucionales.
@@ -950,7 +969,7 @@ export default function RequestForm() {
                   {attemptedNext[1] && !isStep1Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
+                        <span className="validation-alert-icon"><AlertTriangle size={16} /></span>
                         <strong>Para avanzar al Paso 2, por favor completá los siguientes datos:</strong>
                       </div>
                       <ul className="validation-alert-list">
@@ -984,12 +1003,12 @@ export default function RequestForm() {
                         <div id="cedula-status" role="status" aria-live="polite">
                           {personaLoading && (
                             <span className="persona-status-loading">
-                              <span className="spinner-icon">⏳</span> Buscando...
+                              <span className="spinner-icon"><Loader2 size={13} className="spin-icon" /></span> Buscando...
                             </span>
                           )}
                           {!personaLoading && personaFound && (
-                            <span className="persona-badge persona-badge-found">
-                              ✓ Verificada
+                            <span className="persona-badge persona-badge-found" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Check size={12} strokeWidth={2.5} /> Verificada
                             </span>
                           )}
                           {!personaLoading && !personaFound && form.cedula.trim() !== '' && (
@@ -1000,7 +1019,7 @@ export default function RequestForm() {
                         </div>
                       </div>
                       {(touched.cedula || attemptedNext[1]) && step1Errors.cedula && (
-                        <span className="field-error-text">⚠️ {step1Errors.cedula}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.cedula}</span>
                       )}
                     </div>
                   </div>
@@ -1022,7 +1041,7 @@ export default function RequestForm() {
                         className={`${personaFound ? 'form-input-found' : ''} ${(touched.nombre || attemptedNext[1]) && step1Errors.nombre ? 'input-error' : ''}`}
                       />
                       {(touched.nombre || attemptedNext[1]) && step1Errors.nombre && (
-                        <span className="field-error-text">⚠️ {step1Errors.nombre}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.nombre}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -1041,7 +1060,7 @@ export default function RequestForm() {
                         className={`${personaFound ? 'form-input-found' : ''} ${(touched.apellido || attemptedNext[1]) && step1Errors.apellido ? 'input-error' : ''}`}
                       />
                       {(touched.apellido || attemptedNext[1]) && step1Errors.apellido && (
-                        <span className="field-error-text">⚠️ {step1Errors.apellido}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.apellido}</span>
                       )}
                     </div>
                   </div>
@@ -1062,7 +1081,7 @@ export default function RequestForm() {
                         className={(touched.applicantEmail || attemptedNext[1]) && step1Errors.applicantEmail ? 'input-error' : undefined}
                       />
                       {(touched.applicantEmail || attemptedNext[1]) && step1Errors.applicantEmail && (
-                        <span className="field-error-text">⚠️ {step1Errors.applicantEmail}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.applicantEmail}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -1085,7 +1104,7 @@ export default function RequestForm() {
                         ))}
                       </select>
                       {(touched.departmentId || attemptedNext[1]) && step1Errors.departmentId && (
-                        <span className="field-error-text">⚠️ {step1Errors.departmentId}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.departmentId}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -1119,7 +1138,7 @@ export default function RequestForm() {
               {currentStep === 2 && (
                 <section className="form-section fade-in-step" aria-labelledby="step2-heading">
                   <h2 id="step2-heading">
-                    <span className="section-icon">📋</span> Clasificación de la Solicitud
+                    <span className="section-icon"><ClipboardList size={18} /></span> Clasificación de la Solicitud
                   </h2>
                   <p className="section-desc">
                     Indicá qué sistema o módulo presenta el problema o requiere mejoras.
@@ -1128,7 +1147,7 @@ export default function RequestForm() {
                   {attemptedNext[2] && !isStep2Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
+                        <span className="validation-alert-icon"><AlertTriangle size={16} /></span>
                         <strong>Para avanzar al Paso 3, seleccioná la información requerida:</strong>
                       </div>
                       <ul className="validation-alert-list">
@@ -1155,12 +1174,12 @@ export default function RequestForm() {
                         <option value="">-- Seleccionar tipo de solicitud --</option>
                         {types.map((t) => (
                           <option key={t.request_type_id} value={t.request_type_id}>
-                            ⚙️ {t.name}
+                            {t.name}
                           </option>
                         ))}
                       </select>
                       {(touched.requestTypeId || attemptedNext[2]) && step2Errors.requestTypeId && (
-                        <span className="field-error-text">⚠️ {step2Errors.requestTypeId}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step2Errors.requestTypeId}</span>
                       )}
                     </div>
 
@@ -1180,12 +1199,12 @@ export default function RequestForm() {
                         <option value="">-- Seleccionar módulo afectado --</option>
                         {modules.map((m) => (
                           <option key={m.module_id} value={m.module_id}>
-                            💻 {m.name}
+                            {m.name}
                           </option>
                         ))}
                       </select>
                       {(touched.moduleId || attemptedNext[2]) && step2Errors.moduleId && (
-                        <span className="field-error-text">⚠️ {step2Errors.moduleId}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step2Errors.moduleId}</span>
                       )}
                     </div>
                     )}
@@ -1200,9 +1219,9 @@ export default function RequestForm() {
                         value={form.priority}
                         onChange={handleChange}
                       >
-                        <option value="baja">🟢 Baja (Consulta / Cambio estético)</option>
-                        <option value="media">🟡 Media (Inconveniente con alternativa)</option>
-                        <option value="alta">🔴 Alta (Bloquea el trabajo diario)</option>
+                        <option value="baja">Baja (Consulta / Cambio estético)</option>
+                        <option value="media">Media (Inconveniente con alternativa)</option>
+                        <option value="alta">Alta (Bloquea el trabajo diario)</option>
                       </select>
                     </div>
                   </div>
@@ -1230,7 +1249,7 @@ export default function RequestForm() {
               {currentStep === 3 && (
                 <section className="form-section fade-in-step" aria-labelledby="step3-heading">
                   <h2 id="step3-heading">
-                    <span className="section-icon">📝</span> Detalle del Caso y Evidencias
+                    <span className="section-icon"><FileText size={18} /></span> Detalle del Caso y Evidencias
                   </h2>
                   <p className="section-desc">
                     Explicá el contexto para que nuestro equipo pueda reproducir y resolver el requerimiento rápidamente.
@@ -1239,7 +1258,7 @@ export default function RequestForm() {
                   {attemptedNext[3] && !isStep3Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
+                        <span className="validation-alert-icon"><AlertTriangle size={16} /></span>
                         <strong>Para finalizar la solicitud, completá los detalles obligatorios:</strong>
                       </div>
                       <ul className="validation-alert-list">
@@ -1273,7 +1292,7 @@ export default function RequestForm() {
                       </span>
                     </div>
                     {(touched.processDescription || attemptedNext[3]) && step3Errors.processDescription && (
-                      <span className="field-error-text">⚠️ {step3Errors.processDescription}</span>
+                      <span className="field-error-text"><AlertTriangle size={13} /> {step3Errors.processDescription}</span>
                     )}
                   </div>
 
@@ -1317,7 +1336,7 @@ export default function RequestForm() {
                       </span>
                     </div>
                     {(touched.currentBehavior || attemptedNext[3]) && step3Errors.currentBehavior && (
-                      <span className="field-error-text">⚠️ {step3Errors.currentBehavior}</span>
+                      <span className="field-error-text"><AlertTriangle size={13} /> {step3Errors.currentBehavior}</span>
                     )}
                   </div>
 
@@ -1344,7 +1363,7 @@ export default function RequestForm() {
                       </span>
                     </div>
                     {(touched.expectedBehavior || attemptedNext[3]) && step3Errors.expectedBehavior && (
-                      <span className="field-error-text">⚠️ {step3Errors.expectedBehavior}</span>
+                      <span className="field-error-text"><AlertTriangle size={13} /> {step3Errors.expectedBehavior}</span>
                     )}
                   </div>
 
@@ -1365,13 +1384,13 @@ export default function RequestForm() {
                         <div className={`upload-notice upload-notice-${uploadNotice.type}`} role="alert">
                           <span className="upload-notice-icon">
                             {uploadNotice.type === 'success' ? (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                              <CheckCircle2 size={18} color="#10b981" />
                             ) : uploadNotice.type === 'warning' ? (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                              <AlertTriangle size={18} color="#f59e0b" />
                             ) : uploadNotice.type === 'info' ? (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                              <Info size={18} color="#3b82f6" />
                             ) : (
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                              <XCircle size={18} color="#ef4444" />
                             )}
                           </span>
                           <span className="upload-notice-text">{uploadNotice.message}</span>
@@ -1381,7 +1400,7 @@ export default function RequestForm() {
                             onClick={() => setUploadNotice(null)}
                             aria-label="Cerrar notificación"
                           >
-                            ✕
+                            <X size={16} />
                           </button>
                         </div>
                       )}
@@ -1404,7 +1423,7 @@ export default function RequestForm() {
                             onDragLeave={() => setIsDragOverScreenshot(false)}
                             onDrop={handleScreenshotDrop}
                           >
-                            <span className="dropzone-icon">🖼️</span>
+                            <span className="dropzone-icon"><Image size={36} strokeWidth={1.5} /></span>
                             <p className="dropzone-text">
                               Arrastrá imágenes aquí o{' '}
                               <label htmlFor="screenshot-input" className="dropzone-browse">
@@ -1423,8 +1442,8 @@ export default function RequestForm() {
                           </div>
 
                           {convertingCount > 0 && (
-                            <span className="file-hint converting-hint">
-                              ⚡ Optimizando imágenes a WebP...
+                            <span className="file-hint converting-hint" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Zap size={14} /> Optimizando imágenes a WebP...
                             </span>
                           )}
 
@@ -1439,13 +1458,13 @@ export default function RequestForm() {
                                   <button
                                     type="button"
                                     onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeScreenshot(idx);
+                                       e.stopPropagation();
+                                       removeScreenshot(idx);
                                     }}
                                     className="screenshot-remove-btn"
                                     aria-label={`Eliminar imagen ${item.name}`}
                                   >
-                                    ✕
+                                    <X size={14} />
                                   </button>
                                   <img
                                     src={item.previewUrl}
@@ -1479,7 +1498,7 @@ export default function RequestForm() {
                             onDragLeave={() => setIsDragOverDocument(false)}
                             onDrop={handleDocumentDrop}
                           >
-                            <span className="dropzone-icon">📄</span>
+                            <span className="dropzone-icon"><FileText size={36} strokeWidth={1.5} /></span>
                             <p className="dropzone-text">
                               Arrastrá documentos PDF o planillas o{' '}
                               <label htmlFor="document-input" className="dropzone-browse">
@@ -1503,7 +1522,7 @@ export default function RequestForm() {
                                 <div key={idx} className="document-item">
                                   <div className="document-info">
                                     <span className="document-icon">
-                                      {item.type === 'application/pdf' || item.name.endsWith('.pdf') ? '📄' : '📊'}
+                                      {item.type === 'application/pdf' || item.name.endsWith('.pdf') ? <FileText size={18} /> : <FileSpreadsheet size={18} />}
                                     </span>
                                     <div className="document-text">
                                       <div className="document-name">{item.name}</div>
@@ -1527,7 +1546,7 @@ export default function RequestForm() {
                                       onClick={() => removeDocument(idx)}
                                       aria-label={`Eliminar documento ${item.name}`}
                                     >
-                                      ✕
+                                      <X size={14} />
                                     </button>
                                   </div>
                                 </div>
@@ -1552,9 +1571,14 @@ export default function RequestForm() {
                     <button
                       type="submit"
                       className="btn btn-primary btn-submit-lg"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                       disabled={submitting || convertingCount > 0}
                     >
-                      {submitting ? '⏳ Guardando Solicitud...' : '🚀 Enviar Solicitud Ahora'}
+                      {submitting ? (
+                        <><Loader2 size={16} className="spin-icon" /> Guardando Solicitud...</>
+                      ) : (
+                        <><Send size={16} /> Enviar Solicitud Ahora</>
+                      )}
                     </button>
                   </div>
                 </section>

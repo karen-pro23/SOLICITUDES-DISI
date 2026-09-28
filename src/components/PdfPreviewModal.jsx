@@ -1,3 +1,4 @@
+import { FileText, X } from 'lucide-react';
 import './PdfPreviewModal.css';
 
 export default function PdfPreviewModal({ url, name = '', onClose }) {
@@ -8,8 +9,8 @@ export default function PdfPreviewModal({ url, name = '', onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pdf-preview-header">
-          <div className="pdf-preview-title">
-            <span>📄</span> {name}
+          <div className="pdf-preview-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText size={18} /> <span>{name}</span>
           </div>
           <button
             type="button"
@@ -17,7 +18,7 @@ export default function PdfPreviewModal({ url, name = '', onClose }) {
             onClick={onClose}
             aria-label="Cerrar vista previa"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
         <div className="pdf-preview-body">

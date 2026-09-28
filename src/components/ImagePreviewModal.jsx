@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import './ImagePreviewModal.css';
 
 export default function ImagePreviewModal({ src, alt = '', onClose }) {
@@ -13,7 +14,7 @@ export default function ImagePreviewModal({ src, alt = '', onClose }) {
           onClick={onClose}
           aria-label="Cerrar vista previa"
         >
-          ✕
+          <X size={20} />
         </button>
         <img src={src} alt={alt} className="image-preview-img" />
       </div>

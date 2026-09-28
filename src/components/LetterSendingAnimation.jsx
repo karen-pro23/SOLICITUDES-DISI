@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 import './LetterSendingAnimation.css';
 
 export default function LetterSendingAnimation({ ticketCode }) {
@@ -79,7 +80,7 @@ export default function LetterSendingAnimation({ ticketCode }) {
 
           {/* Wax Stamp Seal */}
           <div className="env-wax-seal">
-            <span className="seal-check">✓</span>
+            <span className="seal-check"><Check size={16} strokeWidth={3} /></span>
           </div>
         </div>
       </div>

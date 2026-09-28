@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { X } from 'lucide-react';
 import { getUsers, createUser, updateUser, deleteUser, getDepartments, getAreasByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -267,7 +268,7 @@ export default function UserManagement() {
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                 <UserIcon /> {editing ? 'Editar Usuario' : 'Nuevo Usuario'}
               </h3>
-              <button className="modal-close-btn" onClick={resetForm}>✕</button>
+              <button className="modal-close-btn" onClick={resetForm} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

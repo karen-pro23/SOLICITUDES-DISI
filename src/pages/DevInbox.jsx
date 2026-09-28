@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { RefreshCw, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getRequests, updateRequestStatus, deleteRequest, addComment } from '../services/api';
 import toast from 'react-hot-toast';
@@ -438,8 +439,9 @@ export default function DevInbox() {
               Recepción y triaje de solicitudes de todos los departamentos
             </p>
           </div>
-          <button className="btn btn-primary" onClick={fetchAllRequests} disabled={loading}>
-            {loading ? 'Actualizando...' : '🔄 Actualizar'}
+          <button className="btn btn-primary" onClick={fetchAllRequests} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <RefreshCw size={15} className={loading ? 'spin-icon' : ''} />
+            {loading ? 'Actualizando...' : 'Actualizar'}
           </button>
         </div>
 
@@ -455,7 +457,9 @@ export default function DevInbox() {
           </div>
         ) : requests.length === 0 ? (
           <div className="inbox-empty">
-            <div className="inbox-empty-icon">📋</div>
+            <div className="inbox-empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+              <ClipboardList size={48} strokeWidth={1.5} color="var(--color-gray-400, #94a3b8)" />
+            </div>
             <p className="inbox-empty-title">No hay solicitudes</p>
             <p className="inbox-empty-desc">
               Cuando alguien envíe una solicitud desde el formulario público, aparecerá acá.

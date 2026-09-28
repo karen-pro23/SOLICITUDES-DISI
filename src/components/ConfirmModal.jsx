@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 import './ActionModal.css';
 import './ConfirmModal.css';
 
@@ -31,8 +32,8 @@ export default function ConfirmModal({
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="modal-close-btn" onClick={onClose} disabled={submitting}>
-            ✕
+          <button className="modal-close-btn" onClick={onClose} disabled={submitting} aria-label="Cerrar modal">
+            <X size={18} />
           </button>
         </div>
 

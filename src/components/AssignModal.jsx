@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { getDepartments, getUsersByDepartment, getUsersByArea, assignRequest, getAreasByDepartment } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -110,7 +111,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         <form onSubmit={handleSubmit}>
           <div className="modal-header">
             <h3 id="assign-modal-title">Asignar Solicitud</h3>
-            <button type="button" className="btn-close" onClick={onClose} aria-label="Cerrar modal">✕</button>
+            <button type="button" className="btn-close" onClick={onClose} aria-label="Cerrar modal"><X size={18} /></button>
           </div>
           
           <div className="modal-body">
