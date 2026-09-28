@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import {
   getPersona,
   getPublicDepartments,
-  getServiceTypes,
   createServiceTicket,
 } from '../services/api';
 import PublicHeader from '../components/PublicHeader';
@@ -24,7 +23,6 @@ const ALLOWED_DOC_MIMES = [
   'application/vnd.ms-excel',
 ];
 
-const ASSIGNED_AREAS = ['SOPORTE', 'REDES', 'TELEFONÍA', 'HARDWARE', 'SOFTWARE'];
 
 function formatBytes(bytes) {
   if (!bytes || isNaN(bytes)) return '0 KB';
@@ -41,14 +39,11 @@ export default function ServiceTicketForm() {
     departmentId: '',
     departmentName: '',
     extension: '',
-    assignedArea: '',
-    serviceType: '',
     description: '',
     observations: '',
   });
 
   const [departments, setDepartments] = useState([]);
-  const [serviceTypeOptions, setServiceTypeOptions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [sendingAnimation, setSendingAnimation] = useState(false);
   const [error, setError] = useState('');
@@ -82,7 +77,6 @@ export default function ServiceTicketForm() {
   // ── Load data on mount ──────────────────────────────
   useEffect(() => {
     getPublicDepartments().then(setDepartments).catch(() => {});
-    getServiceTypes().then(setServiceTypeOptions).catch(() => {});
     return () => {
       liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       liveUrlsRef.current.clear();
@@ -91,7 +85,7 @@ export default function ServiceTicketForm() {
 
   // ── Paste handler for screenshots ───────────────────
   useEffect(() => {
-    if (currentStep !== 3) return;
+    if (currentStep !== 2) return;
 
     const handlePaste = (e) => {
       const items = e.clipboardData?.items;
@@ -249,13 +243,6 @@ export default function ServiceTicketForm() {
 
   const getStep2ErrorsMap = () => {
     const errs = {};
-    if (!form.assignedArea) errs.assignedArea = 'Seleccioná el Área Asignada para el soporte.';
-    if (!form.serviceType) errs.serviceType = 'Seleccioná el Tipo de Servicio requerido.';
-    return errs;
-  };
-
-  const getStep3ErrorsMap = () => {
-    const errs = {};
     const dLen = form.description.trim().length;
     if (dLen < 10) errs.description = `Describí el problema o requerimiento técnico (te faltan ${10 - dLen} caracteres para llegar al mínimo de 10).`;
     return errs;
@@ -263,11 +250,9 @@ export default function ServiceTicketForm() {
 
   const step1Errors = getStep1ErrorsMap();
   const step2Errors = getStep2ErrorsMap();
-  const step3Errors = getStep3ErrorsMap();
   const isStep1Valid = Object.keys(step1Errors).length === 0;
   const isStep2Valid = Object.keys(step2Errors).length === 0;
-  const isStep3Valid = Object.keys(step3Errors).length === 0;
-  const isValid = isStep1Valid && isStep2Valid && isStep3Valid;
+  const isValid = isStep1Valid && isStep2Valid;
 
   // ── Handlers ────────────────────────────────────────
   function handleChange(e) {
@@ -327,21 +312,6 @@ export default function ServiceTicketForm() {
       }
       setCurrentStep(2);
     }
-    if (targetStep === 3) {
-      if (!isStep1Valid) {
-        setCurrentStep(1);
-        setAttemptedNext((prev) => ({ ...prev, 1: true }));
-        setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true }));
-        return;
-      }
-      if (!isStep2Valid) {
-        setCurrentStep(2);
-        setAttemptedNext((prev) => ({ ...prev, 2: true }));
-        setTouched((prev) => ({ ...prev, assignedArea: true, serviceType: true }));
-        return;
-      }
-      setCurrentStep(3);
-    }
   };
 
   const handleNextStep = () => {
@@ -352,13 +322,6 @@ export default function ServiceTicketForm() {
         return;
       }
       setCurrentStep(2);
-    } else if (currentStep === 2) {
-      if (!isStep2Valid) {
-        setAttemptedNext((prev) => ({ ...prev, 2: true }));
-        setTouched((prev) => ({ ...prev, assignedArea: true, serviceType: true }));
-        return;
-      }
-      setCurrentStep(3);
     }
   };
 
@@ -382,13 +345,7 @@ export default function ServiceTicketForm() {
       return;
     }
     if (!isStep2Valid) {
-      setCurrentStep(2);
       setAttemptedNext((prev) => ({ ...prev, 2: true }));
-      setTouched((prev) => ({ ...prev, assignedArea: true, serviceType: true }));
-      return;
-    }
-    if (!isStep3Valid) {
-      setAttemptedNext((prev) => ({ ...prev, 3: true }));
       setTouched((prev) => ({ ...prev, description: true }));
       return;
     }
@@ -405,8 +362,6 @@ export default function ServiceTicketForm() {
         email: form.email,
         departmentName: form.departmentName,
         extension: form.extension,
-        assignedArea: form.assignedArea,
-        serviceType: form.serviceType,
         description: form.description,
         observations: form.observations,
       };
@@ -434,7 +389,7 @@ export default function ServiceTicketForm() {
     setCurrentStep(1);
     setForm({
       cedula: '', nombre: '', apellido: '', email: '', departmentId: '', departmentName: '',
-      extension: '', assignedArea: '', serviceType: '', description: '', observations: '',
+      extension: '', description: '', observations: '',
     });
     setPersonaFound(false);
     setScreenshots([]);
@@ -528,7 +483,7 @@ export default function ServiceTicketForm() {
               <div>
                 <h1>Solicitud de Servicio Técnico</h1>
                 <p className="page-subtitle form-page-subtitle">
-                  Completá los 3 pasos a continuación para registrar tu solicitud de soporte técnico.
+                  Completá los 2 pasos a continuación para registrar tu solicitud de soporte técnico.
                 </p>
               </div>
             </header>
@@ -538,7 +493,7 @@ export default function ServiceTicketForm() {
               <div className="stepper-progress-bar-bg">
                 <div
                   className="stepper-progress-bar-fill"
-                  style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+                  style={{ width: `${((currentStep - 1) / 1) * 100}%` }}
                 />
               </div>
 
@@ -563,21 +518,8 @@ export default function ServiceTicketForm() {
               >
                 <div className="step-badge">{isStep2Valid ? '✓' : '2'}</div>
                 <div className="step-label">
-                  <span className="step-title">2. Clasificación</span>
-                  <span className="step-sub">Área y tipo de servicio</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className={`step-tab ${currentStep === 3 ? 'is-active' : ''} ${isStep3Valid ? 'is-completed' : ''}`}
-                onClick={() => handleStepTabClick(3)}
-                aria-current={currentStep === 3 ? 'step' : undefined}
-              >
-                <div className="step-badge">{isStep3Valid ? '✓' : '3'}</div>
-                <div className="step-label">
-                  <span className="step-title">3. Detalle y Evidencias</span>
-                  <span className="step-sub">Explicación y archivos</span>
+                  <span className="step-title">2. Detalle del Problema</span>
+                  <span className="step-sub">Descripción y evidencias</span>
                 </div>
               </button>
             </nav>
@@ -760,105 +702,24 @@ export default function ServiceTicketForm() {
                 </section>
               )}
 
-              {/* ═══ PASO 2: CLASIFICACIÓN DEL SERVICIO ═══ */}
+              {/* ═══ PASO 2: DETALLE DEL PROBLEMA Y EVIDENCIAS ═══ */}
               {currentStep === 2 && (
                 <section className="form-section fade-in-step" aria-labelledby="step2-heading">
                   <h2 id="step2-heading">
-                    <span className="section-icon">📋</span> Clasificación del Servicio
-                  </h2>
-                  <p className="section-desc">
-                    Indicá el área responsable y el tipo de servicio técnico que necesitás.
-                  </p>
-
-                  {attemptedNext[2] && !isStep2Valid && (
-                    <div className="validation-error-alert" role="alert">
-                      <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
-                        <strong>Para avanzar al Paso 3, seleccioná la información requerida:</strong>
-                      </div>
-                      <ul className="validation-alert-list">
-                        {Object.values(step2Errors).map((msg, idx) => (
-                          <li key={idx}>{msg}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="assignedArea">Área Asignada *</label>
-                      <select
-                        id="assignedArea"
-                        name="assignedArea"
-                        value={form.assignedArea}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        required
-                        aria-required="true"
-                        className={(touched.assignedArea || attemptedNext[2]) && step2Errors.assignedArea ? 'input-error' : undefined}
-                      >
-                        <option value="">-- Seleccionar área --</option>
-                        {ASSIGNED_AREAS.map((a) => (
-                          <option key={a} value={a}>⚙️ {a}</option>
-                        ))}
-                      </select>
-                      {(touched.assignedArea || attemptedNext[2]) && step2Errors.assignedArea && (
-                        <span className="field-error-text">⚠️ {step2Errors.assignedArea}</span>
-                      )}
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="serviceType">Tipo de Servicio *</label>
-                      <select
-                        id="serviceType"
-                        name="serviceType"
-                        value={form.serviceType}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        required
-                        aria-required="true"
-                        className={(touched.serviceType || attemptedNext[2]) && step2Errors.serviceType ? 'input-error' : undefined}
-                      >
-                        <option value="">-- Seleccionar tipo de servicio --</option>
-                        {serviceTypeOptions.map((st) => (
-                          <option key={st} value={st}>🔧 {st}</option>
-                        ))}
-                      </select>
-                      {(touched.serviceType || attemptedNext[2]) && step2Errors.serviceType && (
-                        <span className="field-error-text">⚠️ {step2Errors.serviceType}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="step-actions">
-                    <button type="button" className="btn btn-outline" onClick={handlePrevStep}>
-                      ← Volver
-                    </button>
-                    <button type="button" className="btn btn-primary btn-next-step" onClick={handleNextStep}>
-                      Continuar a Detalle y Evidencias →
-                    </button>
-                  </div>
-                </section>
-              )}
-
-              {/* ═══ PASO 3: DETALLE DEL PROBLEMA Y EVIDENCIAS ═══ */}
-              {currentStep === 3 && (
-                <section className="form-section fade-in-step" aria-labelledby="step3-heading">
-                  <h2 id="step3-heading">
                     <span className="section-icon">📝</span> Detalle del Problema y Evidencias
                   </h2>
                   <p className="section-desc">
                     Describí el problema o requerimiento técnico para que nuestro equipo pueda asistirte rápidamente.
                   </p>
 
-                  {attemptedNext[3] && !isStep3Valid && (
+                  {attemptedNext[2] && !isStep2Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
                         <span className="validation-alert-icon">⚠️</span>
                         <strong>Para finalizar la solicitud, completá los detalles obligatorios:</strong>
                       </div>
                       <ul className="validation-alert-list">
-                        {Object.values(step3Errors).map((msg, idx) => (
+                        {Object.values(step2Errors).map((msg, idx) => (
                           <li key={idx}>{msg}</li>
                         ))}
                       </ul>
@@ -878,15 +739,15 @@ export default function ServiceTicketForm() {
                       required
                       aria-required="true"
                       aria-describedby="desc-count"
-                      className={(touched.description || attemptedNext[3]) && step3Errors.description ? 'input-error' : undefined}
+                      className={(touched.description || attemptedNext[2]) && step2Errors.description ? 'input-error' : undefined}
                     />
                     <div className="textarea-footer">
                       <span id="desc-count" className={`char-count ${form.description.length >= 10 ? 'is-valid-count' : ''}`}>
                         {form.description.length} / 10 caracteres mín.
                       </span>
                     </div>
-                    {(touched.description || attemptedNext[3]) && step3Errors.description && (
-                      <span className="field-error-text">⚠️ {step3Errors.description}</span>
+                    {(touched.description || attemptedNext[2]) && step2Errors.description && (
+                      <span className="field-error-text">⚠️ {step2Errors.description}</span>
                     )}
                   </div>
 
@@ -1056,7 +917,7 @@ export default function ServiceTicketForm() {
                   {/* ── Acciones Finales ───────────────── */}
                   <div className="form-actions-step">
                     <button type="button" className="btn btn-outline" onClick={handlePrevStep}>
-                      ← Volver a Clasificación
+                      ← Volver a Datos del Solicitante
                     </button>
                     <button
                       type="submit"
