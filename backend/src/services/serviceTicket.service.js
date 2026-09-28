@@ -171,4 +171,102 @@ async function getStats() {
   return result.rows[0];
 }
 
-module.exports = { SERVICE_TYPES, ST_REQUEST_TYPE_ID, findAll, findByCode, findById, accept, close, rate, getStats };
+// Normaliza texto: elimina acentos y convierte a mayúsculas
+function normalizeText(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
+async function create({ cedula, nombre, apellido, email, departmentName, extension, assignedArea, serviceType, description, observations }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Normalizar cédula
+    const normalizedCedula = normalizeText(cedula);
+
+    // 2. Buscar o crear persona
+    const personaResult = await client.query(
+      `INSERT INTO persona (cedula, nombre, apellido, email)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (cedula) DO UPDATE
+         SET nombre = EXCLUDED.nombre, apellido = EXCLUDED.apellido,
+             email = COALESCE(EXCLUDED.email, persona.email),
+             updated_at = now()
+       RETURNING cedula, nombre, apellido, email`,
+      [normalizedCedula, normalizeText(nombre), normalizeText(apellido), email ? email.toLowerCase().trim() : null]
+    );
+    const persona = personaResult.rows[0];
+
+    // 3. Buscar o crear usuario por email
+    let userId;
+    const userResult = await client.query('SELECT user_id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+    if (userResult.rows.length > 0) {
+      userId = userResult.rows[0].user_id;
+      await client.query('UPDATE users SET cedula = $1 WHERE user_id = $2 AND cedula IS NULL', [normalizedCedula, userId]);
+    } else {
+      const bcrypt = require('bcryptjs');
+      const dummyHash = await bcrypt.hash('service_ticket_' + Date.now(), 8);
+      const fullName = `${persona.nombre} ${persona.apellido}`;
+      // Buscar department_id por nombre
+      let deptId = null;
+      if (departmentName) {
+        const deptResult = await client.query('SELECT department_id FROM departments WHERE UPPER(name) = UPPER($1)', [departmentName.trim()]);
+        if (deptResult.rows.length > 0) deptId = deptResult.rows[0].department_id;
+      }
+      const newUser = await client.query(
+        `INSERT INTO users (full_name, email, password_hash, role, department_id, cedula)
+         VALUES ($1, $2, $3, 'requester', $4, $5) RETURNING user_id`,
+        [fullName, email.trim(), dummyHash, deptId, normalizedCedula]
+      );
+      userId = newUser.rows[0].user_id;
+    }
+
+    // 4. Buscar department_id por nombre
+    let departmentId = null;
+    if (departmentName) {
+      const deptResult = await client.query('SELECT department_id FROM departments WHERE UPPER(name) = UPPER($1)', [departmentName.trim()]);
+      if (deptResult.rows.length > 0) departmentId = deptResult.rows[0].department_id;
+    }
+
+    // 5. Generar código de ticket
+    const ticketCode = await generateCode();
+
+    // 6. Insertar en requests con request_type_id = 8
+    const result = await client.query(
+      `INSERT INTO requests
+        (ticket_code, request_type_id, department_id, created_by, status,
+         process_description, current_behavior, expected_behavior,
+         extension, service_type, priority)
+       VALUES ($1, $2, $3, $4, 'PENDIENTE',
+         $5, $6, $7,
+         $8, $9, 'media')
+       RETURNING *`,
+      [
+        ticketCode,
+        ST_REQUEST_TYPE_ID,
+        departmentId,
+        userId,
+        normalizeText(description || ''),
+        normalizeText(observations || ''),
+        normalizeText(assignedArea || ''),
+        extension || null,
+        serviceType || null,
+      ]
+    );
+
+    const ticket = result.rows[0];
+    await client.query('COMMIT');
+    return ticket;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { SERVICE_TYPES, ST_REQUEST_TYPE_ID, findAll, findByCode, findById, accept, close, rate, getStats, create };

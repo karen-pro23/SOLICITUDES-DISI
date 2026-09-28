@@ -108,4 +108,31 @@ async function getServiceTypes(req, res, next) {
   res.json({ serviceTypes: serviceTicketService.SERVICE_TYPES });
 }
 
-module.exports = { findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes };
+// Público: crear solicitud de servicio técnico
+async function create(req, res, next) {
+  try {
+    const { cedula, nombre, apellido, email, departmentName, extension, assignedArea, serviceType, description, observations } = req.body;
+
+    if (!cedula || !nombre || !apellido || !email) {
+      return res.status(400).json({ error: 'Cédula, nombre, apellido y correo son obligatorios' });
+    }
+
+    if (!description || description.trim().length < 10) {
+      return res.status(400).json({ error: 'La descripción del problema debe tener al menos 10 caracteres' });
+    }
+
+    const ticket = await serviceTicketService.create({
+      cedula, nombre, apellido, email,
+      departmentName: departmentName || null,
+      extension: extension || null,
+      assignedArea: assignedArea || null,
+      serviceType: serviceType || null,
+      description: description.trim(),
+      observations: observations || null,
+    });
+
+    res.status(201).json({ ticket });
+  } catch (err) { next(err); }
+}
+
+module.exports = { findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create };
