@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import './LoginPage.css';
@@ -103,7 +104,7 @@ export default function LoginPage() {
              border: '1px solid rgba(34, 197, 94, 0.2)', transition: 'all 0.15s'
            }}
         >
-          📱 Descargar App Android
+          <Smartphone size={16} /> Descargar App Android
         </a>
       </div>
     </div>
