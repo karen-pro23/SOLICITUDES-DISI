@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { List, LayoutGrid, Settings, Flame, Eye, User, UserCheck, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   getRequests,
@@ -237,8 +238,9 @@ export default function Dashboard() {
                 background: viewMode === 'list' ? 'white' : 'transparent',
                 boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 fontWeight: 600, fontSize: '0.75rem', color: viewMode === 'list' ? '#0f172a' : '#64748b',
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
               }}
-            >📋 Lista</button>
+            ><List size={14} /> Lista</button>
             <button
               onClick={() => setViewMode('kanban')}
               style={{
@@ -246,8 +248,9 @@ export default function Dashboard() {
                 background: viewMode === 'kanban' ? 'white' : 'transparent',
                 boxShadow: viewMode === 'kanban' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 fontWeight: 600, fontSize: '0.75rem', color: viewMode === 'kanban' ? '#0f172a' : '#64748b',
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
               }}
-            >📊 Kanban</button>
+            ><LayoutGrid size={14} /> Kanban</button>
           </div>
           <Link to="/requests/new" className="btn btn-primary btn-sm">
             + Nueva
@@ -422,18 +425,18 @@ export default function Dashboard() {
                       <td className="col-actions" style={{ textAlign: 'right' }}>
                         <div className="row-actions-group">
                           <button type="button" className="btn-action-pill btn-action-status"
-                            onClick={() => setActiveStatusReq(req)} title="Estado">⚙️</button>
+                            onClick={() => setActiveStatusReq(req)} title="Estado" aria-label="Cambiar estado"><Settings size={14} /></button>
                           <button type="button" className="btn-action-pill btn-action-priority"
-                            onClick={() => setActivePriorityReq(req)} title="Prioridad">🔥</button>
-                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail">👁️</Link>
+                            onClick={() => setActivePriorityReq(req)} title="Prioridad" aria-label="Cambiar prioridad"><Flame size={14} /></button>
+                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail" title="Ver detalle" aria-label="Ver detalle"><Eye size={14} /></Link>
                           {user && (user.role !== 'requester' || user.es_jefe) && (
                             <button type="button" className="btn-action-pill"
                               style={{ background: '#eef2ff', color: '#6366f1' }}
-                              onClick={() => setActiveAssignReq(req)} title="Asignar">👤</button>
+                              onClick={() => setActiveAssignReq(req)} title="Asignar" aria-label="Asignar solicitud"><UserCheck size={14} /></button>
                           )}
                           {user && user.role !== 'requester' && (
                             <button type="button" className="btn-action-pill btn-action-delete"
-                              onClick={() => handleDeleteRequest(req)} title="Eliminar">🗑️</button>
+                              onClick={() => handleDeleteRequest(req)} title="Eliminar" aria-label="Eliminar solicitud"><Trash2 size={14} /></button>
                           )}
                         </div>
                       </td>
@@ -487,15 +490,17 @@ export default function Dashboard() {
                         </div>
                         <div className="kanban-card-title">{req.process_description?.substring(0, 60)}...</div>
                         <div className="kanban-card-footer">
-                          <span className="kanban-card-user">👤 {req.created_by_name || '—'}</span>
+                          <span className="kanban-card-user" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <User size={12} /> {req.created_by_name || '—'}
+                          </span>
                           {req.assigned_to_name && (
                             <span className="kanban-card-assigned">→ {req.assigned_to_name}</span>
                           )}
                         </div>
                         <div className="kanban-card-actions">
-                          <button type="button" className="kanban-action-btn" onClick={(e) => { e.preventDefault(); setActiveStatusReq(req); }}>⚙️</button>
+                          <button type="button" className="kanban-action-btn" title="Cambiar estado" aria-label="Cambiar estado" onClick={(e) => { e.preventDefault(); setActiveStatusReq(req); }}><Settings size={12} /></button>
                           {user && (user.role !== 'requester' || user.es_jefe) && (
-                            <button type="button" className="kanban-action-btn" onClick={(e) => { e.preventDefault(); setActiveAssignReq(req); }}>👤</button>
+                            <button type="button" className="kanban-action-btn" title="Asignar solicitud" aria-label="Asignar solicitud" onClick={(e) => { e.preventDefault(); setActiveAssignReq(req); }}><UserCheck size={12} /></button>
                           )}
                         </div>
                       </Link>
