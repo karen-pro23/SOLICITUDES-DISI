@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Smile, Frown } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { getPublicServiceTicket, rateServiceTicket } from '../services/api';
 import toast from 'react-hot-toast';
@@ -64,15 +65,15 @@ export default function ServiceTicketRate() {
               <div style={{ textAlign: 'center', padding: '1.5rem', background: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0' }}>
                 <p style={{ fontWeight: 600, color: '#334155', marginBottom: '1rem' }}>¿Cómo fue el servicio recibido?</p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button onClick={() => handleRate('satisfecho')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '2px solid #dcfce7', background: '#f0fdf4', cursor: 'pointer', fontSize: '0.9375rem', fontWeight: 600, color: '#166534', transition: 'all 0.15s' }}
+                  <button onClick={() => handleRate('satisfecho')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '2px solid #dcfce7', background: '#f0fdf4', cursor: 'pointer', fontSize: '0.9375rem', fontWeight: 600, color: '#166534', transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#dcfce7'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.transform = 'none'; }}>
-                    😊 Satisfecho
+                    <Smile size={20} /> Satisfecho
                   </button>
-                  <button onClick={() => handleRate('no_satisfecho')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '2px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: '0.9375rem', fontWeight: 600, color: '#991b1b', transition: 'all 0.15s' }}
+                  <button onClick={() => handleRate('no_satisfecho')} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '2px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: '0.9375rem', fontWeight: 600, color: '#991b1b', transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#fecaca'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.transform = 'none'; }}>
-                    😞 No Satisfecho
+                    <Frown size={20} /> No Satisfecho
                   </button>
                 </div>
               </div>
@@ -80,7 +81,13 @@ export default function ServiceTicketRate() {
 
             {(ticket.satisfaction || rated) && (
               <div style={{ textAlign: 'center', padding: '1.5rem', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{ticket.satisfaction === 'satisfecho' ? '😊' : '😞'}</div>
+                <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                  {ticket.satisfaction === 'satisfecho' ? (
+                    <Smile size={36} color="#166534" />
+                  ) : (
+                    <Frown size={36} color="#991b1b" />
+                  )}
+                </div>
                 <p style={{ fontWeight: 600, color: '#166534' }}>Gracias por su calificación</p>
               </div>
             )}
