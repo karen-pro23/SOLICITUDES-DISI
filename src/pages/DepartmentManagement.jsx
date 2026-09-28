@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { X, Plus } from 'lucide-react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import './AdminPage.css';
@@ -134,9 +135,10 @@ export default function DepartmentManagement() {
             </div>
             <button
               className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               onClick={() => { cancelEditDept(); setShowDeptForm((v) => !v); }}
             >
-              {showDeptForm ? '✕ Cancelar' : '+ Nuevo'}
+              {showDeptForm ? <><X size={15} /> Cancelar</> : <><Plus size={15} /> Nuevo</>}
             </button>
           </div>
         </div>
