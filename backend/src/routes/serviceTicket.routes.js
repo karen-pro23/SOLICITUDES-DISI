@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config/env');
 const { authenticate } = require('../middleware/auth.middleware');
 const {
-  findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes
+  findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create
 } = require('../controllers/serviceTicket.controller');
 
 const router = Router();
@@ -36,13 +36,14 @@ const upload = multer({
 });
 
 // Públicas
+router.post('/', create);
+router.get('/service-types', getServiceTypes);
 router.get('/public/:code', getByCode);
 router.patch('/public/:code/rate', rate);
 
 // Autenticadas
 router.get('/', authenticate, findAll);
 router.get('/stats', authenticate, getStats);
-router.get('/service-types', authenticate, getServiceTypes);
 router.get('/:code', authenticate, getByCode);
 router.get('/:id', authenticate, getById);
 router.patch('/:id/accept', authenticate, accept);
