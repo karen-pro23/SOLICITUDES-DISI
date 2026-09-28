@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { createServiceTicket } from '../services/api';
 import toast from 'react-hot-toast';
 import PublicHeader from '../components/PublicHeader';
@@ -32,7 +33,9 @@ export default function ServiceTicketForm() {
         <PublicHeader />
         <div style={{ maxWidth: '600px', margin: '2rem auto', padding: '0 1rem' }}>
           <div style={{ background: 'white', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+              <CheckCircle2 size={54} color="#10b981" />
+            </div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Solicitud Registrada</h2>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Guarde su número de ticket para dar seguimiento</p>
             <div style={{ background: '#f0f9ff', border: '2px solid #0ea5e9', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
