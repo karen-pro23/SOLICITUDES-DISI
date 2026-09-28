@@ -111,7 +111,7 @@ async function getServiceTypes(req, res, next) {
 // Público: crear solicitud de servicio técnico
 async function create(req, res, next) {
   try {
-    const { cedula, nombre, apellido, email, departmentName, extension, assignedArea, serviceType, description, observations } = req.body;
+    const { cedula, nombre, apellido, email, departmentName, extension, description, observations } = req.body;
 
     if (!cedula || !nombre || !apellido || !email) {
       return res.status(400).json({ error: 'Cédula, nombre, apellido y correo son obligatorios' });
@@ -125,8 +125,6 @@ async function create(req, res, next) {
       cedula, nombre, apellido, email,
       departmentName: departmentName || null,
       extension: extension || null,
-      assignedArea: assignedArea || null,
-      serviceType: serviceType || null,
       description: description.trim(),
       observations: observations || null,
     });
