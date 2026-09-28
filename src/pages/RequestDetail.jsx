@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Image, FileText, FileSpreadsheet, Paperclip, User, Building2, Smile, Frown, X } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
@@ -191,11 +192,11 @@ export default function RequestDetail() {
   }
 
   function getFileIcon(mimeType) {
-    if (mimeType.startsWith('image/')) return '🖼️';
-    if (mimeType === 'application/pdf') return '📄';
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '📊';
-    if (mimeType === 'text/csv') return '📊';
-    return '📎';
+    if (mimeType.startsWith('image/')) return <Image size={15} />;
+    if (mimeType === 'application/pdf') return <FileText size={15} />;
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return <FileSpreadsheet size={15} />;
+    if (mimeType === 'text/csv') return <FileSpreadsheet size={15} />;
+    return <Paperclip size={15} />;
   }
 
   function formatFileSize(bytes) {
@@ -341,11 +342,11 @@ export default function RequestDetail() {
                 <span className="meta-label">Asignado a</span>
                 <span className="meta-value">
                   {request.assigned_to_name ? (
-                    <span>👤 {request.assigned_to_name}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}><User size={14} /> {request.assigned_to_name}</span>
                   ) : null}
                   {request.assigned_to_name && request.assigned_department_name ? <br /> : null}
                   {request.assigned_department_name ? (
-                    <span style={{ color: 'var(--color-primary)' }}>🏢 {request.assigned_department_name}</span>
+                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}><Building2 size={14} /> {request.assigned_department_name}</span>
                   ) : (
                     !request.assigned_to_name && 'Sin asignar'
                   )}
@@ -405,8 +406,8 @@ export default function RequestDetail() {
                   {request.satisfaction && (
                     <div>
                       <strong>Conformidad:</strong>{' '}
-                      <span style={{ color: request.satisfaction === 'satisfecho' ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
-                        {request.satisfaction === 'satisfecho' ? '😊 Satisfecho' : '😞 No Satisfecho'}
+                      <span style={{ color: request.satisfaction === 'satisfecho' ? '#16a34a' : '#dc2626', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        {request.satisfaction === 'satisfecho' ? <><Smile size={16} /> Satisfecho</> : <><Frown size={16} /> No Satisfecho</>}
                       </span>
                     </div>
                   )}
@@ -718,8 +719,9 @@ export default function RequestDetail() {
                             type="button"
                             className="comment-attach-remove"
                             onClick={() => removeCommentFile(index)}
+                            aria-label="Eliminar adjunto"
                           >
-                            ✕
+                            <X size={14} />
                           </button>
                         </div>
                       ))}
