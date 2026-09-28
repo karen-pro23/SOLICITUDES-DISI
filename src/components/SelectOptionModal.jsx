@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import './ActionModal.css';
 import './SelectOptionModal.css';
 
@@ -55,8 +56,8 @@ export default function SelectOptionModal({
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="modal-close-btn" onClick={handleClose} disabled={submitting}>
-            ✕
+          <button className="modal-close-btn" onClick={handleClose} disabled={submitting} aria-label="Cerrar modal">
+            <X size={18} />
           </button>
         </div>
 
