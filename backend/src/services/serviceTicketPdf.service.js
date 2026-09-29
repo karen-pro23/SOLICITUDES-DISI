@@ -15,11 +15,15 @@ const DEFAULT_STATIC_DATA = {
   requesterPosition: 'SECRETARIO EJECUTIVO I',
   requestReason: 'n: consecutivo 0271 cpu impresora l220 0079 carpeta compartida mantenimiento de impresora',
   assignedArea: 'SOPORTE',
+  assetConsecutive: '0271',
   requestObservations: 'se compartio carpeta y se realizo mantenimiento quedando operativo los equipos',
   assignedTechnician: 'OCTAVIANO ARAQUE - 13793172',
+  startDate: '20/7/2026',
   startTime: '11:21:21 a. m.',
-  closeTime: '11:23:05 a. m.',
+  startDateTime: '20/7/2026 11:21:21 a. m.',
   closeDate: '20/7/2026',
+  closeTime: '11:23:05 a. m.',
+  closeDateTime: '20/7/2026 11:23:05 a. m.',
   responseTime: '0,001203704',
   attentionObservations: 'se compartio carpeta y se realizo mantenimiento quedando operativo los equipos',
   operator: 'SONIA CACERES',
@@ -46,18 +50,24 @@ function mapTicketToPdfData(ticket = {}) {
     requestTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
+  let startDate = DEFAULT_STATIC_DATA.startDate;
   let startTime = DEFAULT_STATIC_DATA.startTime;
+  let startDateTime = DEFAULT_STATIC_DATA.startDateTime;
   if (ticket.service_start_time) {
     const d = new Date(ticket.service_start_time);
+    startDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
     startTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    startDateTime = `${startDate} ${startTime}`;
   }
 
   let closeTime = DEFAULT_STATIC_DATA.closeTime;
   let closeDate = DEFAULT_STATIC_DATA.closeDate;
+  let closeDateTime = DEFAULT_STATIC_DATA.closeDateTime;
   if (ticket.service_close_time) {
     const d = new Date(ticket.service_close_time);
     closeDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
     closeTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    closeDateTime = `${closeDate} ${closeTime}`;
   }
 
   // Cálculo del tiempo de respuesta (duración de la atención):
@@ -82,6 +92,13 @@ function mapTicketToPdfData(ticket = {}) {
   const cargoFromDb = ticket.cargo_name || ticket.requester_position || ticket.position;
   const requesterPosition = cargoFromDb || DEFAULT_STATIC_DATA.requesterPosition;
 
+  // Consecutivo del bien
+  let assetConsecutive = ticket.asset_consecutive || ticket.consecutivo_bien || ticket.consecutivo;
+  if (!assetConsecutive && ticket.process_description) {
+    const match = ticket.process_description.match(/consecutivo\s*:?\s*([0-9a-zA-Z-]+)/i);
+    if (match) assetConsecutive = match[1];
+  }
+
   return {
     ticketNumber: ticket.ticket_code || DEFAULT_STATIC_DATA.ticketNumber,
     transferred: ticket.transferred ? 'SI' : DEFAULT_STATIC_DATA.transferred,
@@ -98,11 +115,15 @@ function mapTicketToPdfData(ticket = {}) {
     requesterPosition: requesterPosition,
     requestReason: ticket.process_description || ticket.subject || DEFAULT_STATIC_DATA.requestReason,
     assignedArea: ticket.area_name || DEFAULT_STATIC_DATA.assignedArea,
+    assetConsecutive: assetConsecutive || '',
     requestObservations: ticket.observations || DEFAULT_STATIC_DATA.requestObservations,
     assignedTechnician: ticket.technician_name || DEFAULT_STATIC_DATA.assignedTechnician,
+    startDate: startDate,
     startTime: startTime,
+    startDateTime: startDateTime,
     closeTime: closeTime,
     closeDate: closeDate,
+    closeDateTime: closeDateTime,
     responseTime: responseTime,
     attentionObservations: ticket.close_observations || ticket.observations || DEFAULT_STATIC_DATA.attentionObservations,
     operator: ticket.operator || DEFAULT_STATIC_DATA.operator,
@@ -265,23 +286,21 @@ function renderVoucher(doc, startX, startY, data) {
   });
   currY += 20;
 
-  // 8. AREA ASIGNADA
-  drawCell(doc, startX, currY, totalW, 18, {
+  // 8. AREA ASIGNADA & CONSECUTIVO DEL BIEN
+  drawCell(doc, startX, currY, halfW, 18, {
     boldTitle: 'AREA ASIGNADA:',
     subtext: data.assignedArea,
     fontSize: 6.5,
     paddingTop: 2,
   });
-  currY += 18;
-
-  // 9. OBSERVACIONES (Solicitud)
-  drawCell(doc, startX, currY, totalW, 18, {
-    boldTitle: 'OBSERVACIONES:',
-    subtext: data.requestObservations,
+  drawCell(doc, startX + halfW, currY, halfW, 18, {
+    boldTitle: 'CONSECUTIVO DEL BIEN:',
+    subtext: data.assetConsecutive || '',
     fontSize: 6.5,
     paddingTop: 2,
   });
   currY += 18;
+
 
   // 10. TÉCNICO ASIGNADO | INFORMACIÓN SOBRE LA ATENCIÓN
   const wTec = 230;
@@ -301,24 +320,18 @@ function renderVoucher(doc, startX, startY, data) {
   currY += 13;
 
   // 11. Sub-headers Técnico & Atención
-  const wIni = 78;
-  const wCie = 78;
-  const wFecCie = 82;
-  const wTiem = 96;
+  const wIni = 167;
+  const wCie = 167;
 
   drawCell(doc, startX, currY, wTec, 12, { text: 'APELLIDOS Y NOMBRES', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wTec, currY, wIni, 12, { text: 'HORA DE INICIO', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wTec + wIni, currY, wCie, 12, { text: 'HORA DE CIERRE', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wTec + wIni + wCie, currY, wFecCie, 12, { text: 'FECHA DE CIERRE', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wTec + wIni + wCie + wFecCie, currY, wTiem, 12, { text: 'TIEMPO DE RESPUESTA', font: 'Helvetica-Bold', fontSize: 6 });
+  drawCell(doc, startX + wTec, currY, wIni, 12, { text: 'FECHA Y HORA DE INICIO', font: 'Helvetica-Bold', fontSize: 6.5 });
+  drawCell(doc, startX + wTec + wIni, currY, wCie, 12, { text: 'FECHA Y HORA DE CIERRE', font: 'Helvetica-Bold', fontSize: 6.5 });
   currY += 12;
 
   // 12. Values Técnico & Atención
   drawCell(doc, startX, currY, wTec, 14, { text: data.assignedTechnician, font: 'Helvetica-Bold', fontSize: 7 });
-  drawCell(doc, startX + wTec, currY, wIni, 14, { text: data.startTime, font: 'Helvetica', fontSize: 7 });
-  drawCell(doc, startX + wTec + wIni, currY, wCie, 14, { text: data.closeTime, font: 'Helvetica', fontSize: 7 });
-  drawCell(doc, startX + wTec + wIni + wCie, currY, wFecCie, 14, { text: data.closeDate, font: 'Helvetica', fontSize: 7 });
-  drawCell(doc, startX + wTec + wIni + wCie + wFecCie, currY, wTiem, 14, { text: data.responseTime, font: 'Helvetica', fontSize: 7 });
+  drawCell(doc, startX + wTec, currY, wIni, 14, { text: data.startDateTime || '', font: 'Helvetica', fontSize: 7 });
+  drawCell(doc, startX + wTec + wIni, currY, wCie, 14, { text: data.closeDateTime || '', font: 'Helvetica', fontSize: 7 });
   currY += 14;
 
   // 13. OBSERVACIONES (Atención)
@@ -330,83 +343,29 @@ function renderVoucher(doc, startX, startY, data) {
   });
   currY += 18;
 
-  // 14. TIPO DE SERVICIO PRESTADO header
-  drawCell(doc, startX, currY, totalW, 13, {
-    text: 'TIPO DE SERVICIO PRESTADO',
-    font: 'Helvetica-Bold',
-    fontSize: 7.5,
-    fill: HEADER_BG,
-  });
-  currY += 13;
-
-  // 15-17. 3x3 Grid of Service Types
-  const colW = totalW / 3; // 188 each
-  const serviceRowH = 11;
-
-  // Row 1
-  drawCell(doc, startX, currY, colW, serviceRowH, { text: 'INST/ACTUAL DE PROGRAMA(S)', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + colW, currY, colW, serviceRowH, { text: 'ADMON/SOPORTE CENTRAL TELEFÓNICA', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + colW * 2, currY, colW, serviceRowH, { text: 'INST/REV/REP HARDWARE', font: 'Helvetica-Bold', fontSize: 6.5 });
-  currY += serviceRowH;
-
-  // Row 2
-  drawCell(doc, startX, currY, colW, serviceRowH, { text: 'CHEQUEO/MTTO/REP DE PC', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + colW, currY, colW, serviceRowH, { text: 'INST/REP/MTTO DE TELEFONÍA', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + colW * 2, currY, colW, serviceRowH, { text: 'OTROS', font: 'Helvetica-Bold', fontSize: 6.5 });
-  currY += serviceRowH;
-
-  // Row 3
-  drawCell(doc, startX, currY, colW, serviceRowH, { text: 'VERIF. DE CONEXIÓN A RED', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + colW, currY, colW, serviceRowH, { text: 'INST/REP/MTTO DE PUNTO DE RED', font: 'Helvetica-Bold', fontSize: 6.5 });
-  // Row 3 Col 3: OPERADOR: | SONIA CACERES with vertical divider
-  const opLabelW = 54;
-  const opValueW = colW - opLabelW;
-  drawCell(doc, startX + colW * 2, currY, opLabelW, serviceRowH, { text: 'OPERADOR:', font: 'Helvetica-Bold', fontSize: 6.5, align: 'left', paddingLeft: 4 });
-  drawCell(doc, startX + colW * 2 + opLabelW, currY, opValueW, serviceRowH, { text: data.operator, font: 'Helvetica-Bold', fontSize: 6.5, align: 'center' });
-  currY += serviceRowH;
-
-  // 18. CONFORMACIÓN DEL SERVICIO PRESTADO header
-  drawCell(doc, startX, currY, totalW, 13, {
-    text: 'CONFORMACIÓN DEL SERVICIO PRESTADO',
-    font: 'Helvetica-Bold',
-    fontSize: 7.5,
-    fill: HEADER_BG,
-  });
-  currY += 13;
-
-  // 19. Nivel de Satisfacción
-  const satH = 26;
-  drawCell(doc, startX, currY, totalW, satH, { fill: null });
-  doc.save();
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(TEXT_COLOR);
-  doc.text('Nivel de Satisfacción:', startX, currY + 3, { width: totalW, align: 'center' });
-  doc.font('Helvetica').fontSize(6.5);
-  doc.text('Satisfecho: [   ]', startX, currY + 11, { width: totalW, align: 'center' });
-  doc.text('No Satisfecho: [   ]', startX, currY + 18, { width: totalW, align: 'center' });
-  doc.restore();
-  currY += satH;
-
-  // 20. Footer section headers: SOLICITANTE (200), OBSERVACIONES (224), SELLO (140)
-  const wSol = 200;
-  const wObs = 224;
+  // 14. Footer section headers: RECIBE CONFORME (424), SELLO (140)
   const wSel = 140;
+  const wRec = totalW - wSel; // 424
 
-  drawCell(doc, startX, currY, wSol, 12, { text: 'SOLICITANTE', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wSol, currY, wObs, 12, { text: 'OBSERVACIONES', font: 'Helvetica-Bold', fontSize: 6.5 });
-  drawCell(doc, startX + wSol + wObs, currY, wSel, 12, { text: 'SELLO', font: 'Helvetica-Bold', fontSize: 6.5 });
+  drawCell(doc, startX, currY, wRec, 12, { text: 'RECIBE CONFORME', font: 'Helvetica-Bold', fontSize: 6.5 });
+  drawCell(doc, startX + wRec, currY, wSel, 12, { text: 'SELLO', font: 'Helvetica-Bold', fontSize: 6.5 });
   currY += 12;
 
-  // 21. Signature & stamp boxes
+  // 15. Signature & stamp boxes
   const sigH = 40;
-  drawCell(doc, startX, currY, wSol / 2, sigH, {
-    text: 'FIRMA',
+  const wNomRec = 152;
+  const wCedRec = 136;
+  const wFirRec = 136;
+
+  drawCell(doc, startX, currY, wNomRec, sigH, {
+    text: 'NOMBRE Y APELLIDO',
     font: 'Helvetica-Bold',
     fontSize: 6,
     align: 'left',
     paddingLeft: 4,
     paddingTop: sigH - 10,
   });
-  drawCell(doc, startX + wSol / 2, currY, wSol / 2, sigH, {
+  drawCell(doc, startX + wNomRec, currY, wCedRec, sigH, {
     text: 'CEDULA',
     font: 'Helvetica-Bold',
     fontSize: 6,
@@ -414,12 +373,17 @@ function renderVoucher(doc, startX, startY, data) {
     paddingLeft: 4,
     paddingTop: sigH - 10,
   });
-
-  // Observations box
-  drawCell(doc, startX + wSol, currY, wObs, sigH, {});
+  drawCell(doc, startX + wNomRec + wCedRec, currY, wFirRec, sigH, {
+    text: 'FIRMA',
+    font: 'Helvetica-Bold',
+    fontSize: 6,
+    align: 'left',
+    paddingLeft: 4,
+    paddingTop: sigH - 10,
+  });
 
   // Stamp box with SELLO watermark
-  drawCell(doc, startX + wSol + wObs, currY, wSel, sigH, {
+  drawCell(doc, startX + wRec, currY, wSel, sigH, {
     text: 'SELLO',
     font: 'Helvetica-Bold',
     fontSize: 10,
@@ -447,13 +411,13 @@ function createServiceTicketPdf(customData = {}) {
   });
 
   const startX = 24;
-  const startYTop = 20;
+  const startYTop = 30;
 
   // Render Top Voucher
-  const endYTop = renderVoucher(doc, startX, startYTop, data);
+  renderVoucher(doc, startX, startYTop, data);
 
-  // Render Cut Divider in the middle
-  const dividerY = endYTop + 14;
+  // Render Cut Divider in the middle (Letter size is 792 pt, midpoint is 396 pt)
+  const dividerY = 396;
   doc.save();
   doc.strokeColor('#94A3B8')
     .lineWidth(0.6)
@@ -470,7 +434,7 @@ function createServiceTicketPdf(customData = {}) {
   doc.restore();
 
   // Render Bottom Voucher
-  const startYBottom = dividerY + 14;
+  const startYBottom = dividerY + 30;
   renderVoucher(doc, startX, startYBottom, data);
 
   return doc;
