@@ -34,8 +34,15 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
     case 'admin':
     case 'director':
     case 'sub_director':
-    case 'recepcion':
       // Ven TODO — sin filtros
+      break;
+
+    case 'recepcion':
+      // Su bandeja es SOLO la cola de filtrar: las que esperan decidir
+      // (derivar a un área o rechazar). No ve el listado general.
+      // Para responder en mostrador: consulta puntual por id (findById) o
+      // búsqueda por cédula/código en /buscar.
+      conditions.push(`r.status = 'PENDIENTE'`);
       break;
 
     case 'jefe_st':
@@ -79,7 +86,10 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
       break;
   }
 
-  if (filters.status) {
+  // En recepción el estado ya está fijado arriba a PENDIENTE: aplicar además
+  // el filtro del usuario generaría `status = X AND status = 'PENDIENTE'` (lista
+  // vacía) o, peor, abriría otra cola con un ?status= armado a mano.
+  if (filters.status && userRole !== 'recepcion') {
     const statuses = filters.status.split(',').map(s => s.trim()).filter(Boolean);
     if (statuses.length === 1) {
       conditions.push(`r.status = $${idx++}`);
@@ -250,8 +260,14 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
     case 'admin':
     case 'director':
     case 'sub_director':
-    case 'recepcion':
       // Ven todo — sin filtros adicionales
+      break;
+
+    case 'recepcion':
+      // SIN restricción acá a propósito: la consulta puntual por id es la
+      // habilidad de "¿en qué estado está esta solicitud?" para responder en
+      // mostrador (y para que el refetch posterior a su propio rechazo/derivación
+      // no devuelva 404). Lo restringido es el LISTADO, no la consulta de una.
       break;
 
     case 'jefe_area': {

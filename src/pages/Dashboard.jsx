@@ -24,6 +24,10 @@ import {
 } from '../constants/requestOptions';
 import './Dashboard.css';
 
+// Roles que ven todas las solicitudes (mismos que el backend en getAll):
+// para ellos las métricas globales del KPI tienen sentido.
+const FULL_VISIBILITY_ROLES = ['super_admin', 'admin', 'director', 'sub_director', 'recepcion'];
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -77,7 +81,11 @@ export default function Dashboard() {
 
       const [data, metricsData] = await Promise.all([
         getRequests(params),
-        getMetrics().catch(() => null),
+        // Las métricas son globales: solo las piden los roles con visibilidad
+        // total (para el resto serían confusas y el endpoint devuelve 403)
+        FULL_VISIBILITY_ROLES.includes(user?.role)
+          ? getMetrics().catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       if (seq !== seqRef.current) return;
@@ -306,6 +314,18 @@ export default function Dashboard() {
       {/* Pestañas y Filtros */}
       <div className="dev-toolbar">
         <div className="status-tabs">
+          {user?.role === 'recepcion' ? (
+            <>
+              <span className="tab-btn active" aria-current="page">
+                Pendientes — cola de filtrar
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', alignSelf: 'center', marginLeft: '0.75rem' }}>
+                ¿Te consultan por una solicitud? Mirá su estado en{' '}
+                <a href="/buscar" style={{ color: '#2563eb', fontWeight: 600 }}>/buscar</a>
+              </span>
+            </>
+          ) : (
+            <>
           <button
             className={`tab-btn ${filters.status === '' ? 'active' : ''}`}
             onClick={() => handleStatusTab('')}
@@ -348,6 +368,8 @@ export default function Dashboard() {
           >
             Rechazadas
           </button>
+            </>
+          )}
         </div>
 
         <form onSubmit={handleSearch} className="search-form" style={{ maxWidth: '320px' }}>
