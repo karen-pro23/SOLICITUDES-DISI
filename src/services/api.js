@@ -86,6 +86,11 @@ export async function getPublicDepartments() {
   return data.departments;
 }
 
+export async function getPublicCargos() {
+  const { data } = await api.get('/public/cargos');
+  return data.cargos;
+}
+
 export async function getPersona(cedula) {
   const { data } = await api.get(`/public/persona/${encodeURIComponent(cedula)}`);
   return data.persona;
@@ -350,6 +355,17 @@ export async function getServiceTicketStats() {
 export async function getServiceTypes() {
   const { data } = await api.get('/service-tickets/service-types');
   return data.serviceTypes;
+}
+
+export async function getServiceTicketSummaryPdf(ticketId = null) {
+  const url = ticketId ? `/service-tickets/${ticketId}/pdf` : '/service-tickets/summary-pdf';
+  const response = await api.get(url, { responseType: 'blob' });
+  return new Blob([response.data], { type: 'application/pdf' });
+}
+
+export async function getServiceTicketTechnicians() {
+  const { data } = await api.get('/service-tickets/technicians');
+  return data.technicians;
 }
 
 export default api;
