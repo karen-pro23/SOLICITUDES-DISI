@@ -432,9 +432,9 @@ export default function Dashboard() {
                   {renderSortableHeader("Código / Ticket", "ticket_code")}
                   {renderSortableHeader("Solicitante", "created_by_name")}
                   <th>Estado</th>
-                  <th>Prioridad</th>
-                  <th>Asignado</th>
-                  <th style={{ textAlign: 'right' }}>Acciones</th>
+                  <th className="col-priority">Prioridad</th>
+                  <th className="col-assigned">Asignado</th>
+                  <th className="col-actions" style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>

@@ -24,9 +24,6 @@ const ROLE_LABELS = {
   developer: 'Desarrollador', tecnico: 'Técnico', admin: 'Admin', requester: 'Solicitante',
 };
 
-const thStyle = { padding: '0.875rem 1rem', fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', borderBottom: '2px solid #e2e8f0', background: '#f8fafc', whiteSpace: 'nowrap' };
-const tdStyle = { padding: '0.875rem 1rem', fontSize: '0.8125rem', verticalAlign: 'middle' };
-
 const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -188,18 +185,18 @@ export default function UserManagement() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+            <table className="mgmt-table mgmt-table--users">
               <thead>
                 <tr>
-                  <th style={thStyle}>Usuario</th>
-                  <th style={thStyle}>Username</th>
-                  <th style={thStyle}>Cédula</th>
-                  <th style={thStyle}>Email</th>
-                  <th style={thStyle}>Rol</th>
-                  <th style={thStyle}>Departamento</th>
-                  <th style={thStyle}>Área</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Estado</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Acciones</th>
+                  <th>Usuario</th>
+                  <th className="col-optional">Username</th>
+                  <th className="col-optional">Cédula</th>
+                  <th className="col-optional">Email</th>
+                  <th>Rol</th>
+                  <th className="col-optional-sm">Departamento</th>
+                  <th className="col-optional-sm">Área</th>
+                  <th className="text-center">Estado</th>
+                  <th className="text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,7 +206,7 @@ export default function UserManagement() {
                     <tr key={u.user_id} style={{ borderBottom: '1px solid #f1f5f9' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={tdStyle}>
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <div style={{
                             width: '36px', height: '36px', borderRadius: '50%',
@@ -226,22 +223,22 @@ export default function UserManagement() {
                           </div>
                         </div>
                       </td>
-                      <td style={tdStyle}><code style={{ fontSize: '0.8125rem', color: '#6366f1', background: '#eef2ff', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{u.username || '-'}</code></td>
-                      <td style={tdStyle}><span style={{ fontSize: '0.8125rem', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{u.cedula || '-'}</span></td>
-                      <td style={tdStyle}><span style={{ fontSize: '0.8125rem', color: '#334155' }}>{u.email}</span></td>
-                      <td style={tdStyle}>
+                      <td className="col-optional"><code style={{ fontSize: '0.8125rem', color: '#6366f1', background: '#eef2ff', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{u.username || '-'}</code></td>
+                      <td className="col-optional"><span style={{ fontSize: '0.8125rem', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{u.cedula || '-'}</span></td>
+                      <td className="col-optional"><span style={{ fontSize: '0.8125rem', color: '#334155' }}>{u.email}</span></td>
+                      <td>
                         <span className="mgmt-badge" style={{ background: roleInfo.bg, color: roleInfo.color }}>
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                       </td>
-                      <td style={tdStyle}><span className="mgmt-badge mgmt-badge--blue">{u.department_name || '-'}</span></td>
-                      <td style={tdStyle}><span style={{ fontSize: '0.8125rem', color: u.area_name ? '#334155' : '#cbd5e1' }}>{u.area_name || '-'}</span></td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <td className="col-optional-sm"><span className="mgmt-badge mgmt-badge--blue">{u.department_name || '-'}</span></td>
+                      <td className="col-optional-sm"><span style={{ fontSize: '0.8125rem', color: u.area_name ? '#334155' : '#cbd5e1' }}>{u.area_name || '-'}</span></td>
+                      <td className="text-center">
                         <span className={`mgmt-badge ${u.is_active ? 'mgmt-badge--green' : 'mgmt-badge--red'}`}>
                           {u.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                      <td className="text-right">
                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
                           <button className="mgmt-icon-btn" title="Editar" onClick={() => handleEdit(u)}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

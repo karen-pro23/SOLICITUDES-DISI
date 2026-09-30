@@ -745,13 +745,28 @@
     gap: 0.25rem;
   }
 
+  /* Celdas más compactas para que quepan más columnas en móvil */
+  .request-table th,
+  .request-table td {
+    padding: 0.75rem;
+  }
+
+  /* Objetivos táctiles: píldoras de acción de fila ~40px */
   .btn-action-pill {
     padding: 0.3rem 0.5rem;
     font-size: 0;
+    min-height: 40px;
+    min-width: 40px;
+    justify-content: center;
   }
 
   .btn-action-pill svg {
     margin: 0;
+  }
+
+  /* El código del ticket es un enlace: necesita área táctil completa */
+  .ticket-badge-link {
+    min-height: 40px;
   }
 
   .table-responsive {
@@ -784,5 +799,15 @@
 
   .col-user .user-dept {
     display: none;
+  }
+
+  /* Para ganar espacio: sin avatar la fila queda más angosta */
+  .col-user .user-avatar {
+    display: none;
+  }
+
+  .request-table th,
+  .request-table td {
+    padding: 0.5rem;
   }
 }

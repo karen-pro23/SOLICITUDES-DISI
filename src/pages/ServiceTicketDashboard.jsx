@@ -315,11 +315,20 @@ export default function ServiceTicketDashboard() {
               <div className="mgmt-empty"><p>No hay solicitudes de servicio técnico</p></div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1000px' }}>
+                <table className="mgmt-table mgmt-table--tickets">
                   <thead>
                     <tr>
-                      {['Ticket', 'Solicitante', 'Ext.', 'Estado', 'Técnico', 'Tiempo', 'Prioridad', 'Acciones'].map(h => (
-                        <th key={h} style={thStyle}>{h}</th>
+                      {[
+                        { label: 'Ticket' },
+                        { label: 'Solicitante' },
+                        { label: 'Ext.', cls: 'col-optional' },
+                        { label: 'Estado' },
+                        { label: 'Técnico', cls: 'col-optional' },
+                        { label: 'Tiempo', cls: 'col-optional' },
+                        { label: 'Prioridad', cls: 'col-optional-sm' },
+                        { label: 'Acciones' },
+                      ].map(h => (
+                        <th key={h.label} className={h.cls}>{h.label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -330,25 +339,25 @@ export default function ServiceTicketDashboard() {
                         <tr key={t.request_id} style={{ borderBottom: '1px solid #f1f5f9' }}
                           onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                          <td style={tdStyle}>
+                          <td>
                             <Link to={`/requests/${t.request_id}`} style={{ fontWeight: 700, color: '#6366f1', fontSize: '0.8125rem', textDecoration: 'none' }}>
                               {t.ticket_code}
                             </Link>
                           </td>
-                          <td style={tdStyle}>
+                          <td>
                             <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{t.requester_name || t.created_by_name}</div>
                             <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{t.department_name || ''}</div>
                           </td>
-                          <td style={tdStyle}><code style={{ fontSize: '0.75rem', color: '#6366f1', background: '#eef2ff', padding: '0.1rem 0.375rem', borderRadius: '4px' }}>{t.extension || '-'}</code></td>
-                          <td style={tdStyle}><span className="mgmt-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span></td>
-                          <td style={tdStyle}><span style={{ fontSize: '0.8125rem' }}>{t.technician_name || <span style={{ color: '#cbd5e1' }}>Sin asignar</span>}</span></td>
-                          <td style={tdStyle}><span style={{ fontSize: '0.75rem', color: '#64748b' }}>{calcResponseTime(t)}</span></td>
-                          <td style={tdStyle}>
+                          <td className="col-optional"><code style={{ fontSize: '0.75rem', color: '#6366f1', background: '#eef2ff', padding: '0.1rem 0.375rem', borderRadius: '4px' }}>{t.extension || '-'}</code></td>
+                          <td><span className="mgmt-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span></td>
+                          <td className="col-optional"><span style={{ fontSize: '0.8125rem' }}>{t.technician_name || <span style={{ color: '#cbd5e1' }}>Sin asignar</span>}</span></td>
+                          <td className="col-optional"><span style={{ fontSize: '0.75rem', color: '#64748b' }}>{calcResponseTime(t)}</span></td>
+                          <td className="col-optional-sm">
                             <span className={`priority-pill priority-${t.priority}`} style={{ fontSize: '0.6875rem', padding: '0.15rem 0.5rem' }}>
                               {t.priority}
                             </span>
                           </td>
-                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                          <td className="text-right">
                             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                               {/* Asignar o Reasignar técnico */}
                               {(t.status === 'PENDIENTE' || t.status === 'ASIGNADA') && user?.role !== 'requester' && (
@@ -711,5 +720,3 @@ export default function ServiceTicketDashboard() {
   );
 }
 
-const thStyle = { padding: '0.875rem 1rem', fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', borderBottom: '2px solid #e2e8f0', background: '#f8fafc', whiteSpace: 'nowrap' };
-const tdStyle = { padding: '0.875rem 1rem', fontSize: '0.8125rem', verticalAlign: 'middle' };

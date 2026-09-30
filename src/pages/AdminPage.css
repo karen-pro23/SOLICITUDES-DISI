@@ -630,6 +630,91 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Tablas de Listados (Gestión) ─────────── */
+
+/* Estilos de th/td que antes vivían inline en ServiceTicketDashboard,
+   UserManagement y AreaManagement: acá los @media sí pueden actuar sobre ellos */
+.mgmt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mgmt-table th {
+  padding: 0.875rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  border-bottom: 2px solid #e2e8f0;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+.mgmt-table td {
+  padding: 0.875rem 1rem;
+  font-size: 0.8125rem;
+  vertical-align: middle;
+}
+
+/* Alineaciones (antes eran {...thStyle, textAlign}) */
+.mgmt-table .text-center {
+  text-align: center;
+}
+
+.mgmt-table .text-right {
+  text-align: right;
+}
+
+.mgmt-table .cell-truncate {
+  max-width: 200px;
+}
+
+/* El ancho mínimo vive solo en desktop: en móvil se ocultan columnas
+   y el wrapper overflow-x:auto ya protege el layout de la página */
+@media (min-width: 769px) {
+  .mgmt-table--tickets { min-width: 1000px; }
+  .mgmt-table--users { min-width: 800px; }
+  .mgmt-table--areas { min-width: 700px; }
+}
+
+/* Móvil: columnas secundarias fuera del camino.
+   Siempre visibles: identificador (ticket/usuario/área) + estado + acciones */
+@media (max-width: 768px) {
+  .mgmt-table .col-optional {
+    display: none;
+  }
+
+  .mgmt-table th,
+  .mgmt-table td {
+    padding: 0.75rem 0.625rem;
+  }
+
+  /* Objetivos táctiles: botones de fila ~40px (no afecta al desktop) */
+  .mgmt-table .btn-sm {
+    min-height: 40px;
+  }
+
+  .mgmt-table td a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mgmt-table .col-optional-sm {
+    display: none;
+  }
+
+  .mgmt-table th,
+  .mgmt-table td {
+    padding: 0.625rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
 /* ── Responsive ───────────────────────────── */
 
 @media (max-width: 640px) {

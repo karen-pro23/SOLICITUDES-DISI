@@ -18,9 +18,6 @@ const SearchIcon = () => (
   </svg>
 );
 
-const thStyle = { padding: '0.875rem 1rem', fontSize: '0.6875rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', borderBottom: '2px solid #e2e8f0', background: '#f8fafc', whiteSpace: 'nowrap' };
-const tdStyle = { padding: '0.875rem 1rem', fontSize: '0.8125rem', verticalAlign: 'middle' };
-
 export default function AreaManagement() {
   const [departments, setDepartments] = useState([]);
   const [allAreas, setAllAreas] = useState([]);
@@ -191,16 +188,16 @@ export default function AreaManagement() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+            <table className="mgmt-table mgmt-table--areas">
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={thStyle}>Área</th>
-                  <th style={thStyle}>Departamento</th>
-                  <th style={thStyle}>Descripción</th>
-                  <th style={thStyle}>Jefe</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Miembros</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Estado</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Acciones</th>
+                  <th>Área</th>
+                  <th className="col-optional-sm">Departamento</th>
+                  <th className="col-optional">Descripción</th>
+                  <th className="col-optional-sm">Jefe</th>
+                  <th className="col-optional text-center">Miembros</th>
+                  <th className="text-center">Estado</th>
+                  <th className="text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,7 +205,7 @@ export default function AreaManagement() {
                   <tr key={area.area_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={tdStyle}>
+                    <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{
                           width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -221,15 +218,15 @@ export default function AreaManagement() {
                         </div>
                       </div>
                     </td>
-                    <td style={tdStyle}>
+                    <td className="col-optional-sm">
                       <span className="mgmt-badge mgmt-badge--blue">{area.department_name}</span>
                     </td>
-                    <td style={{ ...tdStyle, maxWidth: '200px' }}>
+                    <td className="col-optional cell-truncate">
                       <span style={{ fontSize: '0.8125rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
                         {area.description || <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>-</span>}
                       </span>
                     </td>
-                    <td style={tdStyle}>
+                    <td className="col-optional-sm">
                       {area.leader_name ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #c7d2fe, #a5b4fc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 700, color: '#3730a3', flexShrink: 0 }}>
@@ -241,7 +238,7 @@ export default function AreaManagement() {
                         <span style={{ fontSize: '0.8125rem', color: '#cbd5e1', fontStyle: 'italic' }}>Sin asignar</span>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <td className="col-optional text-center">
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         minWidth: '28px', height: '28px', borderRadius: '8px',
@@ -252,12 +249,12 @@ export default function AreaManagement() {
                         {area.member_count || 0}
                       </span>
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <td className="text-center">
                       <span className={`mgmt-badge ${area.is_active ? 'mgmt-badge--green' : 'mgmt-badge--red'}`}>
                         {area.is_active ? 'Activa' : 'Inactiva'}
                       </span>
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>
+                    <td className="text-right">
                       <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
                         <button className="mgmt-icon-btn" title="Editar" onClick={() => handleEdit(area)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
