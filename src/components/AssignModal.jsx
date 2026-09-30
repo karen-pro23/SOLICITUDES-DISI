@@ -57,6 +57,10 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         if (user.role === 'requester' && user.es_jefe) {
           validDepts = validDepts.filter(d => d.department_id === user.departmentId);
           setSelectedDept(user.departmentId);
+        } else if (isRecepcion) {
+          // Todas las solicitudes van a Sistemas: preseleccionamos su
+          // departamento (el único con is_it) y el paso 1 queda oculto.
+          setSelectedDept(validDepts[0]?.department_id ?? '');
         } else {
           setSelectedDept(request?.assigned_department_id || '');
         }
@@ -64,7 +68,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
       })
       .catch(() => toast.error('Error al cargar departamentos'))
       .finally(() => setLoadingDepts(false));
-  }, [isOpen, request, isJefeArea, myAreaId]);
+  }, [isOpen, request, isJefeArea, isRecepcion, myAreaId]);
 
   // Paso 1: Se selecciona depto → carga áreas
   useEffect(() => {
@@ -173,7 +177,9 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
               Ticket: <strong>{request?.ticket_code}</strong>
             </p>
             
-            {!isJefeArea && (
+            {/* Recepción no elige departamento: toda solicitud va a Sistemas,
+                así que su departamento se preselecciona y solo queda el área */}
+            {!isJefeArea && !isRecepcion && (
             <div className="form-group">
               <label htmlFor="dept-select">1. Asignar a Departamento</label>
               <select 
@@ -196,7 +202,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
 
             {!isJefeArea && (
             <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label htmlFor="area-select">{isRecepcion ? '2. Derivar a Área' : '2. Asignar a Área (Opcional)'}</label>
+              <label htmlFor="area-select">{isRecepcion ? 'Derivar a Área' : '2. Asignar a Área (Opcional)'}</label>
               <select 
                 id="area-select"
                 value={selectedArea} 
