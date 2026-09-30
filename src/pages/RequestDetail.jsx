@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, FileText, FileSpreadsheet, Paperclip, User, Building2, Smile, Frown, X } from 'lucide-react';
+import { Image, FileText, FileSpreadsheet, Paperclip, User, Building2, Smile, Frown, X, Download } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
 import toast from 'react-hot-toast';
@@ -797,8 +797,9 @@ export default function RequestDetail() {
                               href={getAttachmentDownloadUrl(request.request_id, att.attachment_id)}
                               className="attachment-btn attachment-btn-download"
                               download
+                              aria-label="Descargar archivo"
                             >
-                              ⬇️
+                              <Download size={14} />
                             </a>
                           </div>
                         </div>
