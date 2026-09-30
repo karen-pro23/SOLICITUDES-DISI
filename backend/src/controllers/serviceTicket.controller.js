@@ -1,5 +1,6 @@
 const serviceTicketService = require('../services/serviceTicket.service');
 const fileService = require('../services/file.service');
+const serviceTicketPdfService = require('../services/serviceTicketPdf.service');
 
 // Autenticado: listar solicitudes de servicio técnico
 async function findAll(req, res, next) {
@@ -46,14 +47,22 @@ async function reject(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Autenticado: asignar técnico (jefe_st)
+// Autenticado: asignar técnico
 async function assign(req, res, next) {
   try {
     const { technicianId } = req.body;
     if (!technicianId) return res.status(400).json({ error: 'Técnico requerido' });
     const ticket = await serviceTicketService.assign(parseInt(req.params.id, 10), parseInt(technicianId, 10));
-    if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no está pendiente' });
+    if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no disponible para asignación' });
     res.json({ ticket });
+  } catch (err) { next(err); }
+}
+
+// Autenticado: listar técnicos elegibles para asignación
+async function getTechnicians(req, res, next) {
+  try {
+    const technicians = await serviceTicketService.getTechnicians();
+    res.json({ technicians });
   } catch (err) { next(err); }
 }
 
@@ -111,7 +120,10 @@ async function getServiceTypes(req, res, next) {
 // Público: crear solicitud de servicio técnico
 async function create(req, res, next) {
   try {
-    const { cedula, nombre, apellido, email, departmentName, extension, description, observations } = req.body;
+    // El cargo se acepta en el payload con la clave `position` (no `cargo`) para
+    // respetar el contrato de serviceTicketPdf.service.js, que lee ticket.position.
+    // Es opcional: si no viene, el servicio lo guarda como NULL.
+    const { cedula, nombre, apellido, email, departmentName, position, extension, description, observations } = req.body;
 
     if (!cedula || !nombre || !apellido || !email) {
       return res.status(400).json({ error: 'Cédula, nombre, apellido y correo son obligatorios' });
@@ -124,6 +136,7 @@ async function create(req, res, next) {
     const ticket = await serviceTicketService.create({
       cedula, nombre, apellido, email,
       departmentName: departmentName || null,
+      position: position || null,
       extension: extension || null,
       description: description.trim(),
       observations: observations || null,
@@ -133,4 +146,49 @@ async function create(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create };
+// Generar PDF resumen de atención técnica (con datos estáticos por defecto o datos del ticket)
+async function generateSummaryPdf(req, res, next) {
+  try {
+    let ticketData = {};
+    // Solo el id de ruta. Anteriormente se aceptaba también `?ticketId=`, lo que
+    // venía de una ruta pública que se eliminó: sin auth, ese fallback hacía el
+    // endpoint enumerable por query string. El frontend usa el path param.
+    const ticketId = req.params.id;
+    if (ticketId && !isNaN(parseInt(ticketId, 10))) {
+      const ticket = await serviceTicketService.findById(parseInt(ticketId, 10));
+      if (ticket) {
+        ticketData = serviceTicketPdfService.mapTicketToPdfData(ticket);
+      }
+    }
+
+    const doc = serviceTicketPdfService.createServiceTicketPdf(ticketData);
+
+    const filename = ticketData.ticketNumber
+      ? `resumen-atencion-${ticketData.ticketNumber}.pdf`
+      : 'resumen-atencion.pdf';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+
+    doc.pipe(res);
+    doc.end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  findAll,
+  getByCode,
+  getById,
+  accept,
+  reject,
+  assign,
+  close,
+  rate,
+  getStats,
+  getServiceTypes,
+  create,
+  generateSummaryPdf,
+  getTechnicians,
+};
