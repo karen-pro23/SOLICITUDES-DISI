@@ -1,7 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import CreatableSelect from 'react-select/creatable';
+import {
+  Check,
+  AlertTriangle,
+  User,
+  FileText,
+  FileSpreadsheet,
+  Image,
+  Zap,
+  Loader2,
+  Send,
+  X,
+  Copy,
+} from 'lucide-react';
 import {
   getPersona,
   getPublicDepartments,
+  getPublicCargos,
   createServiceTicket,
 } from '../services/api';
 import PublicHeader from '../components/PublicHeader';
@@ -22,6 +37,59 @@ const ALLOWED_DOC_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
 ];
+
+const MAX_CARGO_LENGTH = 120;
+
+// Caracteres NO admitidos en un nombre de cargo.
+//
+// Los dígitos y la puntuación común son VÁLIDOS en cargos reales del sistema:
+// "DIRECTOR DE TI. 2", "COORDINADOR (S)", "SUB-DIRECTOR", "ANALISTA 1".
+// Una versión anterior de este filtro usaba la clase [^A-ZÁÉÍÓÚÑÜ\s], que
+// BORRABA los dígitos y los signos: "INGENIERO 3" se consolidaba como
+// "INGENIERO" y "DIRECTOR DE TI. 2" como "DIRECTOR DE TI". Como el saneador
+// también corría sobre valores que YA venían del catálogo, elegir un cargo
+// existente con dígitos creaba una fila nueva mutilada en `cargos` y
+// repuntaba persona.cargo_id a esa versión rota.
+//
+// La clase vive acá una sola vez a propósito: antes estaba duplicada en dos
+// funciones con setas distintas, que es exactamente la forma en que este bug
+// se coló.
+const CARGO_UNSUPPORTED = /[^A-ZÁÉÍÓÚÑÜ0-9.,\-()/&\s´¨]/g;
+
+// Se permiten transitoriamente los acentos muertos (´, ¨) para teclados físicos.
+function stripUnsupportedCargoChars(val) {
+  return val.replace(CARGO_UNSUPPORTED, '');
+}
+
+// Filtra en tiempo real, mientras se escribe.
+function sanitizeCargoInput(val) {
+  if (!val) return '';
+  return val
+    .normalize('NFC')
+    .toUpperCase()
+    .replace(CARGO_UNSUPPORTED, '');
+}
+
+// Limpia acentos muertos sueltos y espacios repetidos al consolidar el valor
+function cleanFinalCargo(val) {
+  if (!val) return '';
+  return stripUnsupportedCargoChars(val.normalize('NFC').toUpperCase())
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_CARGO_LENGTH);
+}
+
+// Un valor que ya existe en el catálogo no se sanea NUNCA: es dato nuestro, no
+// input del usuario, y volverlo a filtrar corrompe nombres legítimos.
+// Solo el texto tipeado a mano pasa por cleanFinalCargo.
+function resolveSelectedCargo(selectedValue, catalog) {
+  const raw = String(selectedValue || '').trim();
+  if (!raw) return '';
+  const match = (catalog || []).find(
+    (c) => String(c.name || '').trim().toUpperCase() === raw.toUpperCase()
+  );
+  return match ? String(match.name) : cleanFinalCargo(raw);
+}
 
 
 function formatBytes(bytes) {
@@ -44,6 +112,11 @@ export default function ServiceTicketForm() {
   });
 
   const [departments, setDepartments] = useState([]);
+  const [cargos, setCargos] = useState([]);
+  const [cargosLoaded, setCargosLoaded] = useState(false);
+  // El cargo seleccionado o creado vive en `cargoValue`.
+  const [cargoValue, setCargoValue] = useState('');
+  const [cargoInputValue, setCargoInputValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sendingAnimation, setSendingAnimation] = useState(false);
   const [error, setError] = useState('');
@@ -60,12 +133,14 @@ export default function ServiceTicketForm() {
   // Persona lookup
   const [personaFound, setPersonaFound] = useState(false);
   const [personaLoading, setPersonaLoading] = useState(false);
+  const [personaError, setPersonaError] = useState('');
 
   // Uploads
   const [screenshots, setScreenshots] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [convertingCount, setConvertingCount] = useState(0);
   const liveUrlsRef = useRef(new Set());
+  const lastFetchedCedulaRef = useRef('');
   const [uploadNotice, setUploadNotice] = useState(null);
   const [isDragOverScreenshot, setIsDragOverScreenshot] = useState(false);
   const [isDragOverDocument, setIsDragOverDocument] = useState(false);
@@ -77,11 +152,33 @@ export default function ServiceTicketForm() {
   // ── Load data on mount ──────────────────────────────
   useEffect(() => {
     getPublicDepartments().then(setDepartments).catch(() => {});
+    getPublicCargos()
+      .then(setCargos)
+      .catch(() => {})
+      .finally(() => setCargosLoaded(true));
     return () => {
       liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       liveUrlsRef.current.clear();
     };
   }, []);
+
+  // ── Cargo: valor derivado y opciones para CreatableSelect ──
+  const position = cargoValue;
+
+  const cargoOptions = useMemo(() => {
+    const opts = (cargos || []).map((c) => ({
+      value: (c.name || '').toUpperCase(),
+      label: (c.name || '').toUpperCase(),
+    }));
+    if (
+      cargoValue &&
+      !opts.some((o) => o.value === cargoValue.trim().toUpperCase())
+    ) {
+      const val = cleanFinalCargo(cargoValue);
+      if (val) opts.unshift({ value: val, label: val });
+    }
+    return opts;
+  }, [cargos, cargoValue]);
 
   // ── Paste handler for screenshots ───────────────────
   useEffect(() => {
@@ -238,6 +335,12 @@ export default function ServiceTicketForm() {
       errs.email = 'El correo no tiene un formato válido (ejemplo: tu.nombre@gobernacion.gob.ve).';
     }
     if (!form.departmentId) errs.departmentId = 'Por favor seleccioná tu Departamento o Dirección de origen.';
+    // El cargo es OBLIGATORIO:
+    if (!cargoValue || !cargoValue.trim()) {
+      errs.position = 'Por favor seleccione o escriba su cargo institucional.';
+    } else if (cargoValue.trim().length > MAX_CARGO_LENGTH) {
+      errs.position = `El cargo no puede superar los ${MAX_CARGO_LENGTH} caracteres.`;
+    }
     return errs;
   };
 
@@ -257,30 +360,65 @@ export default function ServiceTicketForm() {
   // ── Handlers ────────────────────────────────────────
   function handleChange(e) {
     const { name, value } = e.target;
+    if (name === 'cedula') {
+      const trimmed = value.trim().toUpperCase();
+      if (trimmed !== lastFetchedCedulaRef.current) {
+        setPersonaFound(false);
+      }
+    }
     setForm((prev) => ({ ...prev, [name]: value.toLocaleUpperCase() }));
   }
 
   async function handleCedulaBlur(e) {
     const cedula = e.target.value.trim().toUpperCase();
     if (!cedula) return;
+    const cleanCedula = cedula.replace(/^V-?|^E-?/i, '');
+    const cleanLastFetched = lastFetchedCedulaRef.current.replace(/^V-?|^E-?/i, '');
+    // Si la cédula ya fue consultada y está verificada, no volver a consultar ni sobreescribir lo modificado por el usuario
+    if (cleanCedula && cleanCedula === cleanLastFetched && personaFound) return;
+
     setPersonaLoading(true);
+    setPersonaError('');
     try {
       const persona = await getPersona(cedula);
       if (persona) {
-        setForm((prev) => ({
-          ...prev,
-          cedula: persona.cedula || cedula,
-          nombre: persona.nombre || '',
-          apellido: persona.apellido || '',
-          email: persona.email || prev.email,
-        }));
+        lastFetchedCedulaRef.current = cedula;
+        setForm((prev) => {
+          let deptId = prev.departmentId;
+          let deptName = prev.departmentName;
+          if (!deptId && (persona.department_id || persona.department_name)) {
+            const matched = departments.find(
+              (d) =>
+                (persona.department_id && String(d.department_id) === String(persona.department_id)) ||
+                (persona.department_name && d.name.toUpperCase() === persona.department_name.toUpperCase())
+            );
+            if (matched) {
+              deptId = String(matched.department_id);
+              deptName = matched.name;
+            }
+          }
+          return {
+            ...prev,
+            cedula: persona.cedula || cedula,
+            nombre: persona.nombre || '',
+            apellido: persona.apellido || '',
+            email: persona.email || prev.email,
+            departmentId: deptId,
+            departmentName: deptName,
+          };
+        });
+        if (persona.position) {
+          setCargoValue(resolveSelectedCargo(persona.position, cargos));
+        }
         setPersonaFound(true);
       } else {
+        lastFetchedCedulaRef.current = cedula;
         setForm((prev) => ({ ...prev, cedula, nombre: '', apellido: '' }));
         setPersonaFound(false);
       }
     } catch {
-      setForm((prev) => ({ ...prev, cedula, nombre: '', apellido: '' }));
+      setForm((prev) => ({ ...prev, cedula }));
+      setPersonaError('No se pudo consultar la cédula. Escribí tu nombre y apellido.');
       setPersonaFound(false);
     } finally {
       setPersonaLoading(false);
@@ -297,6 +435,38 @@ export default function ServiceTicketForm() {
     }));
   }
 
+  const handleCargoInputChange = (newValue, actionMeta) => {
+    if (actionMeta.action === 'input-change') {
+      const sanitized = sanitizeCargoInput(newValue);
+      setCargoInputValue(sanitized);
+    } else if (
+      actionMeta.action === 'set-value' ||
+      actionMeta.action === 'menu-close'
+    ) {
+      setCargoInputValue('');
+    }
+  };
+
+  function handleCreateCargo(inputValue) {
+    const cleaned = cleanFinalCargo(inputValue);
+    if (!cleaned) return;
+    setCargos((prev) => {
+      if (prev.some((c) => c.name.toUpperCase() === cleaned)) {
+        return prev;
+      }
+      return [{ cargo_id: `custom_${Date.now()}`, name: cleaned }, ...prev];
+    });
+    setCargoValue(cleaned);
+    setCargoInputValue('');
+  }
+
+  const handleCargoBlur = () => {
+    setTouched((prev) => ({ ...prev, position: true }));
+    if (cargoInputValue && cargoInputValue.trim()) {
+      handleCreateCargo(cargoInputValue);
+    }
+  };
+
   const handleBlur = (e) => {
     const { name } = e.target;
     if (name) setTouched((prev) => ({ ...prev, [name]: true }));
@@ -305,9 +475,12 @@ export default function ServiceTicketForm() {
   const handleStepTabClick = (targetStep) => {
     if (targetStep === 1) { setCurrentStep(1); return; }
     if (targetStep === 2) {
+      if (cargoInputValue && cargoInputValue.trim()) {
+        handleCreateCargo(cargoInputValue);
+      }
       if (!isStep1Valid) {
         setAttemptedNext((prev) => ({ ...prev, 1: true }));
-        setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true }));
+        setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true, position: true }));
         return;
       }
       setCurrentStep(2);
@@ -316,9 +489,12 @@ export default function ServiceTicketForm() {
 
   const handleNextStep = () => {
     if (currentStep === 1) {
+      if (cargoInputValue && cargoInputValue.trim()) {
+        handleCreateCargo(cargoInputValue);
+      }
       if (!isStep1Valid) {
         setAttemptedNext((prev) => ({ ...prev, 1: true }));
-        setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true }));
+        setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true, position: true }));
         return;
       }
       setCurrentStep(2);
@@ -338,10 +514,14 @@ export default function ServiceTicketForm() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (cargoInputValue && cargoInputValue.trim()) {
+      handleCreateCargo(cargoInputValue);
+    }
+
     if (!isStep1Valid) {
       setCurrentStep(1);
       setAttemptedNext((prev) => ({ ...prev, 1: true }));
-      setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true }));
+      setTouched((prev) => ({ ...prev, cedula: true, nombre: true, apellido: true, email: true, departmentId: true, position: true }));
       return;
     }
     if (!isStep2Valid) {
@@ -361,6 +541,8 @@ export default function ServiceTicketForm() {
         apellido: form.apellido,
         email: form.email,
         departmentName: form.departmentName,
+        // El backend y el PDF esperan el cargo con la clave `position`.
+        position: cargoValue ? cargoValue.trim() : null,
         extension: form.extension,
         description: form.description,
         observations: form.observations,
@@ -391,7 +573,13 @@ export default function ServiceTicketForm() {
       cedula: '', nombre: '', apellido: '', email: '', departmentId: '', departmentName: '',
       extension: '', description: '', observations: '',
     });
+    // El cargo se reinicia acá también: un cargo que sobreviva al reset
+    // atribuiría al siguiente solicitante el cargo del anterior.
+    setCargoValue('');
+    setCargoInputValue('');
+    lastFetchedCedulaRef.current = '';
     setPersonaFound(false);
+    setPersonaError('');
     setScreenshots([]);
     setDocuments([]);
     setTouched({});
@@ -399,6 +587,102 @@ export default function ServiceTicketForm() {
   }
 
   const canSubmit = isValid && !submitting;
+  const hasCargoError = Boolean((touched.position || attemptedNext[1]) && step1Errors.position);
+
+  const creatableSelectStyles = useMemo(
+    () => ({
+      control: (base, state) => ({
+        ...base,
+        minHeight: '44px',
+        borderRadius: '0.5rem',
+        borderColor: hasCargoError
+          ? '#ef4444'
+          : state.isFocused
+          ? '#2563eb'
+          : '#cbd5e1',
+        boxShadow: state.isFocused
+          ? '0 0 0 3px rgba(37, 99, 235, 0.15)'
+          : '0 1px 2px rgba(0, 0, 0, 0.04)',
+        fontSize: '0.875rem',
+        backgroundColor: '#ffffff',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          borderColor: hasCargoError ? '#ef4444' : state.isFocused ? '#2563eb' : '#94a3b8',
+        },
+      }),
+      valueContainer: (base) => ({
+        ...base,
+        padding: '0.25rem 0.75rem',
+      }),
+      input: (base) => ({
+        ...base,
+        color: '#0f172a',
+        margin: 0,
+        padding: 0,
+        textTransform: 'uppercase',
+      }),
+      placeholder: (base) => ({
+        ...base,
+        color: '#94a3b8',
+        fontSize: '0.875rem',
+      }),
+      singleValue: (base) => ({
+        ...base,
+        color: '#0f172a',
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        textTransform: 'uppercase',
+      }),
+      menu: (base) => ({
+        ...base,
+        borderRadius: '0.5rem',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
+        border: '1px solid #e2e8f0',
+        zIndex: 50,
+      }),
+      menuList: (base) => ({
+        ...base,
+        padding: '0.25rem',
+        maxHeight: '220px',
+      }),
+      option: (base, state) => ({
+        ...base,
+        borderRadius: '0.375rem',
+        margin: '2px 0',
+        padding: '0.5rem 0.75rem',
+        fontSize: '0.875rem',
+        textTransform: 'uppercase',
+        backgroundColor: state.isSelected
+          ? '#2563eb'
+          : state.isFocused
+          ? '#eff6ff'
+          : 'transparent',
+        color: state.isSelected ? '#ffffff' : state.isFocused ? '#1e40af' : '#1e293b',
+        cursor: 'pointer',
+        '&:active': {
+          backgroundColor: '#3b82f6',
+          color: '#ffffff',
+        },
+      }),
+      clearIndicator: (base) => ({
+        ...base,
+        cursor: 'pointer',
+        color: '#94a3b8',
+        '&:hover': { color: '#64748b' },
+      }),
+      dropdownIndicator: (base) => ({
+        ...base,
+        cursor: 'pointer',
+        color: '#94a3b8',
+        '&:hover': { color: '#64748b' },
+      }),
+      indicatorSeparator: (base) => ({
+        ...base,
+        backgroundColor: '#e2e8f0',
+      }),
+    }),
+    [hasCargoError]
+  );
 
   // ── RENDER ──────────────────────────────────────────
   return (
@@ -442,10 +726,10 @@ export default function ServiceTicketForm() {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'center' }}
               >
                 {copiedTicket ? (
-                  <>✓ Copiado al portapapeles</>
+                  <><Check size={14} /> Copiado al portapapeles</>
                 ) : (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <Copy size={14} />
                     Copiar Código
                   </>
                 )}
@@ -503,7 +787,7 @@ export default function ServiceTicketForm() {
                 onClick={() => handleStepTabClick(1)}
                 aria-current={currentStep === 1 ? 'step' : undefined}
               >
-                <div className="step-badge">{isStep1Valid ? '✓' : '1'}</div>
+                <div className="step-badge">{isStep1Valid ? <Check size={14} strokeWidth={3} /> : '1'}</div>
                 <div className="step-label">
                   <span className="step-title">1. Solicitante</span>
                   <span className="step-sub">Datos de contacto</span>
@@ -516,7 +800,7 @@ export default function ServiceTicketForm() {
                 onClick={() => handleStepTabClick(2)}
                 aria-current={currentStep === 2 ? 'step' : undefined}
               >
-                <div className="step-badge">{isStep2Valid ? '✓' : '2'}</div>
+                <div className="step-badge">{isStep2Valid ? <Check size={14} strokeWidth={3} /> : '2'}</div>
                 <div className="step-label">
                   <span className="step-title">2. Detalle del Problema</span>
                   <span className="step-sub">Descripción y evidencias</span>
@@ -526,7 +810,9 @@ export default function ServiceTicketForm() {
 
             {error && (
               <div className="alert alert-error" role="alert">
-                <span>⚠️ {error}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <AlertTriangle size={15} /> {error}
+                </span>
               </div>
             )}
 
@@ -535,7 +821,7 @@ export default function ServiceTicketForm() {
               {currentStep === 1 && (
                 <section className="form-section fade-in-step" aria-labelledby="step1-heading">
                   <h2 id="step1-heading">
-                    <span className="section-icon">👤</span> Datos del Solicitante
+                    <span className="section-icon"><User size={18} /></span> Datos del Solicitante
                   </h2>
                   <p className="section-desc">
                     Identificate con tu Cédula de Identidad para verificar tus datos institucionales.
@@ -544,7 +830,7 @@ export default function ServiceTicketForm() {
                   {attemptedNext[1] && !isStep1Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
+                        <span className="validation-alert-icon"><AlertTriangle size={16} /></span>
                         <strong>Para avanzar al Paso 2, por favor completá los siguientes datos:</strong>
                       </div>
                       <ul className="validation-alert-list">
@@ -566,6 +852,12 @@ export default function ServiceTicketForm() {
                           value={form.cedula}
                           onChange={handleChange}
                           onBlur={(e) => { handleBlur(e); handleCedulaBlur(e); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCedulaBlur(e);
+                            }
+                          }}
                           placeholder="Ej: V-12345678"
                           required
                           aria-required="true"
@@ -575,19 +867,24 @@ export default function ServiceTicketForm() {
                         <div id="cedula-status" role="status" aria-live="polite">
                           {personaLoading && (
                             <span className="persona-status-loading">
-                              <span className="spinner-icon">⏳</span> Buscando...
+                              <span className="spinner-icon"><Loader2 size={13} className="spin-icon" /></span> Buscando...
                             </span>
                           )}
                           {!personaLoading && personaFound && (
-                            <span className="persona-badge persona-badge-found">✓ Verificada</span>
+                            <span className="persona-badge persona-badge-found" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Check size={12} strokeWidth={2.5} /> Verificada
+                            </span>
                           )}
-                          {!personaLoading && !personaFound && form.cedula.trim() !== '' && (
+                          {!personaLoading && !personaFound && form.cedula.trim() !== '' && !personaError && (
                             <span className="persona-badge persona-badge-new">Nueva Persona</span>
+                          )}
+                          {!personaLoading && personaError && (
+                            <span className="field-error-text"><AlertTriangle size={13} /> {personaError}</span>
                           )}
                         </div>
                       </div>
                       {(touched.cedula || attemptedNext[1]) && step1Errors.cedula && (
-                        <span className="field-error-text">⚠️ {step1Errors.cedula}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.cedula}</span>
                       )}
                     </div>
                   </div>
@@ -609,7 +906,7 @@ export default function ServiceTicketForm() {
                         className={`${personaFound ? 'form-input-found' : ''} ${(touched.nombre || attemptedNext[1]) && step1Errors.nombre ? 'input-error' : ''}`}
                       />
                       {(touched.nombre || attemptedNext[1]) && step1Errors.nombre && (
-                        <span className="field-error-text">⚠️ {step1Errors.nombre}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.nombre}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -628,7 +925,7 @@ export default function ServiceTicketForm() {
                         className={`${personaFound ? 'form-input-found' : ''} ${(touched.apellido || attemptedNext[1]) && step1Errors.apellido ? 'input-error' : ''}`}
                       />
                       {(touched.apellido || attemptedNext[1]) && step1Errors.apellido && (
-                        <span className="field-error-text">⚠️ {step1Errors.apellido}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.apellido}</span>
                       )}
                     </div>
                   </div>
@@ -649,7 +946,7 @@ export default function ServiceTicketForm() {
                         className={(touched.email || attemptedNext[1]) && step1Errors.email ? 'input-error' : undefined}
                       />
                       {(touched.email || attemptedNext[1]) && step1Errors.email && (
-                        <span className="field-error-text">⚠️ {step1Errors.email}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.email}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -672,7 +969,53 @@ export default function ServiceTicketForm() {
                         ))}
                       </select>
                       {(touched.departmentId || attemptedNext[1]) && step1Errors.departmentId && (
-                        <span className="field-error-text">⚠️ {step1Errors.departmentId}</span>
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.departmentId}</span>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="position">Cargo *</label>
+                      <CreatableSelect
+                        id="position"
+                        inputId="position"
+                        name="position"
+                        isClearable
+                        isSearchable
+                        isLoading={!cargosLoaded}
+                        placeholder="-- SELECCIONAR O ESCRIBIR CARGO * --"
+                        inputValue={cargoInputValue}
+                        onInputChange={handleCargoInputChange}
+                        noOptionsMessage={({ inputValue }) =>
+                          inputValue
+                            ? `No se encontró "${inputValue.toUpperCase()}"`
+                            : 'No hay cargos disponibles'
+                        }
+                        formatCreateLabel={(inputValue) => `Crear cargo "${cleanFinalCargo(inputValue)}"`}
+                        options={cargoOptions}
+                        value={
+                          cargoValue
+                            ? { value: cargoValue.toUpperCase(), label: cargoValue.toUpperCase() }
+                            : null
+                        }
+                        onChange={(selected) => {
+                          setCargoValue(resolveSelectedCargo(selected && selected.value, cargos));
+                          setCargoInputValue('');
+                        }}
+                        onCreateOption={handleCreateCargo}
+                        onBlur={handleCargoBlur}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && cargoInputValue && cargoInputValue.trim()) {
+                            e.preventDefault();
+                            handleCreateCargo(cargoInputValue);
+                          }
+                        }}
+                        createOptionPosition="first"
+                        styles={creatableSelectStyles}
+                        aria-label="Cargo institucional *"
+                        aria-required="true"
+                        required
+                      />
+                      {hasCargoError && (
+                        <span className="field-error-text"><AlertTriangle size={13} /> {step1Errors.position}</span>
                       )}
                     </div>
                     <div className="form-group">
@@ -706,7 +1049,7 @@ export default function ServiceTicketForm() {
               {currentStep === 2 && (
                 <section className="form-section fade-in-step" aria-labelledby="step2-heading">
                   <h2 id="step2-heading">
-                    <span className="section-icon">📝</span> Detalle del Problema y Evidencias
+                    <span className="section-icon"><FileText size={18} /></span> Detalle del Problema y Evidencias
                   </h2>
                   <p className="section-desc">
                     Describí el problema o requerimiento técnico para que nuestro equipo pueda asistirte rápidamente.
@@ -715,7 +1058,7 @@ export default function ServiceTicketForm() {
                   {attemptedNext[2] && !isStep2Valid && (
                     <div className="validation-error-alert" role="alert">
                       <div className="validation-alert-header">
-                        <span className="validation-alert-icon">⚠️</span>
+                        <span className="validation-alert-icon"><AlertTriangle size={16} /></span>
                         <strong>Para finalizar la solicitud, completá los detalles obligatorios:</strong>
                       </div>
                       <ul className="validation-alert-list">
@@ -747,7 +1090,7 @@ export default function ServiceTicketForm() {
                       </span>
                     </div>
                     {(touched.description || attemptedNext[2]) && step2Errors.description && (
-                      <span className="field-error-text">⚠️ {step2Errors.description}</span>
+                      <span className="field-error-text"><AlertTriangle size={13} /> {step2Errors.description}</span>
                     )}
                   </div>
 
@@ -790,7 +1133,7 @@ export default function ServiceTicketForm() {
                           )}
                         </span>
                         <span className="upload-notice-text">{uploadNotice.message}</span>
-                        <button type="button" className="upload-notice-close" onClick={() => setUploadNotice(null)} aria-label="Cerrar notificación">✕</button>
+                        <button type="button" className="upload-notice-close" onClick={() => setUploadNotice(null)} aria-label="Cerrar notificación"><X size={14} /></button>
                       </div>
                     )}
 
@@ -809,7 +1152,7 @@ export default function ServiceTicketForm() {
                           onDragLeave={() => setIsDragOverScreenshot(false)}
                           onDrop={handleScreenshotDrop}
                         >
-                          <span className="dropzone-icon">🖼️</span>
+                          <span className="dropzone-icon"><Image size={36} strokeWidth={1.5} /></span>
                           <p className="dropzone-text">
                             Arrastrá imágenes aquí o{' '}
                             <label htmlFor="screenshot-input" className="dropzone-browse">explorá tus archivos</label>
@@ -826,7 +1169,9 @@ export default function ServiceTicketForm() {
                         </div>
 
                         {convertingCount > 0 && (
-                          <span className="file-hint converting-hint">⚡ Optimizando imágenes a WebP...</span>
+                          <span className="file-hint converting-hint" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Zap size={14} /> Optimizando imágenes a WebP...
+                          </span>
                         )}
 
                         {screenshots.length > 0 && (
@@ -838,7 +1183,7 @@ export default function ServiceTicketForm() {
                                   onClick={(e) => { e.stopPropagation(); removeScreenshot(idx); }}
                                   className="screenshot-remove-btn"
                                   aria-label={`Eliminar imagen ${item.name}`}
-                                >✕</button>
+                                ><X size={14} /></button>
                                 <img src={item.previewUrl} alt={item.name} className="screenshot-thumb" />
                                 <div className="screenshot-meta">
                                   <div className="screenshot-name">{item.name}</div>
@@ -864,7 +1209,7 @@ export default function ServiceTicketForm() {
                           onDragLeave={() => setIsDragOverDocument(false)}
                           onDrop={handleDocumentDrop}
                         >
-                          <span className="dropzone-icon">📄</span>
+                          <span className="dropzone-icon"><FileText size={36} strokeWidth={1.5} /></span>
                           <p className="dropzone-text">
                             Arrastrá documentos PDF o planillas o{' '}
                             <label htmlFor="document-input" className="dropzone-browse">seleccioná un archivo</label>
@@ -886,7 +1231,7 @@ export default function ServiceTicketForm() {
                               <div key={idx} className="document-item">
                                 <div className="document-info">
                                   <span className="document-icon">
-                                    {item.type === 'application/pdf' || item.name.endsWith('.pdf') ? '📄' : '📊'}
+                                    {item.type === 'application/pdf' || item.name.endsWith('.pdf') ? <FileText size={18} /> : <FileSpreadsheet size={18} />}
                                   </span>
                                   <div className="document-text">
                                     <div className="document-name">{item.name}</div>
@@ -904,7 +1249,7 @@ export default function ServiceTicketForm() {
                                     className="document-remove-btn"
                                     onClick={() => removeDocument(idx)}
                                     aria-label={`Eliminar documento ${item.name}`}
-                                  >✕</button>
+                                  ><X size={14} /></button>
                                 </div>
                               </div>
                             ))}
@@ -922,9 +1267,14 @@ export default function ServiceTicketForm() {
                     <button
                       type="submit"
                       className="btn btn-primary btn-submit-lg"
-                      disabled={submitting}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                      disabled={submitting || convertingCount > 0}
                     >
-                      {submitting ? '⏳ Guardando Solicitud...' : '🚀 Enviar Solicitud Ahora'}
+                      {submitting ? (
+                        <><Loader2 size={16} className="spin-icon" /> Guardando Solicitud...</>
+                      ) : (
+                        <><Send size={16} /> Enviar Solicitud Ahora</>
+                      )}
                     </button>
                   </div>
                 </section>
