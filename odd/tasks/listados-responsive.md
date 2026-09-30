@@ -60,12 +60,28 @@ El usuario pidió "haz más responsive y cómodo los listados" después de ver l
 ## Progress
 
 - [x] Mapeo de las 4 vistas y su estado actual
-- [ ] R1..R5
+- [x] R1 — ServiceTicketDashboard (`mgmt-table--tickets`, th/td a clases, 8 columnas con metadata)
+- [x] R2 — UserManagement (`mgmt-table--users`)
+- [x] R3 — AreaManagement (`mgmt-table--areas`)
+- [x] R4 — Dashboard: fix de cabeceras huérfanas + breakpoints 768/480
+- [x] R5 — Objetivos táctiles 40px en móvil
+- [x] Verificación: `✓ built`, 0 `th`/`td` con estilo inline, 0 `minWidth` fijo en tablas
 
 ## Evidence
 
-- (pendiente)
+- Commit `f9a8f34` (7 archivos, +238/−56).
+- Conteos de referencias `style={thStyle}`/`tdStyle` en th/td: `9/18/14 → 0/0/0` (ServiceTicket / Users / Areas).
+- CSS compilado contiene `.mgmt-table .col-optional{display:none}`, `.col-optional-sm{display:none}`, `mgmt-table--tickets{min-width:1000px}` (este último solo dentro de `@media (min-width: 769px)`).
+- `AdminPage.css` pasó de 3 a 7 media queries.
+- **Hallazgo**: la premisa sobre Dashboard estaba desactualizada — `Dashboard.css` ya tenía reglas 768/480, pero los `<th>` no llevaban las clases `col-*` que sí tenían los `<td>`, así que ocultar una columna dejaba cabeceras huérfanas (desalineación cabecera/cuerpo). Corregido.
+- **No verificado visualmente**: Playwright no tiene Chrome instalado; la verificación es estructural.
+
+## Follow-ups (fuera de alcance)
+
+- Reglas `.col-module`/`.col-date` muertas en `Dashboard.css` (limpieza, no responsividad).
+- `<tr style={{borderBottom}}>` y handlers inline de fila — sin necesidad responsive.
+- A 375px, filas de Servicio Técnico con 3 botones de texto pueden necesitar scroll *dentro* del wrapper: es el `overflow-x:auto` como red de seguridad, el documento no scrollea.
 
 ## Next step
 
-Delegar un writer con R1-R5.
+Ninguno — tarea cerrada. Espejo engram pendiente (servidor no registra la sesión).
