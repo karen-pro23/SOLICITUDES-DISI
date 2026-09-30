@@ -283,6 +283,23 @@
   gap: 0.375rem;
 }
 
+/* Acceso rápido de recepción a la consulta de estado (/buscar) */
+.header-consult {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.header-consult:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
 /* ── Content ─────────────────────────────── */
 
 .content {
@@ -447,6 +464,15 @@
   
   .btn-text-desktop {
     display: none;
+  }
+
+  /* En móvil queda solo el icono: la topbar no admite más texto */
+  .header-consult-text {
+    display: none;
+  }
+
+  .header-consult {
+    padding: 0.5rem;
   }
   
   .header-nav {

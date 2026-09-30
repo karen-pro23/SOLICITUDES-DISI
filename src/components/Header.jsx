@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_LABELS = {
@@ -49,6 +50,19 @@ export default function Header({ user, toggleMobileMenu }) {
           </div>
         </div>
       </div>
+      {user.role === 'recepcion' && (
+        <Link
+          to="/buscar"
+          className="btn btn-outline btn-sm header-consult"
+          title="Consultar el estado de una solicitud por cédula o número de ticket"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span className="header-consult-text">Consultar estado</span>
+        </Link>
+      )}
       <button className="btn btn-outline btn-sm btn-logout" onClick={logout}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

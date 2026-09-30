@@ -319,10 +319,6 @@ export default function Dashboard() {
               <span className="tab-btn active" aria-current="page">
                 Pendientes — cola de filtrar
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', alignSelf: 'center', marginLeft: '0.75rem' }}>
-                ¿Te consultan por una solicitud? Mirá su estado en{' '}
-                <a href="/buscar" style={{ color: '#2563eb', fontWeight: 600 }}>/buscar</a>
-              </span>
             </>
           ) : (
             <>
