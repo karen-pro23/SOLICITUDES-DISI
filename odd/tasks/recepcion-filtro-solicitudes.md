@@ -67,13 +67,26 @@ Ruta elegida: **delegada direct** (disparadores: mapa de 4+ archivos ya resuelto
 ## Progress
 
 - [x] Exploración y mapeo (roles, estados, endpoints, datos de producción)
-- [ ] T1..T7
+- [x] T1 — assign con requireRole + validación por rol en servicio (commit `90f27a3`)
+- [x] T2 — cierre de `/admin/users/area` y `/department` a roles de equipo (commit `90f27a3`)
+- [x] T3 — visibilidad `jefe_area` por su `area_id` + filtro `unassigned=true` (commit `90f27a3`)
+- [x] T4 — case `recepcion` duplicado eliminado (commit `90f27a3`)
+- [ ] T5 — Frontend: AssignModal restringido por rol
+- [ ] T6 — Frontend: filtros por defecto por rol en Dashboard
+- [ ] T7 — Verificación final
 
 ## Evidence
 
-- Commit por tarea en rama `develop`.
-- Resultado de `npx vite build` y `node --check` en T7.
+- Commit `90f27a3` — backend T1-T4 (218+ / 23-), `node --check` 4 archivos OK, `npx vite build` ✓ 6.08s.
+- RDD assess sobre `HEAD~1 --committed-only`: riesgo `medium`, `review_due=false`, reason `under_budget` → queda pendiente en el slice, sin review todavía.
+- Área del actor: resuelta desde el JWT (`req.user.areaId`, presente desde 2026-09-21) con fallback a `SELECT area_id` solo para `jefe_area` con token viejo.
+- `odd/tasks/...` — espejo engram PENDIENTE (mem_save falló con "could not confirm Engram session registration").
+
+## Follow-ups detectados (fuera de alcance, no implementados)
+
+1. `findById()` no tiene `case 'jefe_st'` → cae en `default AND 1=0` → 404 en `GET /api/requests/:id` aunque `findAll` sí le lista solicitudes. Defecto pre-existente.
+2. `assignedDepartmentId` sigue permitido para `recepcion` (el modal de recepción usa depto+área; si se debe rechazar, son 3 líneas).
 
 ## Next step
 
-Lanzar writer de backend (T1-T4).
+Lanzar writer de frontend (T5-T6).

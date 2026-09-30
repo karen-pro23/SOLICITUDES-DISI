@@ -31,7 +31,15 @@ export default function Dashboard() {
   const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', search: '', priority: '' });
+  const [filters, setFilters] = useState(() => ({
+    // Filtros por defecto según rol (el usuario puede cambiarlos luego):
+    // recepción atiende la cola de PENDIENTES; el jefe de área ve lo derivado
+    // a su área que aún no tiene empleado asignado.
+    status: user?.role === 'recepcion' ? 'PENDIENTE' : '',
+    search: '',
+    priority: '',
+    unassigned: user?.role === 'jefe_area',
+  }));
   const [sortConfig, setSortConfig] = useState({ key: null, dir: null });
   const seqRef = useRef(0);
   const [metrics, setMetrics] = useState(null);
@@ -61,6 +69,7 @@ export default function Dashboard() {
       if (filters.status) params.status = filters.status;
       if (filters.search) params.search = filters.search;
       if (filters.priority) params.priority = filters.priority;
+      if (filters.unassigned) params.unassigned = 'true';
       if (sortConfig.key) {
         params.sort = sortConfig.key;
         params.order = sortConfig.dir;
@@ -364,6 +373,26 @@ export default function Dashboard() {
             ))}
           </select>
         </div>
+
+        {/* Jefe de área: por defecto "sin asignar"; puede desactivarlo */}
+        {user?.role === 'jefe_area' && (
+          <label
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+              fontSize: '0.8125rem', color: '#475569', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={filters.unassigned}
+              onChange={(e) => {
+                setPage(1);
+                setFilters((prev) => ({ ...prev, unassigned: e.target.checked }));
+              }}
+            />
+            Solo sin asignar
+          </label>
+        )}
       </div>
 
       {/* Vista de Solicitudes */}
