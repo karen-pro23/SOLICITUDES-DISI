@@ -6,6 +6,7 @@ const {
   getModules,
   getRequestTypes,
   getDepartments,
+  getCargos,
   getPersona,
   createOrGetPersona,
   createRequest,
@@ -65,6 +66,7 @@ function handlePublicUploadMiddleware(req, res, next) {
 router.get('/modules', getModules);
 router.get('/types', getRequestTypes);
 router.get('/departments', getDepartments);
+router.get('/cargos', getCargos);
 router.get('/search', searchRequests);
 router.get('/requests/:id', getRequestPublic);
 router.get('/requests/:id/attachments/:fileId/preview', async (req, res, next) => {
