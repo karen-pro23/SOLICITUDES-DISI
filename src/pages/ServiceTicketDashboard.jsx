@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { List, BarChart3, Smile, Frown, X } from 'lucide-react';
+import { List, BarChart3, Smile, Frown, X, FileText, Search, Check, UserCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getServiceTickets, acceptServiceTicket, rejectServiceTicket, assignServiceTicket, closeServiceTicket, getServiceTicketStats, getUsersByDepartment } from '../services/api';
+import { getServiceTickets, acceptServiceTicket, rejectServiceTicket, assignServiceTicket, closeServiceTicket, getServiceTicketStats, getServiceTicketSummaryPdf, getServiceTicketTechnicians } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import PdfPreviewModal from '../components/PdfPreviewModal';
 import './AdminPage.css';
+
+const ROLE_LABELS = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  jefe_st: 'Jefe Serv. Técnico',
+  jefe_area: 'Jefe de Área',
+  developer: 'Desarrollador',
+  tecnico: 'Técnico',
+  director: 'Director',
+  sub_director: 'Sub Director',
+};
 
 const STATUS_COLORS = {
   PENDIENTE: { bg: '#fef3c7', color: '#92400e', label: 'Pendiente' },
@@ -40,8 +52,33 @@ export default function ServiceTicketDashboard() {
   const [closeFiles, setCloseFiles] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [techSearch, setTechSearch] = useState('');
+  const [loadingTechs, setLoadingTechs] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState('list'); // list | stats
+  const [pdfPreviewModal, setPdfPreviewModal] = useState(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  async function handleGeneratePdf(ticket = null) {
+    setGeneratingPdf(true);
+    const toastId = toast.loading('Generando resumen en PDF...');
+    try {
+      const ticketId = ticket?.request_id || null;
+      const code = ticket?.ticket_code || '40145';
+      const blob = await getServiceTicketSummaryPdf(ticketId);
+      const url = window.URL.createObjectURL(blob);
+      toast.success('PDF generado exitosamente', { id: toastId });
+      setPdfPreviewModal({
+        url,
+        name: `Resumen_Atencion_${code}.pdf`,
+      });
+    } catch (err) {
+      console.error('Error al generar PDF:', err);
+      toast.error(err.response?.data?.error || 'Error al generar el PDF de resumen', { id: toastId });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,11 +103,18 @@ export default function ServiceTicketDashboard() {
 
   useEffect(() => {
     if (showAssignModal) {
-      import('../services/api').then(api => {
-        api.getUsersByDepartment(user.departmentId || 13).then(setTechnicians).catch(() => {});
-      });
+      setLoadingTechs(true);
+      getServiceTicketTechnicians()
+        .then(techs => {
+          setTechnicians(techs || []);
+        })
+        .catch(err => {
+          console.error(err);
+          toast.error('Error al cargar la lista de técnicos');
+        })
+        .finally(() => setLoadingTechs(false));
     }
-  }, [showAssignModal, user]);
+  }, [showAssignModal]);
 
   async function handleAccept(ticket) {
     try {
@@ -306,21 +350,57 @@ export default function ServiceTicketDashboard() {
                           </td>
                           <td style={{ ...tdStyle, textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                              {t.status === 'PENDIENTE' && (
+                              {/* Asignar o Reasignar técnico */}
+                              {(t.status === 'PENDIENTE' || t.status === 'ASIGNADA') && user?.role !== 'requester' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  onClick={() => {
+                                    setSelectedTicket(t);
+                                    setSelectedTechnician(t.assigned_to ? String(t.assigned_to) : '');
+                                    setTechSearch('');
+                                    setShowAssignModal(true);
+                                  }}
+                                  title={t.assigned_to ? 'Reasignar técnico' : 'Asignar técnico'}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                                >
+                                  <UserCheck size={13} />
+                                  {t.assigned_to ? 'Reasignar' : 'Asignar'}
+                                </button>
+                              )}
+
+                              {/* Aceptar / Rechazar cuando está pendiente */}
+                              {t.status === 'PENDIENTE' && user?.role !== 'requester' && (
                                 <>
-                                  {(user.role === 'super_admin' || user.role === 'jefe_st') && (
-                                    <button className="btn btn-sm btn-outline" onClick={() => { setSelectedTicket(t); setShowAssignModal(true); }}>Asignar</button>
-                                  )}
-                                  {user.role !== 'requester' && (
-                                    <button className="btn btn-sm btn-success" onClick={() => handleAccept(t)}>Aceptar</button>
-                                  )}
-                                  {user.role !== 'requester' && (
-                                    <button className="btn btn-sm btn-danger" onClick={() => { setSelectedTicket(t); setShowRejectModal(true); }}>Rechazar</button>
-                                  )}
+                                  <button className="btn btn-sm btn-success" onClick={() => handleAccept(t)}>Aceptar</button>
+                                  <button className="btn btn-sm btn-danger" onClick={() => { setSelectedTicket(t); setShowRejectModal(true); }}>Rechazar</button>
                                 </>
                               )}
-                              {t.status === 'EN_PROCESO' && user.role !== 'requester' && (
+
+                              {/* Cerrar cuando está en proceso */}
+                              {t.status === 'EN_PROCESO' && user?.role !== 'requester' && (
                                 <button className="btn btn-sm btn-primary" onClick={() => { setSelectedTicket(t); setShowCloseModal(true); }}>Cerrar</button>
+                              )}
+
+                              {/* Generar PDF resumen solo cuando la solicitud esté completada */}
+                              {t.status === 'COMPLETADA' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  title="Generar PDF resumen de atención"
+                                  onClick={() => handleGeneratePdf(t)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    color: '#0284c7',
+                                    borderColor: '#bae6fd',
+                                    background: '#f0f9ff',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <FileText size={12} /> PDF
+                                </button>
                               )}
                             </div>
                           </td>
@@ -335,28 +415,212 @@ export default function ServiceTicketDashboard() {
         </>
       )}
 
-      {/* Modal Asignar */}
+      {/* Modal Asignar Técnico (Search Select) */}
       {showAssignModal && (
         <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', overflow: 'visible' }}>
             <div className="modal-header">
-              <h3>Asignar Técnico — {selectedTicket?.ticket_code}</h3>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                  {selectedTicket?.assigned_to ? 'Reasignar Técnico' : 'Asignar Técnico'}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Ticket: <strong>{selectedTicket?.ticket_code}</strong>
+                </span>
+              </div>
               <button className="modal-close-btn" onClick={() => setShowAssignModal(false)} aria-label="Cerrar modal"><X size={18} /></button>
             </div>
-            <div className="modal-body">
-              <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Seleccionar Técnico</label>
-              <select value={selectedTechnician} onChange={e => setSelectedTechnician(e.target.value)}
-                style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}>
-                <option value="">Seleccionar...</option>
-                {technicians.filter(t => t.role === 'tecnico' || t.role === 'developer').map(t => (
-                  <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
-                ))}
-              </select>
+            <div className="modal-body" style={{ overflow: 'visible' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem', color: '#334155' }}>
+                Seleccionar Técnico Responsable
+              </label>
+
+              {/* Si ya hay un técnico seleccionado y no estamos buscando, mostrar card con opción de cambiar */}
+              {selectedTechnician && !techSearch && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.625rem 0.875rem',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '10px',
+                  background: '#eff6ff',
+                  marginBottom: '0.75rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: '#3b82f6',
+                      color: 'white',
+                      fontWeight: 700,
+                      fontSize: '0.8125rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      {(technicians.find(t => String(t.user_id) === String(selectedTechnician))?.full_name || 'T')[0]}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#1e3a8a' }}>
+                        {technicians.find(t => String(t.user_id) === String(selectedTechnician))?.full_name || 'Técnico seleccionado'}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#3b82f6' }}>
+                        {ROLE_LABELS[technicians.find(t => String(t.user_id) === String(selectedTechnician))?.role] || 'Personal Técnico'}
+                        {technicians.find(t => String(t.user_id) === String(selectedTechnician))?.department_name ? ` • ${technicians.find(t => String(t.user_id) === String(selectedTechnician))?.department_name}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedTechnician(''); setTechSearch(''); }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563eb',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      padding: '0.2rem 0.4rem',
+                      borderRadius: '4px',
+                    }}
+                    title="Cambiar técnico"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              )}
+
+              {/* Input buscador con icono de búsqueda */}
+              {(!selectedTechnician || techSearch) && (
+                <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={techSearch}
+                    onChange={e => setTechSearch(e.target.value)}
+                    placeholder="Buscar técnico por nombre, rol..."
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.75rem 0.625rem 2.25rem',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {techSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTechSearch('')}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Lista filtrada de técnicos (Search Select Dropdown) */}
+              {(!selectedTechnician || techSearch) && (
+                <div style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                }}>
+                  {loadingTechs ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                      Cargando técnicos...
+                    </div>
+                  ) : technicians.filter(t => {
+                    const q = techSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      (t.full_name || '').toLowerCase().includes(q) ||
+                      (t.role || '').toLowerCase().includes(q) ||
+                      (t.email || '').toLowerCase().includes(q) ||
+                      (t.department_name || '').toLowerCase().includes(q) ||
+                      (ROLE_LABELS[t.role] || '').toLowerCase().includes(q)
+                    );
+                  }).length === 0 ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                      No se encontraron técnicos disponibles
+                    </div>
+                  ) : (
+                    technicians.filter(t => {
+                      const q = techSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        (t.full_name || '').toLowerCase().includes(q) ||
+                        (t.role || '').toLowerCase().includes(q) ||
+                        (t.email || '').toLowerCase().includes(q) ||
+                        (t.department_name || '').toLowerCase().includes(q) ||
+                        (ROLE_LABELS[t.role] || '').toLowerCase().includes(q)
+                      );
+                    }).map(t => {
+                      const isSelected = String(t.user_id) === String(selectedTechnician);
+                      return (
+                        <div
+                          key={t.user_id}
+                          onClick={() => {
+                            setSelectedTechnician(String(t.user_id));
+                            setTechSearch('');
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.6rem 0.75rem',
+                            borderBottom: '1px solid #f1f5f9',
+                            cursor: 'pointer',
+                            background: isSelected ? '#eff6ff' : 'transparent',
+                            transition: 'background 0.15s ease',
+                          }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <div style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              background: isSelected ? '#3b82f6' : '#e2e8f0',
+                              color: isSelected ? 'white' : '#475569',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                              {(t.full_name || 'T')[0]}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1e293b' }}>
+                                {t.full_name}
+                              </div>
+                              <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                                {ROLE_LABELS[t.role] || t.role} {t.department_name ? `• ${t.department_name}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <Check size={16} color="#3b82f6" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ marginTop: '1rem' }}>
               <button className="btn btn-outline" onClick={() => setShowAssignModal(false)} disabled={submitting}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleAssign} disabled={submitting || !selectedTechnician}>
-                {submitting ? 'Asignando...' : 'Asignar'}
+                {submitting ? 'Asignando...' : 'Confirmar Asignación'}
               </button>
             </div>
           </div>
@@ -428,6 +692,20 @@ export default function ServiceTicketDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Vista Previa de PDF */}
+      {pdfPreviewModal && (
+        <PdfPreviewModal
+          url={pdfPreviewModal.url}
+          name={pdfPreviewModal.name}
+          onClose={() => {
+            if (pdfPreviewModal.url) {
+              window.URL.revokeObjectURL(pdfPreviewModal.url);
+            }
+            setPdfPreviewModal(null);
+          }}
+        />
       )}
     </div>
   );

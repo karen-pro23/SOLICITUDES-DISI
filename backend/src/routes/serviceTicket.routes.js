@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('../config/env');
 const { authenticate } = require('../middleware/auth.middleware');
 const {
-  findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create
+  findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create, generateSummaryPdf, getTechnicians
 } = require('../controllers/serviceTicket.controller');
 
 const router = Router();
@@ -44,6 +44,9 @@ router.patch('/public/:code/rate', rate);
 // Autenticadas
 router.get('/', authenticate, findAll);
 router.get('/stats', authenticate, getStats);
+router.get('/technicians', authenticate, getTechnicians);
+router.get('/summary-pdf', authenticate, generateSummaryPdf);
+router.get('/:id/pdf', authenticate, generateSummaryPdf);
 router.get('/:code', authenticate, getByCode);
 router.get('/:id', authenticate, getById);
 router.patch('/:id/accept', authenticate, accept);

@@ -1,16 +1,13 @@
 -- Migración 019: Agregar rol super_admin
 -- Superadmin ve TODO sin restricciones
-
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN (
-    'super_admin',        -- Ve y hace TODO sin restricciones
-    'director',           -- Ve todo, configura sistema
-    'sub_director',       -- Ve todo, asigna
-    'recepcion',          -- Ve todas, asigna áreas
-    'jefe_area',          -- Ve las de su área, asigna empleados
-    'developer',          -- Ve y resuelve asignadas
-    'tecnico',            -- Ve y resuelve asignadas
-    'admin',              -- Admin del sistema (legacy)
-    'requester'           -- Solicitante (público, auto-creado)
-  ));
+--
+-- SIN EFECTO, A PROPÓSITO. No tocar.
+--
+-- Este archivo antes redefinía users_role_check para agregar 'super_admin'.
+-- Como el runner re-ejecuta todo en cada `npm run migrate` y en orden de
+-- nombre, esa redefinición era una bomba: 019 corría DESPUÉS de 023 pero con
+-- una lista que NO incluía 'jefe_st', así que en una base con un jefe_st
+-- el ADD CONSTRAINT fallaba y abortaba la corrida entera.
+--
+-- La lista de roles vive únicamente en 017_roles_and_permissions.sql.
+-- Para agregar un rol, se edita esa lista y nada más.

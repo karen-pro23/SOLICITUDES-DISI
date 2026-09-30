@@ -34,22 +34,120 @@ async function getDepartments(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getCargos(req, res, next) {
+  try {
+    const result = await pool.query('SELECT * FROM cargos WHERE is_active = true ORDER BY name');
+    res.json({ cargos: result.rows });
+  } catch (err) { next(err); }
+}
+
 async function getPersona(req, res, next) {
   try {
     const { cedula } = req.params;
     if (!cedula) return res.status(400).json({ error: 'Cédula requerida' });
 
+    const normCedula = normalizeText(cedula);
+
+    // 1. Buscar en persona (con fallback hacia users si position en persona es null y trayendo departamento)
+    // La fuente PRIMARIA del cargo es el catálogo (g.name), alcanzado por la FK
+    // persona.cargo_id. Antes se leía persona.position, o sea el texto espejo:
+    // renombrar una entrada de `cargos` dejaba el prefill apuntando a un nombre
+    // viejo que ya no está en la lista del catálogo. Resolviendo por la FK, un
+    // rename se propaga solo.
+    // La cadena de fallback se mantiene igual abajo de g.name para que esta
+    // migración no cambie ningún resultado observable:
+    //   g.name        -> catalogado, manda (nuevo)
+    //   p.position    -> texto espejo, para filas con cargo_id NULL
+    //   users.position-> fallback legacy (ver nota de riesgos)
+    // La clave `position` del JSON no se renombra: el frontend la lee y la
+    // matchea por nombre contra las <option> del catálogo.
+    //
+    // DETERMINISMO. `persona.cedula` es PK pero `users.cedula` NO es único
+    // (migración 011 le pone un índice simple), y el prefijo "V-" se
+    // normaliza en SQL, así que '30609563' y 'V-30609563' pueden convivir en
+    // `persona`. Sin ORDER BY, `rows[0` es arbitrario: dos consultas idénticas
+    // con cédulas equivalentes pueden devolver personas distintas. Por eso el
+    // ORDER BY + LIMIT 1 es obligatorio, no cosmético; el desempate final es
+    // `p.cedula`, que sí es único y garantiza un orden estable.
+    // La precedencia pone delante la fila más completa: primero la que tiene
+    // cargo resuelto por FK, después la que tiene email.
+    //
+    // El fallback a `users` es UN solo LATERAL, no tres subqueries
+    // independientes. Con LIMIT 1 en cada una, `position`, `department_id` y
+    // `department_name` podían salir de tres filas DISTINTAS de `users` y
+    // contradecirse entre sí. Ahora salen de la misma fila, con `u.user_id`
+    // como desempate determinista.
+    //
+    // La normalización de cédula pone TRIM/UPPER ANTES de quitar el prefijo
+    // 'V-', porque REPLACE es case-sensitive: con el orden inverso, 'v-30609563'
+    // en minúsculas normalizaba a 'V-30609563' y no matcheaba nada. Así la
+    // consulta es correcta por sí sola y no depende de que el llamador haya
+    // pasado antes por normalizeText.
     const result = await pool.query(
-      `SELECT cedula, nombre, apellido, email, telefono
-       FROM persona WHERE cedula = UPPER($1)`,
-      [normalizeText(cedula)]
+      `SELECT p.cedula, p.nombre, p.apellido, p.email, p.telefono,
+              COALESCE(
+                g.name,
+                NULLIF(TRIM(p.position), ''),
+                NULLIF(TRIM(fu.position), '')
+              ) as position,
+              fu.department_id,
+              fu.department_name
+       FROM persona p
+       LEFT JOIN cargos g ON g.cargo_id = p.cargo_id
+       LEFT JOIN LATERAL (
+             SELECT u.position, u.department_id, d.name as department_name
+               FROM users u
+               LEFT JOIN departments d ON d.department_id = u.department_id
+              WHERE REPLACE(REPLACE(TRIM(UPPER(u.cedula)), 'V-', ''), 'V', '') = REPLACE(REPLACE(TRIM(UPPER($1)), 'V-', ''), 'V', '')
+              ORDER BY (NULLIF(TRIM(u.position), '') IS NOT NULL) DESC,
+                       (u.department_id IS NOT NULL) DESC,
+                       u.user_id
+              LIMIT 1
+       ) fu ON true
+        WHERE REPLACE(REPLACE(TRIM(UPPER(p.cedula)), 'V-', ''), 'V', '') = REPLACE(REPLACE(TRIM(UPPER($1)), 'V-', ''), 'V', '')
+        ORDER BY (p.cargo_id IS NOT NULL) DESC,
+                 (NULLIF(TRIM(p.email), '') IS NOT NULL) DESC,
+                 p.cedula
+        LIMIT 1`,
+      [normCedula]
     );
 
-    if (result.rows.length === 0) {
-      return res.json({ persona: null });
+    if (result.rows.length > 0) {
+      return res.json({ persona: result.rows[0] });
     }
 
-    res.json({ persona: result.rows[0] });
+    // 2. Si no existe en persona, buscar si está registrado en users (personal institucional)
+    const userResult = await pool.query(
+      `SELECT u.cedula, u.full_name, u.email, u.phone as telefono, u.position, u.department_id,
+              d.name as department_name
+       FROM users u
+       LEFT JOIN departments d ON d.department_id = u.department_id
+       WHERE REPLACE(REPLACE(TRIM(UPPER(u.cedula)), 'V-', ''), 'V', '') = REPLACE(REPLACE(TRIM(UPPER($1)), 'V-', ''), 'V', '')
+       ORDER BY u.user_id
+       LIMIT 1`,
+      [normCedula]
+    );
+
+    if (userResult.rows.length > 0) {
+      const u = userResult.rows[0];
+      const nameParts = (u.full_name || '').trim().split(/\s+/);
+      const nombre = nameParts[0] || '';
+      const apellido = nameParts.slice(1).join(' ') || '';
+      return res.json({
+        persona: {
+          cedula: u.cedula,
+          nombre,
+          apellido,
+          email: u.email,
+          telefono: u.telefono,
+          position: u.position,
+          department_id: u.department_id,
+          department_name: u.department_name,
+        }
+      });
+    }
+
+    res.json({ persona: null });
   } catch (err) { next(err); }
 }
 
@@ -325,6 +423,7 @@ module.exports = {
   getModules,
   getRequestTypes,
   getDepartments,
+  getCargos,
   getPersona,
   createOrGetPersona,
   createRequest,
