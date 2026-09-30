@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, FileText, FileSpreadsheet, Paperclip } from 'lucide-react';
+import { Image, FileText, FileSpreadsheet, Paperclip, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { searchPublicRequests, getPublicRequest } from '../services/api';
 import toast from 'react-hot-toast';
@@ -383,10 +383,11 @@ export default function SearchRequests() {
                               )}
                               <a
                                 href={`/api/public/requests/${selectedRequest.request.request_id}/attachments/${att.attachment_id}/download`}
-                                style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem', background: '#dcfce7', color: '#166534', border: 'none', borderRadius: '4px', textDecoration: 'none' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.25rem 0.5rem', background: '#dcfce7', color: '#166534', border: 'none', borderRadius: '4px', textDecoration: 'none' }}
                                 download
+                                aria-label="Descargar archivo"
                               >
-                                ⬇️
+                                <Download size={13} />
                               </a>
                             </div>
                           ))}
