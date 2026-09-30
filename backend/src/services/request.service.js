@@ -4,7 +4,17 @@ const pool = require('../db/pool');
 
 const VALID_PRIORITIES = ['baja', 'media', 'alta'];
 
-async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss = false) {
+// Devuelve el área del actor para el rol jefe_area. El token ya incluye areaId;
+// los tokens antiguos pueden no traerla, así que en ese caso la consultamos en
+// la BD (una sola consulta barata) sin modificar la forma del token.
+async function getActorAreaId(userId, userRole, userAreaId = null) {
+  if (userRole !== 'jefe_area') return userAreaId || null;
+  if (userAreaId) return userAreaId;
+  const result = await pool.query('SELECT area_id FROM users WHERE user_id = $1', [userId]);
+  return result.rows[0] && result.rows[0].area_id ? result.rows[0].area_id : null;
+}
+
+async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss = false, userAreaId = null) {
   let baseSql = `FROM requests r
                  LEFT JOIN users creator ON creator.user_id = r.created_by
                  LEFT JOIN users assignee ON assignee.user_id = r.assigned_to
@@ -33,18 +43,20 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
       conditions.push(`r.request_type_id = 8`);
       break;
 
-    case 'recepcion':
-      // Ven TODAS las solicitudes (para poder asignarlas)
-      break;
-
-    case 'jefe_area':
-      // Ven las solicitudes de SU área
-      if (userDeptId) {
-        conditions.push(`(r.area_id IN (SELECT area_id FROM areas WHERE department_id = $${idx}) OR (r.created_by = $${idx + 1} AND r.area_id IS NULL))`);
-        values.push(userDeptId, userId);
+    case 'jefe_area': {
+      // Ve las solicitudes de SU área, las que él creó sin derivar y las asignadas a él
+      const actorAreaId = await getActorAreaId(userId, userRole, userAreaId);
+      if (actorAreaId) {
+        conditions.push(`(r.area_id = $${idx} OR (r.created_by = $${idx + 1} AND r.area_id IS NULL) OR r.assigned_to = $${idx + 1})`);
+        values.push(actorAreaId, userId);
         idx += 2;
+      } else {
+        conditions.push(`((r.created_by = $${idx} AND r.area_id IS NULL) OR r.assigned_to = $${idx})`);
+        values.push(userId);
+        idx += 1;
       }
       break;
+    }
 
     case 'developer':
     case 'tecnico':
@@ -100,6 +112,10 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
     )`);
     values.push(`%${filters.search}%`);
     idx++;
+  }
+  if (filters.unassigned === 'true' || filters.unassigned === '1') {
+    // Solicitudes derivadas pero aún no asignadas a un empleado
+    conditions.push(`r.assigned_to IS NULL`);
   }
 
   const whereClause = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
@@ -205,7 +221,7 @@ async function findAll(filters, userId, userRole, userDeptId, isBoss, isDeptBoss
   };
 }
 
-async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
+async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, userAreaId = null) {
   let sql = `SELECT r.*,
              creator.full_name as created_by_name,
              assignee.full_name as assigned_to_name,
@@ -238,13 +254,20 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
       // Ven todo — sin filtros adicionales
       break;
 
-    case 'jefe_area':
-      if (userDeptId) {
-        sql += ` AND (r.area_id IN (SELECT area_id FROM areas WHERE department_id = $${idx}) OR r.created_by = $${idx + 1})`;
-        values.push(userDeptId, userId);
+    case 'jefe_area': {
+      // Ve las solicitudes de SU área, las que él creó sin derivar y las asignadas a él
+      const actorAreaId = await getActorAreaId(userId, userRole, userAreaId);
+      if (actorAreaId) {
+        sql += ` AND (r.area_id = $${idx} OR (r.created_by = $${idx + 1} AND r.area_id IS NULL) OR r.assigned_to = $${idx + 1})`;
+        values.push(actorAreaId, userId);
         idx += 2;
+      } else {
+        sql += ` AND ((r.created_by = $${idx} AND r.area_id IS NULL) OR r.assigned_to = $${idx})`;
+        values.push(userId);
+        idx += 1;
       }
       break;
+    }
 
     case 'developer':
     case 'tecnico':
@@ -368,10 +391,89 @@ async function updatePriority(requestId, priority, userRole, userDeptId, isBoss,
   return result.rows[0];
 }
 
-async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, areaId = null) {
-  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
+async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, areaId = null, userAreaId = null) {
+  // Defensa en profundidad: además del gate de rol en la ruta, validamos aquí
+  // qué puede hacer cada rol sobre la solicitud.
+  const actorAreaId = userRole === 'jefe_area'
+    ? await getActorAreaId(userId, userRole, userAreaId)
+    : null;
+  if (userRole === 'jefe_area' && !actorAreaId) {
+    throw Object.assign(new Error('No tienes un área asignada para asignar solicitudes'), { status: 403 });
+  }
+
+  const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss, actorAreaId || userAreaId);
   if (!request) {
+    // Para jefe_area distinguimos "existe pero pertenece a otra área" (403)
+    // de "no existe" (404)
+    if (actorAreaId) {
+      const rawResult = await pool.query('SELECT area_id FROM requests WHERE request_id = $1', [requestId]);
+      if (rawResult.rows.length > 0 && rawResult.rows[0].area_id) {
+        throw Object.assign(new Error('La solicitud pertenece a otra área'), { status: 403 });
+      }
+    }
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
+  }
+
+  if (userRole === 'recepcion') {
+    // Recepción solo filtra: deriva la solicitud a un área, no la asigna a un empleado
+    if (assigneeId) {
+      throw Object.assign(
+        new Error('El rol de recepción solo puede derivar la solicitud a un área; no puede asignarla a un empleado'),
+        { status: 400 }
+      );
+    }
+    if (!areaId) {
+      throw Object.assign(
+        new Error('Debe indicar el área a la que se deriva la solicitud'),
+        { status: 400 }
+      );
+    }
+    if (request.status !== 'PENDIENTE') {
+      throw Object.assign(
+        new Error('La solicitud solo puede derivarse a un área si está en estado PENDIENTE'),
+        { status: 400 }
+      );
+    }
+  } else if (userRole === 'jefe_area') {
+    // El jefe de área solo asigna empleados de SU área
+    if (areaId && Number(areaId) !== Number(actorAreaId)) {
+      throw Object.assign(
+        new Error('No puedes derivar la solicitud a otra área que no sea la tuya'),
+        { status: 400 }
+      );
+    }
+    if (request.area_id && Number(request.area_id) !== Number(actorAreaId)) {
+      throw Object.assign(
+        new Error('La solicitud pertenece a otra área'),
+        { status: 403 }
+      );
+    }
+    if (!assigneeId) {
+      throw Object.assign(
+        new Error('Debe indicar el empleado que tomará la solicitud'),
+        { status: 400 }
+      );
+    }
+    const employeeResult = await pool.query(
+      `SELECT user_id, area_id, is_active FROM users WHERE user_id = $1`,
+      [assigneeId]
+    );
+    if (employeeResult.rows.length === 0) {
+      throw Object.assign(new Error('Empleado no encontrado'), { status: 404 });
+    }
+    const employee = employeeResult.rows[0];
+    if (!employee.is_active) {
+      throw Object.assign(new Error('El empleado seleccionado no está activo'), { status: 400 });
+    }
+    if (!employee.area_id || Number(employee.area_id) !== Number(actorAreaId)) {
+      throw Object.assign(new Error('El empleado seleccionado no pertenece a tu área'), { status: 400 });
+    }
+    // La solicitud queda (o se mantiene) en el área del jefe; si no viene el
+    // departamento en el payload, conservamos el que ya tenía
+    areaId = actorAreaId;
+    if (!assignedDepartmentId && request.assigned_department_id) {
+      assignedDepartmentId = request.assigned_department_id;
+    }
   }
 
   // Verificar que el asignado existe

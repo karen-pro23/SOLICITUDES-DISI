@@ -7,6 +7,7 @@ const {
   getAttachmentDownload, getAttachmentPreview, deleteAttachment, remove,
 } = require('../controllers/request.controller');
 const commentController = require('../controllers/comment.controller');
+const { requireRole } = require('../middleware/auth.middleware');
 
 const router = Router();
 
@@ -64,7 +65,12 @@ router.get('/:id', getById);
 router.post('/', handleUploadMiddleware, create);
 router.patch('/:id/status', updateStatus);
 router.patch('/:id/priority', updatePriority);
-router.patch('/:id/assign', assign);
+// Asignación: solo roles de flujo/equipo (los de gestión conservan su
+// comportamiento actual; requester queda excluido)
+router.patch('/:id/assign', requireRole(
+  'super_admin', 'admin', 'director', 'sub_director',
+  'recepcion', 'jefe_area', 'jefe_st', 'developer', 'tecnico'
+), assign);
 router.delete('/:id', remove);
 
 // Adjuntos

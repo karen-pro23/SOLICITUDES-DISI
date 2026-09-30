@@ -12,7 +12,8 @@ async function getAll(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.is_jefe_departamento
+      req.user.is_jefe_departamento,
+      req.user.areaId
     );
     res.json(result);
   } catch (err) { next(err); }
@@ -26,7 +27,8 @@ async function getById(req, res, next) {
       req.user.departmentId,
       req.user.es_jefe,
       req.user.userId,
-      req.user.is_jefe_departamento
+      req.user.is_jefe_departamento,
+      req.user.areaId
     );
     if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -135,7 +137,7 @@ async function updatePriority(req, res, next) {
 async function assign(req, res, next) {
   try {
     const { assigneeId, assignedDepartmentId, areaId } = req.body;
-    if (!assigneeId && !assignedDepartmentId) return res.status(400).json({ error: 'Debe especificar el empleado o el departamento para asignar' });
+    if (!assigneeId && !assignedDepartmentId && !areaId) return res.status(400).json({ error: 'Debe especificar el empleado, el departamento o el área para asignar' });
 
     const request = await requestService.assign(
       parseInt(req.params.id, 10),
@@ -146,7 +148,8 @@ async function assign(req, res, next) {
       req.user.es_jefe,
       req.user.userId,
       req.user.is_jefe_departamento,
-      areaId ? parseInt(areaId, 10) : null
+      areaId ? parseInt(areaId, 10) : null,
+      req.user.areaId
     );
     res.json({ request });
   } catch (err) {

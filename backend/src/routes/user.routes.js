@@ -4,7 +4,12 @@ const { requireRole } = require('../middleware/auth.middleware');
 
 const router = Router();
 
-// Accesible por Jefes y admins
+// Accesible por los roles de trabajo (Jefes, recepción, etc.) — necesario
+// para el modal de asignación — excepto requester
+router.use(requireRole(
+  'super_admin', 'admin', 'director', 'sub_director',
+  'recepcion', 'jefe_area', 'jefe_st', 'developer', 'tecnico'
+));
 router.get('/department/:id', getByDepartment);
 router.get('/area/:id', getByArea);
 
