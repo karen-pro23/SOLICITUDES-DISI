@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Solicitudes DISI</string>
+    <string name="title_activity_main">Solicitudes DISI</string>
+    <string name="package_name">com.gobernacion.solicitudes</string>
+    <string name="custom_url_scheme">com.gobernacion.solicitudes</string>
+</resources>
