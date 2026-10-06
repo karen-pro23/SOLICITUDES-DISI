@@ -3,12 +3,14 @@ import { X } from 'lucide-react';
 import { getDepartments, getUsersByDepartment, getUsersByArea, assignRequest, getAreasByDepartment, getPublicDepartments } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { isSupportRequest } from '../constants/requestOptions';
 
 export default function AssignModal({ isOpen, onClose, request, onAssignComplete }) {
   const { user } = useAuth();
   const role = user?.role;
   const isRecepcion = role === 'recepcion';
   const isJefeArea = role === 'jefe_area';
+  const isSupport = isSupportRequest(request);
   // El contexto expone el usuario tal cual lo devuelven los endpoints de auth:
   // tras login viene camelCase (areaId) y tras recargar la página (/auth/me)
   // viene snake_case (area_id). Normalizamos ambos casos sin fetch extra.
@@ -19,6 +21,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedEmp, setSelectedEmp] = useState('');
+  const [assetConsecutive, setAssetConsecutive] = useState('');
   const [loadingDepts, setLoadingDepts] = useState(true);
   const [loadingAreas, setLoadingAreas] = useState(false);
   const [loadingEmps, setLoadingEmps] = useState(false);
@@ -29,6 +32,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
 
     setSelectedArea(request?.area_id || '');
     setSelectedEmp(request?.empleado_asignado_id || '');
+    setAssetConsecutive(request?.asset_consecutive || '');
     setAreas([]);
     setEmployees([]);
 
@@ -118,6 +122,11 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (isSupport && request?.status === 'PENDIENTE' && !assetConsecutive.trim()) {
+      toast.error('El número de bien es obligatorio para solicitudes de servicio técnico');
+      return;
+    }
+
     setSubmitting(true);
     try {
       let successMessage = 'Solicitud asignada con éxito';
@@ -126,29 +135,37 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
         // Recepción solo deriva: areaId obligatorio y NUNCA se envía assigneeId
         if (!selectedArea) {
           toast.error('Selecciona el área al que derivas la solicitud');
+          setSubmitting(false);
           return;
         }
         await assignRequest(request.request_id, {
           assignedDepartmentId: selectedDept || null,
           areaId: selectedArea,
+          assetConsecutive: assetConsecutive.trim() || undefined,
         });
         successMessage = 'Solicitud derivada con éxito';
       } else if (isJefeArea) {
         // El jefe solo asigna empleados de su área (la pertenencia la valida el backend)
         if (!selectedEmp) {
           toast.error('Selecciona el empleado que tomará la solicitud');
+          setSubmitting(false);
           return;
         }
-        await assignRequest(request.request_id, { assigneeId: selectedEmp });
+        await assignRequest(request.request_id, {
+          assigneeId: selectedEmp,
+          assetConsecutive: assetConsecutive.trim() || undefined,
+        });
       } else {
         if (!selectedDept && !selectedEmp) {
           toast.error('Selecciona un departamento o un empleado');
+          setSubmitting(false);
           return;
         }
         await assignRequest(request.request_id, {
           assignedDepartmentId: selectedDept || null,
           assigneeId: selectedEmp || null,
-          areaId: selectedArea || null
+          areaId: selectedArea || null,
+          assetConsecutive: assetConsecutive.trim() || undefined,
         });
       }
 
@@ -176,6 +193,36 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
             <p style={{ marginBottom: '1rem', color: 'var(--color-text-light)' }}>
               Ticket: <strong>{request?.ticket_code}</strong>
             </p>
+
+            {isSupport && (
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="assign-asset-consecutive" style={{ fontWeight: 600 }}>
+                  Número / Código del Bien {request?.status === 'PENDIENTE' && <span style={{ color: '#ef4444' }}>*</span>}
+                </label>
+                <input
+                  id="assign-asset-consecutive"
+                  type="text"
+                  className="form-control"
+                  placeholder="Ej: BN-004521"
+                  value={assetConsecutive}
+                  onChange={(e) => setAssetConsecutive(e.target.value)}
+                  disabled={submitting}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '6px',
+                    marginTop: '0.25rem',
+                  }}
+                  required={request?.status === 'PENDIENTE'}
+                />
+                <small style={{ fontSize: '0.78rem', color: 'var(--color-text-light)', display: 'block', marginTop: '0.25rem' }}>
+                  {request?.status === 'PENDIENTE'
+                    ? 'Obligatorio para pasar el ticket de servicio técnico a asignado.'
+                    : 'Código patrimonial del equipo a intervenir.'}
+                </small>
+              </div>
+            )}
             
             {/* Recepción no elige departamento: toda solicitud va a Sistemas,
                 así que su departamento se preselecciona y solo queda el área */}
@@ -248,6 +295,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
               type="submit"
               className="btn btn-primary"
               disabled={submitting
+                || (isSupport && request?.status === 'PENDIENTE' && !assetConsecutive.trim())
                 || (isRecepcion && !selectedArea)
                 || (isJefeArea && !selectedEmp)
                 || (!isRecepcion && !isJefeArea && !selectedDept && !selectedEmp)}
