@@ -22,3 +22,17 @@ export const PRIORITY_OPTIONS = [
   { value: 'media', label: 'MEDIA' },
   { value: 'baja', label: 'BAJA' },
 ];
+
+export function isSupportRequest(req) {
+  if (!req) return false;
+  return (
+    String(req.request_type_id) === '8' ||
+    req.request_type_code === 'ST' ||
+    req.request_type_name === 'SERVICIO TÉCNICO' ||
+    Boolean(req.service_type) ||
+    String(req.area_id) === '1' ||
+    (req.area_name && req.area_name.toUpperCase().includes('SERVICIO TECNICO')) ||
+    (req.area_name && req.area_name.toUpperCase().includes('SOPORTE'))
+  );
+}
+
