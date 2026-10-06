@@ -11,43 +11,49 @@ export default function SelectOptionModal({
   options = [],
   onSelect,
   noteConfig = null,
+  assetConfig = null,
+  initialAsset = '',
   submitting = false,
 }) {
   const [selected, setSelected] = useState(null);
   const [note, setNote] = useState('');
+  const [assetConsecutive, setAssetConsecutive] = useState('');
 
   // Reset al abrir el modal
   useEffect(() => {
     if (isOpen) {
       setSelected(null);
       setNote('');
+      setAssetConsecutive(initialAsset || '');
     }
-  }, [isOpen]);
+  }, [isOpen, initialAsset]);
 
   if (!isOpen) return null;
 
-  // Cuando noteConfig está definido, tras elegir una opción se muestra
-  // el área de texto + CONFIRMAR (flujo "seleccionar y luego notar").
-  const showNote = Boolean(noteConfig) && selected !== null;
+  // Cuando noteConfig o assetConfig están definidos, tras elegir una opción se muestra
+  // el formulario + CONFIRMAR (flujo "seleccionar y luego notar").
+  const showDetails = (Boolean(noteConfig) || Boolean(assetConfig)) && selected !== null;
 
   function handleOptionClick(option) {
     if (option.disabled || submitting) return;
     setSelected(option.value);
     setNote('');
-    if (!noteConfig) {
-      onSelect(option.value, null);
+    if (!noteConfig && !assetConfig) {
+      onSelect(option.value, null, null);
     }
   }
 
   function handleConfirm() {
     if (submitting) return;
-    if (noteConfig.required && !note.trim()) return;
-    onSelect(selected, note.trim());
+    if (noteConfig?.required && !note.trim()) return;
+    if (assetConfig?.required && !assetConsecutive.trim()) return;
+    onSelect(selected, note.trim(), assetConsecutive.trim());
   }
 
   function handleClose() {
     setSelected(null);
     setNote('');
+    setAssetConsecutive('');
     onClose();
   }
 
@@ -80,15 +86,37 @@ export default function SelectOptionModal({
             ))}
           </div>
 
-          {showNote && (
-            <div className="option-note">
+          {showDetails && assetConfig && (
+            <div className="option-note" style={{ marginTop: '1rem' }}>
+              <label>{assetConfig.label}</label>
+              <input
+                type="text"
+                value={assetConsecutive}
+                onChange={(e) => setAssetConsecutive(e.target.value.toUpperCase())}
+                placeholder={assetConfig.placeholder}
+                style={{
+                  width: '100%',
+                  padding: '0.625rem',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                }}
+                disabled={submitting}
+                required={assetConfig.required}
+                autoFocus={!noteConfig}
+              />
+            </div>
+          )}
+
+          {showDetails && noteConfig && (
+            <div className="option-note" style={{ marginTop: '1rem' }}>
               <label>{noteConfig.label}</label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={noteConfig.placeholder}
                 rows={4}
-                autoFocus
+                autoFocus={Boolean(noteConfig)}
                 disabled={submitting}
               />
             </div>
@@ -99,12 +127,16 @@ export default function SelectOptionModal({
           <button type="button" className="btn btn-outline" onClick={handleClose} disabled={submitting}>
             Cancelar
           </button>
-          {showNote && (
+          {showDetails && (
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleConfirm}
-              disabled={submitting || (noteConfig.required && !note.trim())}
+              disabled={
+                submitting ||
+                (noteConfig?.required && !note.trim()) ||
+                (assetConfig?.required && !assetConsecutive.trim())
+              }
             >
               {submitting ? 'Guardando...' : 'CONFIRMAR'}
             </button>
