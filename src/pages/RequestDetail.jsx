@@ -157,21 +157,7 @@ export default function RequestDetail() {
         actionType: 'resolve',
         title: 'Completar Tarea / Solicitud',
         description: 'Ingrese la observación de atención o solución brindada (Obligatorio).',
-        requireAsset: isSupport && !request.asset_consecutive,
-        initialAsset: request.asset_consecutive || '',
-      });
-      return;
-    }
-
-    // Si es soporte técnico y sale de PENDIENTE, requiere número de bien si no lo tiene aún
-    if (isSupport && request.status === 'PENDIENTE' && (!request.asset_consecutive || !request.asset_consecutive.trim())) {
-      setActionModal({
-        isOpen: true,
-        newStatus,
-        actionType: 'asset_only',
-        title: 'Número / Código del Bien Requerido',
-        description: 'Para iniciar la atención de esta solicitud de servicio técnico es obligatorio registrar el número de bien.',
-        requireAsset: true,
+        requireAsset: isSupport,
         initialAsset: request.asset_consecutive || '',
       });
       return;

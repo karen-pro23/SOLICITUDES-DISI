@@ -199,6 +199,12 @@ async function close(ticketId, data = {}) {
     throw Object.assign(new Error('La observación de cierre es obligatoria.'), { status: 400 });
   }
   const cleanAsset = data.assetConsecutive ? normalizeText(data.assetConsecutive) : null;
+  if (!cleanAsset) {
+    const existing = await pool.query('SELECT asset_consecutive FROM requests WHERE request_id = $1', [ticketId]);
+    if (!existing.rows[0]?.asset_consecutive) {
+      throw Object.assign(new Error('El número o código del bien es obligatorio para cerrar la solicitud.'), { status: 400 });
+    }
+  }
   const result = await pool.query(
     `UPDATE requests SET 
       status = 'COMPLETADA',

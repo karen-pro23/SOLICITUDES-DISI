@@ -122,13 +122,9 @@ export default function ServiceTicketDashboard() {
   }, [showAssignModal]);
 
   async function handleConfirmAccept() {
-    if (!acceptAssetConsecutive.trim()) {
-      toast.error('El número de bien es obligatorio para pasar a En Proceso');
-      return;
-    }
     setSubmitting(true);
     try {
-      await acceptServiceTicket(acceptTicket.request_id, acceptAssetConsecutive.trim());
+      await acceptServiceTicket(acceptTicket.request_id, acceptAssetConsecutive.trim() || null);
       toast.success(`Ticket ${acceptTicket.ticket_code} aceptado`);
       setAcceptTicket(null);
       setAcceptAssetConsecutive('');
@@ -163,10 +159,6 @@ export default function ServiceTicketDashboard() {
 
   async function handleAssign() {
     if (!selectedTechnician) return;
-    if (selectedTicket?.status === 'PENDIENTE' && !assignAssetConsecutive.trim()) {
-      toast.error('El número de bien es obligatorio para asignar una solicitud pendiente');
-      return;
-    }
     setSubmitting(true);
     try {
       await assignServiceTicket(selectedTicket.request_id, selectedTechnician, assignAssetConsecutive.trim() || null);
@@ -184,6 +176,10 @@ export default function ServiceTicketDashboard() {
   }
 
   async function handleClose() {
+    if (!closeAssetConsecutive.trim()) {
+      toast.error('El número de bien es obligatorio para cerrar el ticket');
+      return;
+    }
     if (!closeForm.closeObservations.trim()) {
       toast.error('La observación de cierre es obligatoria');
       return;
@@ -193,14 +189,12 @@ export default function ServiceTicketDashboard() {
       const formData = new FormData();
       formData.append('serviceType', closeForm.serviceType);
       formData.append('closeObservations', closeForm.closeObservations.trim());
-      if (closeAssetConsecutive.trim()) {
-        formData.append('assetConsecutive', closeAssetConsecutive.trim());
-      }
+      formData.append('assetConsecutive', closeAssetConsecutive.trim());
       for (const file of closeFiles) {
         formData.append('files', file);
       }
       await closeServiceTicket(selectedTicket.request_id, formData);
-      toast.success(`Ticket ${selectedTicket.ticket_code} cerrado`);
+      toast.success(`Ticket ${selectedTicket.ticket_code} cerrado exitosamente`);
       setShowCloseModal(false);
       setSelectedTicket(null);
       setCloseForm({ serviceType: '', closeObservations: '' });
@@ -695,7 +689,7 @@ export default function ServiceTicketDashboard() {
               {/* Número de bien al asignar */}
               <div className="form-group" style={{ marginTop: '0.75rem' }}>
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem', color: '#334155' }}>
-                  Número / Código del Bien {selectedTicket?.status === 'PENDIENTE' ? '* (Obligatorio)' : '(Opcional)'}
+                  Número / Código del Bien (Opcional)
                 </label>
                 <input
                   type="text"
@@ -704,11 +698,9 @@ export default function ServiceTicketDashboard() {
                   placeholder="Ej: 0271, CPU-001..."
                   style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
                 />
-                {selectedTicket?.status === 'PENDIENTE' && (
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-                    Requerido para pasar la solicitud a estado Asignada.
-                  </span>
-                )}
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                  Opcional al asignar. Se exigirá obligatoriamente al marcar como completada.
+                </span>
               </div>
             </div>
             <div className="modal-footer" style={{ marginTop: '1rem' }}>
@@ -716,7 +708,7 @@ export default function ServiceTicketDashboard() {
               <button
                 className="btn btn-primary"
                 onClick={handleAssign}
-                disabled={submitting || !selectedTechnician || (selectedTicket?.status === 'PENDIENTE' && !assignAssetConsecutive.trim())}
+                disabled={submitting || !selectedTechnician}
               >
                 {submitting ? 'Asignando...' : 'Confirmar Asignación'}
               </button>
@@ -739,7 +731,7 @@ export default function ServiceTicketDashboard() {
               </p>
               <div className="form-group">
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
-                  Número / Código del Bien * (Obligatorio)
+                  Número / Código del Bien (Opcional)
                 </label>
                 <input
                   type="text"
@@ -750,7 +742,7 @@ export default function ServiceTicketDashboard() {
                   autoFocus
                 />
                 <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-                  Este código quedará registrado en el ticket y se reflejará en el reporte oficial.
+                  Opcional al iniciar. Se exigirá obligatoriamente al cerrar y confirmar la actividad.
                 </span>
               </div>
             </div>
@@ -759,7 +751,7 @@ export default function ServiceTicketDashboard() {
               <button
                 className="btn btn-success"
                 onClick={handleConfirmAccept}
-                disabled={submitting || !acceptAssetConsecutive.trim()}
+                disabled={submitting}
               >
                 {submitting ? 'Aceptando...' : 'Aceptar e Iniciar'}
               </button>
@@ -786,15 +778,19 @@ export default function ServiceTicketDashboard() {
               </div>
               <div className="form-group">
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
-                  Número / Código del Bien
+                  Número / Código del Bien * (Obligatorio)
                 </label>
                 <input
                   type="text"
                   value={closeAssetConsecutive}
                   onChange={e => setCloseAssetConsecutive(e.target.value.toLocaleUpperCase())}
-                  placeholder="Ej: 0271, CPU-1002..."
+                  placeholder="Ej: 0271, CPU-1002, IMP-334..."
                   style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
+                  required
                 />
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                  Identificador o consecutivo del bien para la atención y reporte oficial.
+                </span>
               </div>
               <div className="form-group">
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
@@ -825,7 +821,7 @@ export default function ServiceTicketDashboard() {
               <button
                 className="btn btn-primary"
                 onClick={handleClose}
-                disabled={submitting || !closeForm.closeObservations.trim()}
+                disabled={submitting || !closeForm.closeObservations.trim() || !closeAssetConsecutive.trim()}
               >
                 {submitting ? 'Cerrando...' : 'Cerrar Ticket'}
               </button>
