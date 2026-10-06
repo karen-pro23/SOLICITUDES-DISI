@@ -301,18 +301,6 @@ export default function DevInbox() {
 
     // Transiciones libres: cualquier estado es permitido (ya se validó que sea distinto arriba)
     const isSupport = isSupportRequest(request);
-    const isLeavingPending = request.status === 'PENDIENTE' && targetStatus !== 'PENDIENTE';
-
-    // Si es soporte técnico saliendo de PENDIENTE y no tiene número de bien guardado, exigirlo
-    if (isLeavingPending && isSupport && !request.asset_consecutive && targetStatus !== 'RECHAZADA') {
-      if (targetStatus === 'COMPLETADA') {
-        setActiveModal({ type: 'resolve', request, targetStatus, requireAsset: true });
-        return;
-      }
-      setActiveModal({ type: 'asset_only', request, targetStatus, requireAsset: true });
-      return;
-    }
-
     // Confirmar para módulos no-Sistemas al pasar a EN_PROCESO
     if (targetStatus === 'EN_PROCESO' && !request.is_systems) {
       setNonSystemsConfirm({ ...request, targetStatus });
@@ -331,7 +319,7 @@ export default function DevInbox() {
         type: 'resolve',
         request,
         targetStatus,
-        requireAsset: isLeavingPending && isSupport && !request.asset_consecutive,
+        requireAsset: Boolean(isSupport),
       });
       return;
     }

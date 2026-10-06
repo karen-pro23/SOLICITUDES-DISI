@@ -122,11 +122,6 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (isSupport && request?.status === 'PENDIENTE' && !assetConsecutive.trim()) {
-      toast.error('El número de bien es obligatorio para solicitudes de servicio técnico');
-      return;
-    }
-
     setSubmitting(true);
     try {
       let successMessage = 'Solicitud asignada con éxito';
@@ -197,7 +192,7 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
             {isSupport && (
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label htmlFor="assign-asset-consecutive" style={{ fontWeight: 600 }}>
-                  Número / Código del Bien {request?.status === 'PENDIENTE' && <span style={{ color: '#ef4444' }}>*</span>}
+                  Número / Código del Bien (Opcional)
                 </label>
                 <input
                   id="assign-asset-consecutive"
@@ -214,12 +209,9 @@ export default function AssignModal({ isOpen, onClose, request, onAssignComplete
                     borderRadius: '6px',
                     marginTop: '0.25rem',
                   }}
-                  required={request?.status === 'PENDIENTE'}
                 />
                 <small style={{ fontSize: '0.78rem', color: 'var(--color-text-light)', display: 'block', marginTop: '0.25rem' }}>
-                  {request?.status === 'PENDIENTE'
-                    ? 'Obligatorio para pasar el ticket de servicio técnico a asignado.'
-                    : 'Código patrimonial del equipo a intervenir.'}
+                  Código patrimonial del equipo a intervenir (opcional al asignar; se requerirá al completar).
                 </small>
               </div>
             )}

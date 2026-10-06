@@ -350,10 +350,12 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     (request.request_type_name && request.request_type_name.toUpperCase().includes('SERVICIO TÉCNICO'));
 
   const cleanAsset = assetConsecutive ? String(assetConsecutive).trim().toUpperCase() : null;
-  if (isSupport && request.status === 'PENDIENTE' && newStatus !== 'PENDIENTE' && newStatus !== 'RECHAZADA') {
+
+  // Al completar una solicitud de soporte técnico, exigir número de bien
+  if (isSupport && newStatus === 'COMPLETADA') {
     if (!cleanAsset && !request.asset_consecutive) {
       throw Object.assign(
-        new Error('El número de bien es obligatorio para solicitudes de soporte técnico'),
+        new Error('El número de bien es obligatorio para completar solicitudes de soporte técnico'),
         { status: 400 }
       );
     }
@@ -554,14 +556,6 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
     (request.request_type_name && request.request_type_name.toUpperCase().includes('SERVICIO TÉCNICO'));
 
   const cleanAsset = assetConsecutive ? String(assetConsecutive).trim().toUpperCase() : null;
-  if (isSupport && request.status === 'PENDIENTE' && userRole !== 'recepcion') {
-    if (!cleanAsset && !request.asset_consecutive) {
-      throw Object.assign(
-        new Error('El número de bien es obligatorio para solicitudes de soporte técnico'),
-        { status: 400 }
-      );
-    }
-  }
 
   // Update
   const client = await pool.connect();

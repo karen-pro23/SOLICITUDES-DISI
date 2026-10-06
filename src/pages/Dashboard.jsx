@@ -217,7 +217,7 @@ export default function Dashboard() {
     }
 
     const isSupport = isSupportRequest(req);
-    const needsAsset = isSupport && req.status === 'PENDIENTE' && value !== 'PENDIENTE' && !req.asset_consecutive;
+    const needsAsset = isSupport && value === 'COMPLETADA';
     const needsNote = value === 'RECHAZADA' || value === 'COMPLETADA';
 
     if (!needsNote && !needsAsset) {
@@ -247,7 +247,7 @@ export default function Dashboard() {
   const statusAssetConfig = (() => {
     if (!activeStatusReq) return null;
     const isSupport = isSupportRequest(activeStatusReq);
-    if (isSupport && activeStatusReq.status === 'PENDIENTE' && pendingStatus && pendingStatus !== 'PENDIENTE') {
+    if (isSupport && pendingStatus === 'COMPLETADA') {
       return {
         label: 'NÚMERO / CÓDIGO DEL BIEN *',
         placeholder: 'Ej: BN-001234, CPU-002...',
