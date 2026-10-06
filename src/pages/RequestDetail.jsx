@@ -63,6 +63,19 @@ export default function RequestDetail() {
   // Assignment modal
   const [assignModalOpen, setAssignModalOpen] = useState(false);
 
+  // Action modal state (reject, resolve, prompt asset)
+  const [actionModal, setActionModal] = useState({
+    isOpen: false,
+    newStatus: null,
+    actionType: 'resolve',
+    title: '',
+    description: '',
+    requireAsset: false,
+    initialAsset: '',
+  });
+
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   useEffect(() => {
     getRequest(id).then(setData).catch(() => navigate('/buscar')).finally(() => setLoading(false));
   }, [id, navigate]);
@@ -101,19 +114,6 @@ export default function RequestDetail() {
     status,
     ...(STATUS_ACTION_STYLES[request.status]?.[status] || { label: status, className: 'btn-primary' }),
   }));
-
-  // Action modal state (reject, resolve, prompt asset)
-  const [actionModal, setActionModal] = useState({
-    isOpen: false,
-    newStatus: null,
-    actionType: 'resolve',
-    title: '',
-    description: '',
-    requireAsset: false,
-    initialAsset: '',
-  });
-
-  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   async function handleGeneratePdf() {
     setGeneratingPdf(true);
