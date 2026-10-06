@@ -292,6 +292,12 @@ async function findById(requestId, userRole, userDeptId, isBoss, userId, isDeptB
       idx++;
       break;
 
+    case 'jefe_st':
+      // Jefe de servicio técnico: ve solicitudes tipo ST (type_id = 8),
+      // igual que en findAll. Sin esto cae al default y devuelve 404.
+      sql += ` AND r.request_type_id = 8`;
+      break;
+
     case 'requester':
       sql += ` AND r.created_by = $${idx}`;
       values.push(userId);
@@ -326,6 +332,21 @@ async function create(data, userId, userDeptId) {
 }
 
 async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss, isDeptBoss = false, assetConsecutive = null, observation = null) {
+  // Defense in depth: además del gate de visibilidad (findById), validamos aquí
+  // qué roles pueden cambiar estado y a qué estados.
+  if (userRole === 'requester') {
+    throw Object.assign(new Error('No tienes permiso para cambiar el estado de solicitudes'), { status: 403 });
+  }
+
+  // recepcion: solo puede rechazar (PENDIENTE → RECHAZADA) desde el mostrador.
+  // La derivación a áreas se hace vía assign, no vía updateStatus.
+  if (userRole === 'recepcion' && newStatus !== 'RECHAZADA') {
+    throw Object.assign(
+      new Error('Recepción solo puede rechazar solicitudes. Para derivar, usá la asignación a área.'),
+      { status: 403 }
+    );
+  }
+
   // Verificar que la solicitud existe y es accesible
   const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
@@ -413,6 +434,11 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
 }
 
 async function updatePriority(requestId, priority, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
+  // Solo roles de flujo/gestión pueden repriorizar. requester no.
+  if (userRole === 'requester') {
+    throw Object.assign(new Error('No tienes permiso para cambiar la prioridad'), { status: 403 });
+  }
+
   // Verificar que la solicitud existe y es accesible
   const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
@@ -621,13 +647,16 @@ async function getHistory(requestId) {
 }
 
 async function remove(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss = false) {
+  // Solo roles de gestión pueden eliminar solicitudes permanentemente.
+  // recepcion/jefe_area/tecnico/etc. gestionan el flujo pero no borran historia.
+  const DELETE_ROLES = ['super_admin', 'admin', 'director', 'sub_director'];
+  if (!DELETE_ROLES.includes(userRole)) {
+    throw Object.assign(new Error('No tienes permiso para eliminar solicitudes'), { status: 403 });
+  }
+
   const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
     throw Object.assign(new Error('Solicitud no encontrada'), { status: 404 });
-  }
-
-  if (userRole === 'requester') {
-    throw Object.assign(new Error('No tienes permiso para eliminar solicitudes'), { status: 403 });
   }
 
   const result = await pool.query('DELETE FROM requests WHERE request_id = $1 RETURNING *', [requestId]);
