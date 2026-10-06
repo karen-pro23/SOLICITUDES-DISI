@@ -325,7 +325,7 @@ async function create(data, userId, userDeptId) {
   return result.rows[0];
 }
 
-async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss, isDeptBoss = false) {
+async function updateStatus(requestId, newStatus, rejectionReason, userId, userRole, userDeptId, isBoss, isDeptBoss = false, assetConsecutive = null, observation = null) {
   // Verificar que la solicitud existe y es accesible
   const request = await findById(requestId, userRole, userDeptId, isBoss, userId, isDeptBoss);
   if (!request) {
@@ -340,6 +340,35 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
       new Error('El motivo de rechazo es obligatorio'),
       { status: 400 }
     );
+  }
+
+  // Si la solicitud es de soporte técnico y va a pasar de PENDIENTE a otro estado, exigir número de bien
+  const isSupport =
+    Number(request.request_type_id) === 8 ||
+    Number(request.area_id) === 1 ||
+    request.request_type_code === 'ST' ||
+    (request.request_type_name && request.request_type_name.toUpperCase().includes('SERVICIO TÉCNICO'));
+
+  const cleanAsset = assetConsecutive ? String(assetConsecutive).trim().toUpperCase() : null;
+  if (isSupport && request.status === 'PENDIENTE' && newStatus !== 'PENDIENTE' && newStatus !== 'RECHAZADA') {
+    if (!cleanAsset && !request.asset_consecutive) {
+      throw Object.assign(
+        new Error('El número de bien es obligatorio para solicitudes de soporte técnico'),
+        { status: 400 }
+      );
+    }
+  }
+
+  // COMPLETADA requiere observación obligatoria
+  const cleanObs = observation ? String(observation).trim() : null;
+  if (newStatus === 'COMPLETADA') {
+    const existingObs = (request.close_observations && request.close_observations.trim()) || (request.resolution_notes && request.resolution_notes.trim());
+    if (!cleanObs && !existingObs) {
+      throw Object.assign(
+        new Error('La observación es obligatoria al completar la tarea o solicitud'),
+        { status: 400 }
+      );
+    }
   }
 
   // COMPLETADA marca completed_at y service_close_time
@@ -359,10 +388,13 @@ async function updateStatus(requestId, newStatus, rejectionReason, userId, userR
     const result = await client.query(
       `UPDATE requests SET status = $1, rejection_reason = $2, completed_at = $3,
               service_close_time = COALESCE($6, service_close_time),
+              close_observations = COALESCE($7, close_observations),
+              resolution_notes = COALESCE($7, resolution_notes),
+              asset_consecutive = COALESCE($8, asset_consecutive),
               version_number = version_number + 1
        WHERE request_id = $4 AND version_number = $5
        RETURNING *`,
-      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number, closeTime]
+      [newStatus, rejectionReason || null, completedAt, requestId, request.version_number, closeTime, cleanObs, cleanAsset]
     );
 
     if (result.rows.length === 0) {
@@ -407,7 +439,7 @@ async function updatePriority(requestId, priority, userRole, userDeptId, isBoss,
   return result.rows[0];
 }
 
-async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, areaId = null, userAreaId = null) {
+async function assign(requestId, assigneeId, assignedDepartmentId, userRole, userDeptId, isBoss, userId, isDeptBoss = false, areaId = null, userAreaId = null, assetConsecutive = null) {
   // Defensa en profundidad: además del gate de rol en la ruta, validamos aquí
   // qué puede hacer cada rol sobre la solicitud.
   const actorAreaId = userRole === 'jefe_area'
@@ -514,6 +546,23 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
     }
   }
 
+  const isSupport =
+    Number(request.request_type_id) === 8 ||
+    Number(request.area_id) === 1 ||
+    Number(areaId) === 1 ||
+    request.request_type_code === 'ST' ||
+    (request.request_type_name && request.request_type_name.toUpperCase().includes('SERVICIO TÉCNICO'));
+
+  const cleanAsset = assetConsecutive ? String(assetConsecutive).trim().toUpperCase() : null;
+  if (isSupport && request.status === 'PENDIENTE' && userRole !== 'recepcion') {
+    if (!cleanAsset && !request.asset_consecutive) {
+      throw Object.assign(
+        new Error('El número de bien es obligatorio para solicitudes de soporte técnico'),
+        { status: 400 }
+      );
+    }
+  }
+
   // Update
   const client = await pool.connect();
   let result;
@@ -528,10 +577,11 @@ async function assign(requestId, assigneeId, assignedDepartmentId, userRole, use
         area_id = $3, 
         status = CASE WHEN status = 'PENDIENTE' THEN 'ASIGNADA' ELSE status END,
         service_start_time = CASE WHEN status = 'PENDIENTE' THEN now() ELSE service_start_time END,
+        asset_consecutive = COALESCE($6, asset_consecutive),
         version_number = version_number + 1 
        WHERE request_id = $4 AND version_number = $5 
        RETURNING *`,
-      [assigneeId || null, assignedDepartmentId || null, areaId || null, requestId, request.version_number]
+      [assigneeId || null, assignedDepartmentId || null, areaId || null, requestId, request.version_number, cleanAsset]
     );
 
     if (result.rows.length === 0) {
