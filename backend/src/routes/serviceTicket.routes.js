@@ -2,7 +2,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const path = require('path');
 const config = require('../config/env');
-const { authenticate } = require('../middleware/auth.middleware');
+const { authenticate, requireRole } = require('../middleware/auth.middleware');
 const {
   findAll, getByCode, getById, accept, reject, assign, close, rate, getStats, getServiceTypes, create, generateSummaryPdf, getTechnicians
 } = require('../controllers/serviceTicket.controller');
@@ -41,7 +41,7 @@ router.get('/service-types', getServiceTypes);
 router.get('/public/:code', getByCode);
 router.patch('/public/:code/rate', rate);
 
-// Autenticadas
+// Autenticadas (lectura)
 router.get('/', authenticate, findAll);
 router.get('/stats', authenticate, getStats);
 router.get('/technicians', authenticate, getTechnicians);
@@ -49,9 +49,13 @@ router.get('/summary-pdf', authenticate, generateSummaryPdf);
 router.get('/:id/pdf', authenticate, generateSummaryPdf);
 router.get('/:code', authenticate, getByCode);
 router.get('/:id', authenticate, getById);
-router.patch('/:id/accept', authenticate, accept);
-router.patch('/:id/reject', authenticate, reject);
-router.patch('/:id/assign', authenticate, assign);
-router.patch('/:id/close', authenticate, upload.array('files', 5), close);
+
+// Mutaciones ST: solo roles del flujo de servicio técnico.
+// recepcion deriva vía assign de requests, no procesa ST directamente.
+const ST_MUTATION_ROLES = ['jefe_st', 'tecnico', 'developer', 'super_admin', 'admin'];
+router.patch('/:id/accept', authenticate, requireRole(ST_MUTATION_ROLES), accept);
+router.patch('/:id/reject', authenticate, requireRole(ST_MUTATION_ROLES), reject);
+router.patch('/:id/assign', authenticate, requireRole(ST_MUTATION_ROLES), assign);
+router.patch('/:id/close', authenticate, requireRole(ST_MUTATION_ROLES), upload.array('files', 5), close);
 
 module.exports = router;
