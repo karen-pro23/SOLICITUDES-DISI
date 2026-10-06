@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Image, FileText, FileSpreadsheet, Paperclip, User, Building2, Smile, Frown, X, Download } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl } from '../services/api';
+import { getRequest, updateRequestStatus, deleteRequest, addComment, classifyRequest, generateResponse, getAttachmentDownloadUrl, getAttachmentPreviewUrl, getServiceTicketSummaryPdf } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -9,7 +9,8 @@ import ImagePreviewModal from '../components/ImagePreviewModal';
 import PdfPreviewModal from '../components/PdfPreviewModal';
 import ConfirmModal from '../components/ConfirmModal';
 import AssignModal from '../components/AssignModal';
-import { STATUS_TRANSITIONS } from '../constants/requestOptions';
+import ActionModal from '../components/ActionModal';
+import { STATUS_TRANSITIONS, isSupportRequest } from '../constants/requestOptions';
 import './RequestDetail.css';
 
 // Parsea **bold** y *italic* básico a JSX
@@ -101,16 +102,103 @@ export default function RequestDetail() {
     ...(STATUS_ACTION_STYLES[request.status]?.[status] || { label: status, className: 'btn-primary' }),
   }));
 
-  async function handleStatusChange(newStatus) {
-    let rejectionReason = null;
-    if (newStatus === 'RECHAZADA') {
-      rejectionReason = prompt('Motivo del rechazo:');
-      if (!rejectionReason || rejectionReason.trim() === '') return;
+  // Action modal state (reject, resolve, prompt asset)
+  const [actionModal, setActionModal] = useState({
+    isOpen: false,
+    newStatus: null,
+    actionType: 'resolve',
+    title: '',
+    description: '',
+    requireAsset: false,
+    initialAsset: '',
+  });
+
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true);
+    const toastId = toast.loading('Generando reporte PDF...');
+    try {
+      const blob = await getServiceTicketSummaryPdf(request.request_id);
+      const url = window.URL.createObjectURL(blob);
+      toast.success('Reporte generado exitosamente', { id: toastId });
+      setPdfPreviewModal({
+        url,
+        name: `Resumen_Atencion_${request.ticket_code}.pdf`,
+      });
+    } catch (err) {
+      console.error('Error al generar PDF:', err);
+      toast.error(err.response?.data?.error || 'Error al generar el reporte PDF', { id: toastId });
+    } finally {
+      setGeneratingPdf(false);
     }
+  }
+
+  function handleStatusClick(newStatus) {
+    const isSupport = isSupportRequest(request);
+
+    if (newStatus === 'RECHAZADA') {
+      setActionModal({
+        isOpen: true,
+        newStatus,
+        actionType: 'reject',
+        title: 'Rechazar Solicitud',
+        description: 'Ingrese el motivo por el cual no es posible atender la solicitud.',
+        requireAsset: false,
+        initialAsset: request.asset_consecutive || '',
+      });
+      return;
+    }
+
+    if (newStatus === 'COMPLETADA') {
+      setActionModal({
+        isOpen: true,
+        newStatus,
+        actionType: 'resolve',
+        title: 'Completar Tarea / Solicitud',
+        description: 'Ingrese la observación de atención o solución brindada (Obligatorio).',
+        requireAsset: isSupport && !request.asset_consecutive,
+        initialAsset: request.asset_consecutive || '',
+      });
+      return;
+    }
+
+    // Si es soporte técnico y sale de PENDIENTE, requiere número de bien si no lo tiene aún
+    if (isSupport && request.status === 'PENDIENTE' && (!request.asset_consecutive || !request.asset_consecutive.trim())) {
+      setActionModal({
+        isOpen: true,
+        newStatus,
+        actionType: 'asset_only',
+        title: 'Número / Código del Bien Requerido',
+        description: 'Para iniciar la atención de esta solicitud de servicio técnico es obligatorio registrar el número de bien.',
+        requireAsset: true,
+        initialAsset: request.asset_consecutive || '',
+      });
+      return;
+    }
+
+    // Transición directa
+    executeStatusChange(newStatus);
+  }
+
+  async function executeStatusChange(newStatus, modalText = '', modalAsset = '') {
     setSubmitting(true);
     try {
-      const result = await updateRequestStatus(request.request_id, newStatus, rejectionReason);
-      setData((prev) => ({ ...prev, request: result.request }));
+      const isReject = newStatus === 'RECHAZADA';
+      const isResolve = newStatus === 'COMPLETADA';
+      const rejectionReason = isReject ? modalText : null;
+      const observation = isResolve ? modalText : null;
+      const assetConsecutive = modalAsset || request.asset_consecutive || undefined;
+
+      const result = await updateRequestStatus(
+        request.request_id,
+        newStatus,
+        rejectionReason,
+        assetConsecutive,
+        observation
+      );
+      toast.success(`Estado actualizado a ${newStatus}`);
+      setActionModal((prev) => ({ ...prev, isOpen: false }));
       const updated = await getRequest(id);
       setData(updated);
     } catch (err) {
@@ -352,6 +440,14 @@ export default function RequestDetail() {
                   )}
                 </span>
               </div>
+              {request.asset_consecutive && (
+                <div className="meta-item">
+                  <span className="meta-label">N° de Bien</span>
+                  <span className="meta-value" style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-primary)' }}>
+                    {request.asset_consecutive}
+                  </span>
+                </div>
+              )}
               <div className="meta-item" style={{ gridColumn: '1 / -1' }}>
                 <span className="meta-label">Fecha de creación</span>
                 <span className="meta-value">{new Date(request.created_at).toLocaleString()}</span>
@@ -381,10 +477,39 @@ export default function RequestDetail() {
             )}
 
             {/* Servicio Técnico - Info adicional */}
-            {request.request_type_name === 'SERVICIO TÉCNICO' && (
-              <div className="detail-section" style={{ background: '#f0f9ff', borderRadius: '10px', padding: '1rem', border: '1px solid #bae6fd' }}>
-                <h3 style={{ color: '#0369a1' }}>Servicio Técnico</h3>
+            {(request.request_type_name === 'SERVICIO TÉCNICO' || isSupportRequest(request)) && (
+              <div className="detail-section" style={{ background: '#f0f9ff', borderRadius: '10px', padding: '1.25rem', border: '1px solid #bae6fd' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3 style={{ color: '#0369a1', margin: 0 }}>Servicio Técnico</h3>
+                  {request.status === 'COMPLETADA' && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={handleGeneratePdf}
+                      disabled={generatingPdf}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        color: '#0284c7',
+                        borderColor: '#bae6fd',
+                        background: '#ffffff',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <FileText size={14} /> {generatingPdf ? 'Generando...' : 'Descargar Reporte PDF'}
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+                  {request.asset_consecutive && (
+                    <div>
+                      <strong>N° de Bien:</strong>{' '}
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
+                        {request.asset_consecutive}
+                      </span>
+                    </div>
+                  )}
                   {request.extension && (
                     <div><strong>Extensión:</strong> {request.extension}</div>
                   )}
@@ -400,8 +525,10 @@ export default function RequestDetail() {
                   {request.service_type && (
                     <div style={{ gridColumn: '1 / -1' }}><strong>Tipo Servicio:</strong> {request.service_type}</div>
                   )}
-                  {request.close_observations && (
-                    <div style={{ gridColumn: '1 / -1' }}><strong>Obs. Cierre:</strong> {request.close_observations}</div>
+                  {(request.close_observations || request.resolution_notes) && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <strong>Obs. de Cierre / Solución:</strong> {request.close_observations || request.resolution_notes}
+                    </div>
                   )}
                   {request.satisfaction && (
                     <div>
@@ -489,7 +616,7 @@ export default function RequestDetail() {
                     <button
                       key={action.status}
                       className={`btn ${action.className}`}
-                      onClick={() => handleStatusChange(action.status)}
+                      onClick={() => handleStatusClick(action.status)}
                       disabled={submitting}
                     >
                       {action.label}
@@ -880,6 +1007,19 @@ export default function RequestDetail() {
         onAssignComplete={() => {
           getRequest(id).then(setData);
         }}
+      />
+
+      <ActionModal
+        isOpen={actionModal.isOpen}
+        onClose={() => setActionModal((prev) => ({ ...prev, isOpen: false }))}
+        onSubmit={(text, asset) => executeStatusChange(actionModal.newStatus, text, asset)}
+        title={actionModal.title}
+        description={actionModal.description}
+        ticketCode={request.ticket_code}
+        actionType={actionModal.actionType}
+        submitting={submitting}
+        requireAsset={actionModal.requireAsset}
+        initialAsset={actionModal.initialAsset}
       />
     </div>
   );

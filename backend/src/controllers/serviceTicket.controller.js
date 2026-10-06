@@ -31,7 +31,8 @@ async function getById(req, res, next) {
 // Autenticado: aceptar
 async function accept(req, res, next) {
   try {
-    const ticket = await serviceTicketService.accept(parseInt(req.params.id, 10), req.user.userId);
+    const { assetConsecutive } = req.body;
+    const ticket = await serviceTicketService.accept(parseInt(req.params.id, 10), req.user.userId, assetConsecutive);
     if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o ya atendido' });
     res.json({ ticket });
   } catch (err) { next(err); }
@@ -40,8 +41,8 @@ async function accept(req, res, next) {
 // Autenticado: rechazar
 async function reject(req, res, next) {
   try {
-    const { reason } = req.body;
-    const ticket = await serviceTicketService.reject(parseInt(req.params.id, 10), reason);
+    const { reason, assetConsecutive } = req.body;
+    const ticket = await serviceTicketService.reject(parseInt(req.params.id, 10), reason, assetConsecutive);
     if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no está pendiente' });
     res.json({ ticket });
   } catch (err) { next(err); }
@@ -50,9 +51,9 @@ async function reject(req, res, next) {
 // Autenticado: asignar técnico
 async function assign(req, res, next) {
   try {
-    const { technicianId } = req.body;
+    const { technicianId, assetConsecutive } = req.body;
     if (!technicianId) return res.status(400).json({ error: 'Técnico requerido' });
-    const ticket = await serviceTicketService.assign(parseInt(req.params.id, 10), parseInt(technicianId, 10));
+    const ticket = await serviceTicketService.assign(parseInt(req.params.id, 10), parseInt(technicianId, 10), assetConsecutive);
     if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no disponible para asignación' });
     res.json({ ticket });
   } catch (err) { next(err); }
@@ -69,8 +70,11 @@ async function getTechnicians(req, res, next) {
 // Autenticado: cerrar con archivos
 async function close(req, res, next) {
   try {
-    const { serviceType, closeObservations } = req.body;
-    const ticket = await serviceTicketService.close(parseInt(req.params.id, 10), { serviceType, closeObservations });
+    const { serviceType, closeObservations, assetConsecutive } = req.body;
+    if (!closeObservations || !closeObservations.trim()) {
+      return res.status(400).json({ error: 'La observación de cierre es obligatoria' });
+    }
+    const ticket = await serviceTicketService.close(parseInt(req.params.id, 10), { serviceType, closeObservations, assetConsecutive });
     if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado o no está en proceso' });
 
     // Procesar archivos adjuntos si vienen

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import ActionModal from '../components/ActionModal';
 import ConfirmModal from '../components/ConfirmModal';
+import { isSupportRequest } from '../constants/requestOptions';
 import {
   DndContext,
   closestCorners,
@@ -299,6 +300,18 @@ export default function DevInbox() {
     if (!targetStatus || targetStatus === request.status) return;
 
     // Transiciones libres: cualquier estado es permitido (ya se validó que sea distinto arriba)
+    const isSupport = isSupportRequest(request);
+    const isLeavingPending = request.status === 'PENDIENTE' && targetStatus !== 'PENDIENTE';
+
+    // Si es soporte técnico saliendo de PENDIENTE y no tiene número de bien guardado, exigirlo
+    if (isLeavingPending && isSupport && !request.asset_consecutive && targetStatus !== 'RECHAZADA') {
+      if (targetStatus === 'COMPLETADA') {
+        setActiveModal({ type: 'resolve', request, targetStatus, requireAsset: true });
+        return;
+      }
+      setActiveModal({ type: 'asset_only', request, targetStatus, requireAsset: true });
+      return;
+    }
 
     // Confirmar para módulos no-Sistemas al pasar a EN_PROCESO
     if (targetStatus === 'EN_PROCESO' && !request.is_systems) {
@@ -312,28 +325,35 @@ export default function DevInbox() {
       return;
     }
 
-    // Completada admite nota opcional
+    // Completada exige observación
     if (targetStatus === 'COMPLETADA') {
-      setActiveModal({ type: 'resolve', request, targetStatus });
+      setActiveModal({
+        type: 'resolve',
+        request,
+        targetStatus,
+        requireAsset: isLeavingPending && isSupport && !request.asset_consecutive,
+      });
       return;
     }
 
     doStatusChange(request.request_id, targetStatus);
   }
 
-  async function handleModalSubmit(text) {
+  async function handleModalSubmit(text, assetConsecutive) {
     if (!activeModal) return;
     const { request, targetStatus } = activeModal;
     setModalSubmitting(true);
 
     try {
       if (targetStatus === 'RECHAZADA') {
-        await updateRequestStatus(request.request_id, 'RECHAZADA', text);
+        await updateRequestStatus(request.request_id, 'RECHAZADA', text, assetConsecutive);
       } else if (targetStatus === 'COMPLETADA') {
-        await updateRequestStatus(request.request_id, 'COMPLETADA');
-        if (text.trim()) {
+        await updateRequestStatus(request.request_id, 'COMPLETADA', null, assetConsecutive, text);
+        if (text && text.trim()) {
           await addComment(request.request_id, text, false);
         }
+      } else {
+        await updateRequestStatus(request.request_id, targetStatus, null, assetConsecutive);
       }
       setActiveModal(null);
       fetchAllRequests();
@@ -352,10 +372,27 @@ export default function DevInbox() {
 
   function handleStatusOptionClick(statusValue, req) {
     setOpenStatusDropdown(null);
+    const isSupport = isSupportRequest(req);
+    const isLeavingPending = req.status === 'PENDIENTE' && statusValue !== 'PENDIENTE';
+
+    if (isLeavingPending && isSupport && !req.asset_consecutive && statusValue !== 'RECHAZADA') {
+      if (statusValue === 'COMPLETADA') {
+        setActiveModal({ type: 'resolve', request: req, targetStatus: statusValue, requireAsset: true });
+        return;
+      }
+      setActiveModal({ type: 'asset_only', request: req, targetStatus: statusValue, requireAsset: true });
+      return;
+    }
+
     if (statusValue === 'RECHAZADA') {
       setActiveModal({ type: 'reject', request: req, targetStatus: statusValue });
     } else if (statusValue === 'COMPLETADA') {
-      setActiveModal({ type: 'resolve', request: req, targetStatus: statusValue });
+      setActiveModal({
+        type: 'resolve',
+        request: req,
+        targetStatus: statusValue,
+        requireAsset: isLeavingPending && isSupport && !req.asset_consecutive,
+      });
     } else if (statusValue === 'EN_PROCESO' && !req.is_systems) {
       setNonSystemsConfirm({ ...req, targetStatus: statusValue });
     } else {
@@ -475,7 +512,7 @@ export default function DevInbox() {
           {activeRequest ? <KanbanCardView req={activeRequest} overlay /> : null}
         </DragOverlay>
 
-        {/* Modal de rechazo/resolución */}
+        {/* Modal de rechazo/resolución/bien */}
         <ActionModal
           isOpen={Boolean(activeModal)}
           onClose={() => setActiveModal(null)}
@@ -483,11 +520,21 @@ export default function DevInbox() {
           submitting={modalSubmitting}
           ticketCode={activeModal?.request?.ticket_code}
           actionType={activeModal?.type}
-          title={activeModal?.type === 'reject' ? 'Rechazar Solicitud' : 'Resolver Solicitud'}
+          requireAsset={Boolean(activeModal?.requireAsset)}
+          initialAsset={activeModal?.request?.asset_consecutive || ''}
+          title={
+            activeModal?.type === 'reject'
+              ? 'Rechazar Solicitud'
+              : activeModal?.type === 'asset_only'
+              ? 'Solicitud de Soporte Técnico'
+              : 'Completar Tarea / Solicitud'
+          }
           description={
             activeModal?.type === 'reject'
               ? 'Ingresá el motivo del rechazo. Esta justificación será visible para el solicitante.'
-              : 'Podés agregar una nota sobre la solución aplicada.'
+              : activeModal?.type === 'asset_only'
+              ? 'Para avanzar una solicitud de soporte técnico, indicá el número o código de bien.'
+              : 'Detallá la observación o solución aplicada (obligatorio).'
           }
         />
 

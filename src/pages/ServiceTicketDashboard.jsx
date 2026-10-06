@@ -44,6 +44,11 @@ export default function ServiceTicketDashboard() {
   const [filterStatus, setFilterStatus] = useState('');
   const [search, setSearch] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [acceptTicket, setAcceptTicket] = useState(null);
+  const [acceptAssetConsecutive, setAcceptAssetConsecutive] = useState('');
+  const [assignAssetConsecutive, setAssignAssetConsecutive] = useState('');
+  const [closeAssetConsecutive, setCloseAssetConsecutive] = useState('');
+  const [rejectAssetConsecutive, setRejectAssetConsecutive] = useState('');
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -116,24 +121,38 @@ export default function ServiceTicketDashboard() {
     }
   }, [showAssignModal]);
 
-  async function handleAccept(ticket) {
+  async function handleConfirmAccept() {
+    if (!acceptAssetConsecutive.trim()) {
+      toast.error('El número de bien es obligatorio para pasar a En Proceso');
+      return;
+    }
+    setSubmitting(true);
     try {
-      await acceptServiceTicket(ticket.request_id);
-      toast.success(`Ticket ${ticket.ticket_code} aceptado`);
+      await acceptServiceTicket(acceptTicket.request_id, acceptAssetConsecutive.trim());
+      toast.success(`Ticket ${acceptTicket.ticket_code} aceptado`);
+      setAcceptTicket(null);
+      setAcceptAssetConsecutive('');
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al aceptar');
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleReject() {
+    if (!rejectReason.trim()) {
+      toast.error('El motivo del rechazo es obligatorio');
+      return;
+    }
     setSubmitting(true);
     try {
-      await rejectServiceTicket(selectedTicket.request_id, rejectReason);
+      await rejectServiceTicket(selectedTicket.request_id, rejectReason.trim(), rejectAssetConsecutive.trim() || null);
       toast.success(`Ticket ${selectedTicket.ticket_code} rechazado`);
       setShowRejectModal(false);
       setSelectedTicket(null);
       setRejectReason('');
+      setRejectAssetConsecutive('');
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al rechazar');
@@ -144,13 +163,18 @@ export default function ServiceTicketDashboard() {
 
   async function handleAssign() {
     if (!selectedTechnician) return;
+    if (selectedTicket?.status === 'PENDIENTE' && !assignAssetConsecutive.trim()) {
+      toast.error('El número de bien es obligatorio para asignar una solicitud pendiente');
+      return;
+    }
     setSubmitting(true);
     try {
-      await assignServiceTicket(selectedTicket.request_id, selectedTechnician);
+      await assignServiceTicket(selectedTicket.request_id, selectedTechnician, assignAssetConsecutive.trim() || null);
       toast.success(`Ticket ${selectedTicket.ticket_code} asignado`);
       setShowAssignModal(false);
       setSelectedTicket(null);
       setSelectedTechnician('');
+      setAssignAssetConsecutive('');
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al asignar');
@@ -160,11 +184,18 @@ export default function ServiceTicketDashboard() {
   }
 
   async function handleClose() {
+    if (!closeForm.closeObservations.trim()) {
+      toast.error('La observación de cierre es obligatoria');
+      return;
+    }
     setSubmitting(true);
     try {
       const formData = new FormData();
       formData.append('serviceType', closeForm.serviceType);
-      formData.append('closeObservations', closeForm.closeObservations);
+      formData.append('closeObservations', closeForm.closeObservations.trim());
+      if (closeAssetConsecutive.trim()) {
+        formData.append('assetConsecutive', closeAssetConsecutive.trim());
+      }
       for (const file of closeFiles) {
         formData.append('files', file);
       }
@@ -173,6 +204,7 @@ export default function ServiceTicketDashboard() {
       setShowCloseModal(false);
       setSelectedTicket(null);
       setCloseForm({ serviceType: '', closeObservations: '' });
+      setCloseAssetConsecutive('');
       setCloseFiles([]);
       fetchData();
     } catch (err) {
@@ -322,6 +354,7 @@ export default function ServiceTicketDashboard() {
                         { label: 'Ticket' },
                         { label: 'Solicitante' },
                         { label: 'Ext.', cls: 'col-optional' },
+                        { label: 'N° Bien', cls: 'col-optional' },
                         { label: 'Estado' },
                         { label: 'Técnico', cls: 'col-optional' },
                         { label: 'Tiempo', cls: 'col-optional' },
@@ -349,6 +382,7 @@ export default function ServiceTicketDashboard() {
                             <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{t.department_name || ''}</div>
                           </td>
                           <td className="col-optional"><code style={{ fontSize: '0.75rem', color: '#6366f1', background: '#eef2ff', padding: '0.1rem 0.375rem', borderRadius: '4px' }}>{t.extension || '-'}</code></td>
+                          <td className="col-optional"><code style={{ fontSize: '0.75rem', color: t.asset_consecutive ? '#0284c7' : '#94a3b8', background: t.asset_consecutive ? '#f0f9ff' : '#f8fafc', padding: '0.1rem 0.375rem', borderRadius: '4px' }}>{t.asset_consecutive || '—'}</code></td>
                           <td><span className="mgmt-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span></td>
                           <td className="col-optional"><span style={{ fontSize: '0.8125rem' }}>{t.technician_name || <span style={{ color: '#cbd5e1' }}>Sin asignar</span>}</span></td>
                           <td className="col-optional"><span style={{ fontSize: '0.75rem', color: '#64748b' }}>{calcResponseTime(t)}</span></td>
@@ -367,6 +401,7 @@ export default function ServiceTicketDashboard() {
                                   onClick={() => {
                                     setSelectedTicket(t);
                                     setSelectedTechnician(t.assigned_to ? String(t.assigned_to) : '');
+                                    setAssignAssetConsecutive(t.asset_consecutive || '');
                                     setTechSearch('');
                                     setShowAssignModal(true);
                                   }}
@@ -381,14 +416,45 @@ export default function ServiceTicketDashboard() {
                               {/* Aceptar / Rechazar cuando está pendiente */}
                               {t.status === 'PENDIENTE' && user?.role !== 'requester' && (
                                 <>
-                                  <button className="btn btn-sm btn-success" onClick={() => handleAccept(t)}>Aceptar</button>
-                                  <button className="btn btn-sm btn-danger" onClick={() => { setSelectedTicket(t); setShowRejectModal(true); }}>Rechazar</button>
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    onClick={() => {
+                                      setAcceptTicket(t);
+                                      setAcceptAssetConsecutive(t.asset_consecutive || '');
+                                    }}
+                                  >
+                                    Aceptar
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-danger"
+                                    onClick={() => {
+                                      setSelectedTicket(t);
+                                      setRejectReason('');
+                                      setRejectAssetConsecutive(t.asset_consecutive || '');
+                                      setShowRejectModal(true);
+                                    }}
+                                  >
+                                    Rechazar
+                                  </button>
                                 </>
                               )}
 
                               {/* Cerrar cuando está en proceso */}
                               {t.status === 'EN_PROCESO' && user?.role !== 'requester' && (
-                                <button className="btn btn-sm btn-primary" onClick={() => { setSelectedTicket(t); setShowCloseModal(true); }}>Cerrar</button>
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => {
+                                    setSelectedTicket(t);
+                                    setCloseAssetConsecutive(t.asset_consecutive || '');
+                                    setCloseForm({
+                                      serviceType: t.service_type || '',
+                                      closeObservations: t.close_observations || '',
+                                    });
+                                    setShowCloseModal(true);
+                                  }}
+                                >
+                                  Cerrar
+                                </button>
                               )}
 
                               {/* Generar PDF resumen solo cuando la solicitud esté completada */}
@@ -625,11 +691,77 @@ export default function ServiceTicketDashboard() {
                   )}
                 </div>
               )}
+
+              {/* Número de bien al asignar */}
+              <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem', color: '#334155' }}>
+                  Número / Código del Bien {selectedTicket?.status === 'PENDIENTE' ? '* (Obligatorio)' : '(Opcional)'}
+                </label>
+                <input
+                  type="text"
+                  value={assignAssetConsecutive}
+                  onChange={e => setAssignAssetConsecutive(e.target.value.toLocaleUpperCase())}
+                  placeholder="Ej: 0271, CPU-001..."
+                  style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
+                />
+                {selectedTicket?.status === 'PENDIENTE' && (
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                    Requerido para pasar la solicitud a estado Asignada.
+                  </span>
+                )}
+              </div>
             </div>
             <div className="modal-footer" style={{ marginTop: '1rem' }}>
               <button className="btn btn-outline" onClick={() => setShowAssignModal(false)} disabled={submitting}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleAssign} disabled={submitting || !selectedTechnician}>
+              <button
+                className="btn btn-primary"
+                onClick={handleAssign}
+                disabled={submitting || !selectedTechnician || (selectedTicket?.status === 'PENDIENTE' && !assignAssetConsecutive.trim())}
+              >
                 {submitting ? 'Asignando...' : 'Confirmar Asignación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Aceptar Ticket (Solicita Número de Bien) */}
+      {acceptTicket && (
+        <div className="modal-overlay" onClick={() => setAcceptTicket(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3>Aceptar Ticket {acceptTicket?.ticket_code}</h3>
+              <button className="modal-close-btn" onClick={() => setAcceptTicket(null)} aria-label="Cerrar modal"><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+                Para aceptar la solicitud y pasarla a <strong>En Proceso</strong>, ingrese el número o consecutivo del bien institucional a atender.
+              </p>
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
+                  Número / Código del Bien * (Obligatorio)
+                </label>
+                <input
+                  type="text"
+                  value={acceptAssetConsecutive}
+                  onChange={e => setAcceptAssetConsecutive(e.target.value.toLocaleUpperCase())}
+                  placeholder="Ej: 0271, CPU-1002, IMP-334..."
+                  style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
+                  autoFocus
+                />
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                  Este código quedará registrado en el ticket y se reflejará en el reporte oficial.
+                </span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setAcceptTicket(null)} disabled={submitting}>Cancelar</button>
+              <button
+                className="btn btn-success"
+                onClick={handleConfirmAccept}
+                disabled={submitting || !acceptAssetConsecutive.trim()}
+              >
+                {submitting ? 'Aceptando...' : 'Aceptar e Iniciar'}
               </button>
             </div>
           </div>
@@ -653,10 +785,29 @@ export default function ServiceTicketDashboard() {
                 </select>
               </div>
               <div className="form-group">
-                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Observaciones de Cierre</label>
-                <textarea value={closeForm.closeObservations} onChange={e => setCloseForm({...closeForm, closeObservations: e.target.value.toLocaleUpperCase()})} rows={4}
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
+                  Número / Código del Bien
+                </label>
+                <input
+                  type="text"
+                  value={closeAssetConsecutive}
+                  onChange={e => setCloseAssetConsecutive(e.target.value.toLocaleUpperCase())}
+                  placeholder="Ej: 0271, CPU-1002..."
+                  style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
+                />
+              </div>
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
+                  Observaciones de Cierre * (Obligatorio)
+                </label>
+                <textarea
+                  value={closeForm.closeObservations}
+                  onChange={e => setCloseForm({...closeForm, closeObservations: e.target.value.toLocaleUpperCase()})}
+                  rows={4}
+                  required
                   style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', resize: 'vertical' }}
-                  placeholder="Describa la solución aplicada..." />
+                  placeholder="Describa la solución aplicada..."
+                />
               </div>
               <div className="form-group">
                 <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>Fotos del Trabajo (opcional)</label>
@@ -671,7 +822,13 @@ export default function ServiceTicketDashboard() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowCloseModal(false)} disabled={submitting}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleClose} disabled={submitting}>{submitting ? 'Cerrando...' : 'Cerrar Ticket'}</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleClose}
+                disabled={submitting || !closeForm.closeObservations.trim()}
+              >
+                {submitting ? 'Cerrando...' : 'Cerrar Ticket'}
+              </button>
             </div>
           </div>
         </div>
@@ -689,13 +846,35 @@ export default function ServiceTicketDashboard() {
               <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
                 Indicá el motivo del rechazo para notificar al solicitante.
               </p>
-              <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value.toLocaleUpperCase())} rows={4}
-                style={{ width: '100%', padding: '0.625rem', border: '2px solid #fecaca', borderRadius: '8px', fontSize: '0.875rem', resize: 'vertical' }}
-                placeholder="Motivo del rechazo..." />
+              <div className="form-group">
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
+                  Motivo del Rechazo * (Obligatorio)
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value.toLocaleUpperCase())}
+                  rows={4}
+                  required
+                  style={{ width: '100%', padding: '0.625rem', border: '2px solid #fecaca', borderRadius: '8px', fontSize: '0.875rem', resize: 'vertical' }}
+                  placeholder="Motivo del rechazo..."
+                />
+              </div>
+              <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                <label style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.375rem' }}>
+                  Número / Código del Bien (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={rejectAssetConsecutive}
+                  onChange={e => setRejectAssetConsecutive(e.target.value.toLocaleUpperCase())}
+                  placeholder="Ej: 0271, CPU-1002..."
+                  style={{ width: '100%', padding: '0.625rem', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem' }}
+                />
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setShowRejectModal(false)} disabled={submitting}>Cancelar</button>
-              <button className="btn btn-danger" onClick={handleReject} disabled={submitting}>
+              <button className="btn btn-danger" onClick={handleReject} disabled={submitting || !rejectReason.trim()}>
                 {submitting ? 'Rechazando...' : 'Confirmar Rechazo'}
               </button>
             </div>

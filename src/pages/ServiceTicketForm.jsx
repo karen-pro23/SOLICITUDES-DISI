@@ -108,7 +108,6 @@ export default function ServiceTicketForm() {
     departmentName: '',
     extension: '',
     description: '',
-    observations: '',
   });
 
   const [departments, setDepartments] = useState([]);
@@ -545,7 +544,6 @@ export default function ServiceTicketForm() {
         position: cargoValue ? cargoValue.trim() : null,
         extension: form.extension,
         description: form.description,
-        observations: form.observations,
       };
 
       const result = await createServiceTicket(payload);
@@ -571,7 +569,7 @@ export default function ServiceTicketForm() {
     setCurrentStep(1);
     setForm({
       cedula: '', nombre: '', apellido: '', email: '', departmentId: '', departmentName: '',
-      extension: '', description: '', observations: '',
+      extension: '', description: '',
     });
     // El cargo se reinicia acá también: un cargo que sobreviva al reset
     // atribuiría al siguiente solicitante el cargo del anterior.
@@ -1092,19 +1090,6 @@ export default function ServiceTicketForm() {
                     {(touched.description || attemptedNext[2]) && step2Errors.description && (
                       <span className="field-error-text"><AlertTriangle size={13} /> {step2Errors.description}</span>
                     )}
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="observations">Observaciones Adicionales</label>
-                    <textarea
-                      id="observations"
-                      name="observations"
-                      value={form.observations}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      rows={3}
-                      placeholder="Información adicional, horarios de disponibilidad, referencias, etc."
-                    />
                   </div>
 
                   {/* ── Zona de Evidencias (Adjuntos) ────── */}

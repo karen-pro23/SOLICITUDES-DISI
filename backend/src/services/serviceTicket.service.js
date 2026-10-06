@@ -134,42 +134,48 @@ async function findById(id) {
   return result.rows[0] || null;
 }
 
-async function accept(ticketId, technicianId) {
+async function accept(ticketId, technicianId, assetConsecutive) {
+  const cleanAsset = assetConsecutive ? normalizeText(assetConsecutive) : null;
   const result = await pool.query(
     `UPDATE requests SET 
-      assigned_to = $1, 
+      assigned_to = COALESCE($1, assigned_to), 
       status = 'EN_PROCESO',
-      service_start_time = now(),
+      service_start_time = COALESCE(service_start_time, now()),
+      asset_consecutive = COALESCE($2, asset_consecutive),
       version_number = version_number + 1
-     WHERE request_id = $2 AND status IN ('PENDIENTE', 'ASIGNADA') AND request_type_id = $3
+     WHERE request_id = $3 AND status IN ('PENDIENTE', 'ASIGNADA') AND request_type_id = $4
      RETURNING *`,
-    [technicianId, ticketId, ST_REQUEST_TYPE_ID]
+    [technicianId, cleanAsset, ticketId, ST_REQUEST_TYPE_ID]
   );
   return result.rows[0] || null;
 }
 
-async function reject(ticketId, reason) {
+async function reject(ticketId, reason, assetConsecutive) {
+  const cleanAsset = assetConsecutive ? normalizeText(assetConsecutive) : null;
   const result = await pool.query(
     `UPDATE requests SET 
       status = 'RECHAZADA',
       rejection_reason = $1,
+      asset_consecutive = COALESCE($2, asset_consecutive),
       version_number = version_number + 1
-     WHERE request_id = $2 AND status IN ('PENDIENTE', 'ASIGNADA') AND request_type_id = $3
+     WHERE request_id = $3 AND status IN ('PENDIENTE', 'ASIGNADA') AND request_type_id = $4
      RETURNING *`,
-    [reason || 'Rechazado por servicio técnico', ticketId, ST_REQUEST_TYPE_ID]
+    [reason || 'Rechazado por servicio técnico', cleanAsset, ticketId, ST_REQUEST_TYPE_ID]
   );
   return result.rows[0] || null;
 }
 
-async function assign(ticketId, technicianId) {
+async function assign(ticketId, technicianId, assetConsecutive) {
+  const cleanAsset = assetConsecutive ? normalizeText(assetConsecutive) : null;
   const result = await pool.query(
     `UPDATE requests SET 
       assigned_to = $1, 
       status = 'ASIGNADA',
+      asset_consecutive = COALESCE($2, asset_consecutive),
       version_number = version_number + 1
-     WHERE request_id = $2 AND status IN ('PENDIENTE', 'ASIGNADA', 'EN_PROCESO') AND request_type_id = $3
+     WHERE request_id = $3 AND status IN ('PENDIENTE', 'ASIGNADA', 'EN_PROCESO') AND request_type_id = $4
      RETURNING *`,
-    [technicianId, ticketId, ST_REQUEST_TYPE_ID]
+    [technicianId, cleanAsset, ticketId, ST_REQUEST_TYPE_ID]
   );
   return result.rows[0] || null;
 }
@@ -187,18 +193,25 @@ async function getTechnicians() {
   return result.rows;
 }
 
-async function close(ticketId, data) {
+async function close(ticketId, data = {}) {
+  const closeObs = data.closeObservations ? data.closeObservations.trim() : null;
+  if (!closeObs) {
+    throw Object.assign(new Error('La observación de cierre es obligatoria.'), { status: 400 });
+  }
+  const cleanAsset = data.assetConsecutive ? normalizeText(data.assetConsecutive) : null;
   const result = await pool.query(
     `UPDATE requests SET 
       status = 'COMPLETADA',
       service_close_time = now(),
       service_type = COALESCE($1, service_type),
       close_observations = $2,
+      resolution_notes = $2,
+      asset_consecutive = COALESCE($3, asset_consecutive),
       completed_at = now(),
       version_number = version_number + 1
-     WHERE request_id = $3 AND status = 'EN_PROCESO' AND request_type_id = $4
+     WHERE request_id = $4 AND status = 'EN_PROCESO' AND request_type_id = $5
      RETURNING *`,
-    [data.serviceType || null, data.closeObservations || null, ticketId, ST_REQUEST_TYPE_ID]
+    [data.serviceType || null, closeObs, cleanAsset, ticketId, ST_REQUEST_TYPE_ID]
   );
   return result.rows[0] || null;
 }

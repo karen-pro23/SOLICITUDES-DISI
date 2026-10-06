@@ -21,6 +21,7 @@ import {
   STATUS_OPTIONS,
   STATUS_TRANSITIONS,
   PRIORITY_OPTIONS,
+  isSupportRequest,
 } from '../constants/requestOptions';
 import './Dashboard.css';
 
@@ -147,19 +148,20 @@ export default function Dashboard() {
   };
 
   // Acciones Rápidas
-  async function submitStatus(req, value, note) {
+  async function submitStatus(req, value, note, assetConsecutive) {
     if (!req) return;
     setModalSubmitting(true);
     try {
-      if (value === 'RECHAZADA') {
-        await updateRequestStatus(req.request_id, 'RECHAZADA', note);
-      } else {
-        await updateRequestStatus(req.request_id, value);
-        if (value === 'COMPLETADA' && note && note.trim()) {
-          await addComment(req.request_id, note, false);
-        }
-      }
+      const isReject = value === 'RECHAZADA';
+      const isResolve = value === 'COMPLETADA';
+      const rejectionReason = isReject ? note : null;
+      const observation = isResolve ? note : null;
+      const asset = assetConsecutive || req.asset_consecutive || undefined;
+
+      await updateRequestStatus(req.request_id, value, rejectionReason, asset, observation);
       setActiveStatusReq(null);
+      setPendingStatus(null);
+      toast.success(`Estado actualizado a ${value}`);
       fetchRequests();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al actualizar la solicitud');
@@ -200,21 +202,26 @@ export default function Dashboard() {
     }
   }
 
-  // Flujo "seleccionar y luego notar":
-  // - Si viene una nota (flujo CONFIRMAR del modal), se envía directo.
-  // - Si no viene nota y el estado no requiere nota, se envía directo.
-  // - Si el estado requiere nota (RECHAZADA/COMPLETADA), solo se registra
-  //   pendingStatus para que el modal muestre el área de texto.
-  function handleStatusSelect(value, note) {
+  // Flujo "seleccionar y luego notar / requerir bien":
+  // - Si viene una confirmación (note o asset definidos), se envía directo.
+  // - Si el estado requiere nota (RECHAZADA / COMPLETADA) o bien (soporte saliendo de pendiente),
+  //   solo se registra pendingStatus para que el modal muestre los campos.
+  function handleStatusSelect(value, note, assetConsecutive) {
     const req = activeStatusReq;
     if (!req) return;
     setPendingStatus(value);
-    if (note !== null && note !== undefined) {
-      submitStatus(req, value, note);
+
+    if (note !== null && note !== undefined || assetConsecutive !== null && assetConsecutive !== undefined) {
+      submitStatus(req, value, note, assetConsecutive);
       return;
     }
-    if (value !== 'RECHAZADA' && value !== 'COMPLETADA') {
-      submitStatus(req, value, null);
+
+    const isSupport = isSupportRequest(req);
+    const needsAsset = isSupport && req.status === 'PENDIENTE' && value !== 'PENDIENTE' && !req.asset_consecutive;
+    const needsNote = value === 'RECHAZADA' || value === 'COMPLETADA';
+
+    if (!needsNote && !needsAsset) {
+      submitStatus(req, value, null, null);
     }
   }
 
@@ -222,16 +229,29 @@ export default function Dashboard() {
   const statusNoteConfig = (() => {
     if (pendingStatus === 'RECHAZADA') {
       return {
-        label: 'MOTIVO DEL RECHAZO',
+        label: 'MOTIVO DEL RECHAZO *',
         placeholder: 'Indicá el motivo (obligatorio)...',
         required: true,
       };
     }
     if (pendingStatus === 'COMPLETADA') {
       return {
-        label: 'NOTA DE SOLUCIÓN (OPCIONAL)',
-        placeholder: 'Solución aplicada...',
-        required: false,
+        label: 'OBSERVACIÓN DE ATENCIÓN / SOLUCIÓN *',
+        placeholder: 'Detallá los trabajos o solución aplicada (obligatorio)...',
+        required: true,
+      };
+    }
+    return null;
+  })();
+
+  const statusAssetConfig = (() => {
+    if (!activeStatusReq) return null;
+    const isSupport = isSupportRequest(activeStatusReq);
+    if (isSupport && activeStatusReq.status === 'PENDIENTE' && pendingStatus && pendingStatus !== 'PENDIENTE') {
+      return {
+        label: 'NÚMERO / CÓDIGO DEL BIEN *',
+        placeholder: 'Ej: BN-001234, CPU-002...',
+        required: true,
       };
     }
     return null;
@@ -563,7 +583,10 @@ export default function Dashboard() {
       {/* Modal de Estado */}
       <SelectOptionModal
         isOpen={Boolean(activeStatusReq)}
-        onClose={() => setActiveStatusReq(null)}
+        onClose={() => {
+          setActiveStatusReq(null);
+          setPendingStatus(null);
+        }}
         title="CAMBIAR ESTADO"
         description={activeStatusReq ? `Ticket ${activeStatusReq.ticket_code}` : undefined}
         options={STATUS_OPTIONS.map((opt) => ({
@@ -572,6 +595,8 @@ export default function Dashboard() {
           active: opt.value === activeStatusReq?.status,
         }))}
         noteConfig={statusNoteConfig}
+        assetConfig={statusAssetConfig}
+        initialAsset={activeStatusReq?.asset_consecutive || ''}
         onSelect={handleStatusSelect}
         submitting={modalSubmitting}
       />

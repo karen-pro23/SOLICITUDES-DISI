@@ -115,8 +115,8 @@ function mapTicketToPdfData(ticket = {}) {
     requesterPosition: requesterPosition,
     requestReason: ticket.process_description || ticket.subject || DEFAULT_STATIC_DATA.requestReason,
     assignedArea: ticket.area_name || DEFAULT_STATIC_DATA.assignedArea,
-    assetConsecutive: assetConsecutive || '',
-    requestObservations: ticket.observations || DEFAULT_STATIC_DATA.requestObservations,
+    assetConsecutive: assetConsecutive || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.assetConsecutive),
+    requestObservations: ticket.observations || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.requestObservations),
     assignedTechnician: ticket.technician_name || DEFAULT_STATIC_DATA.assignedTechnician,
     startDate: startDate,
     startTime: startTime,
@@ -125,7 +125,7 @@ function mapTicketToPdfData(ticket = {}) {
     closeDate: closeDate,
     closeDateTime: closeDateTime,
     responseTime: responseTime,
-    attentionObservations: ticket.close_observations || ticket.observations || DEFAULT_STATIC_DATA.attentionObservations,
+    attentionObservations: ticket.close_observations || ticket.resolution_notes || ticket.observations || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.attentionObservations),
     operator: ticket.operator || DEFAULT_STATIC_DATA.operator,
   };
 }

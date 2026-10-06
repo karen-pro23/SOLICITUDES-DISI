@@ -93,9 +93,10 @@ async function create(req, res, next) {
 
 async function updateStatus(req, res, next) {
   try {
-    const { status, rejectionReason } = req.body;
+    const { status, rejectionReason, assetConsecutive, observation, closeObservations } = req.body;
     if (!status) return res.status(400).json({ error: 'Estado requerido' });
 
+    const finalObs = observation || closeObservations || null;
     const request = await requestService.updateStatus(
       parseInt(req.params.id, 10),
       status,
@@ -104,7 +105,9 @@ async function updateStatus(req, res, next) {
       req.user.role,
       req.user.departmentId,
       req.user.es_jefe,
-      req.user.is_jefe_departamento
+      req.user.is_jefe_departamento,
+      assetConsecutive,
+      finalObs
     );
     res.json({ request });
   } catch (err) {
@@ -136,7 +139,7 @@ async function updatePriority(req, res, next) {
 
 async function assign(req, res, next) {
   try {
-    const { assigneeId, assignedDepartmentId, areaId } = req.body;
+    const { assigneeId, assignedDepartmentId, areaId, assetConsecutive } = req.body;
     if (!assigneeId && !assignedDepartmentId && !areaId) return res.status(400).json({ error: 'Debe especificar el empleado, el departamento o el área para asignar' });
 
     const request = await requestService.assign(
@@ -149,7 +152,8 @@ async function assign(req, res, next) {
       req.user.userId,
       req.user.is_jefe_departamento,
       areaId ? parseInt(areaId, 10) : null,
-      req.user.areaId
+      req.user.areaId,
+      assetConsecutive
     );
     res.json({ request });
   } catch (err) {

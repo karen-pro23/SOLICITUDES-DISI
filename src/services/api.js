@@ -174,8 +174,11 @@ export async function createRequest(formData) {
   return data;
 }
 
-export async function updateRequestStatus(id, status, rejectionReason) {
-  const { data } = await api.patch(`/requests/${id}/status`, { status, rejectionReason });
+export async function updateRequestStatus(id, status, rejectionReason, assetConsecutive, observation) {
+  const payload = { status, rejectionReason };
+  if (assetConsecutive) payload.assetConsecutive = assetConsecutive;
+  if (observation) payload.observation = observation;
+  const { data } = await api.patch(`/requests/${id}/status`, payload);
   return data;
 }
 
@@ -315,18 +318,18 @@ export async function getServiceTicket(code) {
   return data.ticket;
 }
 
-export async function acceptServiceTicket(id) {
-  const { data } = await api.patch(`/service-tickets/${id}/accept`);
+export async function acceptServiceTicket(id, assetConsecutive) {
+  const { data } = await api.patch(`/service-tickets/${id}/accept`, { assetConsecutive });
   return data.ticket;
 }
 
-export async function rejectServiceTicket(id, reason) {
-  const { data } = await api.patch(`/service-tickets/${id}/reject`, { reason });
+export async function rejectServiceTicket(id, reason, assetConsecutive) {
+  const { data } = await api.patch(`/service-tickets/${id}/reject`, { reason, assetConsecutive });
   return data.ticket;
 }
 
-export async function assignServiceTicket(id, technicianId) {
-  const { data } = await api.patch(`/service-tickets/${id}/assign`, { technicianId });
+export async function assignServiceTicket(id, technicianId, assetConsecutive) {
+  const { data } = await api.patch(`/service-tickets/${id}/assign`, { technicianId, assetConsecutive });
   return data.ticket;
 }
 
