@@ -3,30 +3,33 @@ const PDFDocument = require('pdfkit');
 /**
  * Default static data matching the official ticket attention summary voucher
  */
+/**
+ * Default empty data template for ticket attention summary voucher
+ */
 const DEFAULT_STATIC_DATA = {
-  ticketNumber: '40145',
+  ticketNumber: '',
   transferred: 'NO',
-  requestDate: '20/7/2026',
-  requestTime: '11:05:49 a. m.',
-  department: 'SERVICIOS GENERALES',
-  extension: '2842',
-  requesterName: 'luzmary grisales',
-  requesterIdNumber: 'V-15.482.913',
-  requesterPosition: 'SECRETARIO EJECUTIVO I',
-  requestReason: 'n: consecutivo 0271 cpu impresora l220 0079 carpeta compartida mantenimiento de impresora',
-  assignedArea: 'SOPORTE',
-  assetConsecutive: '0271',
-  requestObservations: 'se compartio carpeta y se realizo mantenimiento quedando operativo los equipos',
-  assignedTechnician: 'OCTAVIANO ARAQUE - 13793172',
-  startDate: '20/7/2026',
-  startTime: '11:21:21 a. m.',
-  startDateTime: '20/7/2026 11:21:21 a. m.',
-  closeDate: '20/7/2026',
-  closeTime: '11:23:05 a. m.',
-  closeDateTime: '20/7/2026 11:23:05 a. m.',
-  responseTime: '0,001203704',
-  attentionObservations: 'se compartio carpeta y se realizo mantenimiento quedando operativo los equipos',
-  operator: 'SONIA CACERES',
+  requestDate: '',
+  requestTime: '',
+  department: '',
+  extension: '',
+  requesterName: '',
+  requesterIdNumber: '',
+  requesterPosition: '',
+  requestReason: '',
+  assignedArea: '',
+  assetConsecutive: '',
+  requestObservations: '',
+  assignedTechnician: '',
+  startDate: '',
+  startTime: '',
+  startDateTime: '',
+  closeDate: '',
+  closeTime: '',
+  closeDateTime: '',
+  responseTime: '',
+  attentionObservations: '',
+  operator: '',
 };
 
 const HEADER_BG = '#E9EEF4';
@@ -35,89 +38,108 @@ const TEXT_COLOR = '#000000';
 const WATERMARK_COLOR = '#CBD5E1';
 
 /**
- * Maps database ticket to PDF format data with fallback to static defaults
+ * Helper to extract formatted date and time parts
+ */
+function formatDateTimeParts(dateValue) {
+  if (!dateValue) return { date: '', time: '', dateTime: '' };
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return { date: '', time: '', dateTime: '' };
+  const day = d.getDate();
+  const month = d.getMonth() + 1;
+  const year = d.getFullYear();
+  const date = `${day}/${month}/${year}`;
+  const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateTime = `${date} ${time}`;
+  return { date, time, dateTime };
+}
+
+/**
+ * Maps database ticket to PDF format data using only real ticket data
  */
 function mapTicketToPdfData(ticket = {}) {
   if (!ticket || Object.keys(ticket).length === 0) {
     return { ...DEFAULT_STATIC_DATA };
   }
 
-  let requestDate = DEFAULT_STATIC_DATA.requestDate;
-  let requestTime = DEFAULT_STATIC_DATA.requestTime;
-  if (ticket.created_at) {
-    const d = new Date(ticket.created_at);
-    requestDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-    requestTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+  // 1. Fecha y hora de solicitud
+  const reqDateObj = formatDateTimeParts(ticket.created_at || ticket.request_date);
+  const requestDate = reqDateObj.date;
+  const requestTime = ticket.request_time || reqDateObj.time;
 
-  let startDate = DEFAULT_STATIC_DATA.startDate;
-  let startTime = DEFAULT_STATIC_DATA.startTime;
-  let startDateTime = DEFAULT_STATIC_DATA.startDateTime;
-  if (ticket.service_start_time) {
-    const d = new Date(ticket.service_start_time);
-    startDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-    startTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    startDateTime = `${startDate} ${startTime}`;
-  }
+  // 2. Fecha y hora de inicio de atención real
+  const startSource = ticket.service_start_time || ticket.started_at;
+  const startDateObj = formatDateTimeParts(startSource);
+  const startDate = startDateObj.date;
+  const startTime = startDateObj.time;
+  const startDateTime = startDateObj.dateTime;
 
-  let closeTime = DEFAULT_STATIC_DATA.closeTime;
-  let closeDate = DEFAULT_STATIC_DATA.closeDate;
-  let closeDateTime = DEFAULT_STATIC_DATA.closeDateTime;
-  if (ticket.service_close_time) {
-    const d = new Date(ticket.service_close_time);
-    closeDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-    closeTime = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    closeDateTime = `${closeDate} ${closeTime}`;
-  }
+  // 3. Fecha y hora de cierre real
+  const closeSource = ticket.service_close_time || ticket.completed_at;
+  const closeDateObj = formatDateTimeParts(closeSource);
+  const closeDate = closeDateObj.date;
+  const closeTime = closeDateObj.time;
+  const closeDateTime = closeDateObj.dateTime;
 
-  // Cálculo del tiempo de respuesta (duración de la atención):
-  // Fracción de día (ms / 86400000) formateada con 9 decimales y coma,
-  // idéntico a la fórmula y formato del reporte físico oficial (e.g. 0,001203704).
-  let responseTime = DEFAULT_STATIC_DATA.responseTime;
-  const startTs = ticket.service_start_time 
-    ? new Date(ticket.service_start_time).getTime() 
-    : (ticket.created_at ? new Date(ticket.created_at).getTime() : null);
-  const closeTs = ticket.service_close_time 
-    ? new Date(ticket.service_close_time).getTime() 
-    : (ticket.completed_at ? new Date(ticket.completed_at).getTime() : null);
+  // 4. Cálculo del tiempo de respuesta (duración de la atención)
+  let responseTime = '';
+  const startTs = startSource ? new Date(startSource).getTime() : null;
+  const closeTs = closeSource ? new Date(closeSource).getTime() : null;
 
   if (startTs && closeTs && closeTs >= startTs) {
     const diffDays = (closeTs - startTs) / 86400000;
     responseTime = diffDays.toFixed(9).replace('.', ',');
   } else if (ticket.response_time) {
-    responseTime = ticket.response_time;
+    responseTime = String(ticket.response_time);
   }
 
-  // Cargo del solicitante desde la BD (persona.cargo_id -> cargos.name)
-  const cargoFromDb = ticket.cargo_name || ticket.requester_position || ticket.position;
-  const requesterPosition = cargoFromDb || DEFAULT_STATIC_DATA.requesterPosition;
+  // 5. Cargo del solicitante
+  const requesterPosition = ticket.cargo_name || ticket.requester_position || ticket.position || '';
 
-  // Consecutivo del bien
-  let assetConsecutive = ticket.asset_consecutive || ticket.consecutivo_bien || ticket.consecutivo;
+  // 6. Cédula del solicitante
+  let requesterIdNumber = '';
+  const rawCedula = ticket.requester_cedula || ticket.identification_number || ticket.cedula;
+  if (rawCedula) {
+    const strCedula = String(rawCedula).trim();
+    if (strCedula.toUpperCase().startsWith('V') || strCedula.toUpperCase().startsWith('E')) {
+      requesterIdNumber = strCedula.toUpperCase();
+    } else {
+      requesterIdNumber = `V-${strCedula}`;
+    }
+  }
+
+  // 7. Consecutivo del bien
+  let assetConsecutive = ticket.asset_consecutive || ticket.consecutivo_bien || ticket.consecutivo || '';
   if (!assetConsecutive && ticket.process_description) {
     const match = ticket.process_description.match(/consecutivo\s*:?\s*([0-9a-zA-Z-]+)/i);
     if (match) assetConsecutive = match[1];
   }
 
+  // 8. Técnico asignado
+  let assignedTechnician = '';
+  if (ticket.technician_name) {
+    assignedTechnician = ticket.technician_cedula
+      ? `${ticket.technician_name} - ${ticket.technician_cedula}`
+      : ticket.technician_name;
+  }
+
+  // 9. Área asignada
+  const assignedArea = ticket.area_name || ticket.assigned_area || (ticket.ticket_code ? 'SOPORTE' : '');
+
   return {
-    ticketNumber: ticket.ticket_code || DEFAULT_STATIC_DATA.ticketNumber,
-    transferred: ticket.transferred ? 'SI' : DEFAULT_STATIC_DATA.transferred,
+    ticketNumber: ticket.ticket_code ? String(ticket.ticket_code) : (ticket.request_id ? String(ticket.request_id) : ''),
+    transferred: ticket.transferred ? 'SI' : 'NO',
     requestDate: ticket.request_date || requestDate,
     requestTime: ticket.request_time || requestTime,
-    department: ticket.department_name || DEFAULT_STATIC_DATA.department,
-    extension: ticket.extension || DEFAULT_STATIC_DATA.extension,
-    requesterName: ticket.requester_name || ticket.created_by_name || DEFAULT_STATIC_DATA.requesterName,
-    requesterIdNumber: ticket.requester_cedula || ticket.identification_number || ticket.cedula
-      ? (String(ticket.requester_cedula || ticket.identification_number || ticket.cedula).trim().startsWith('V') || String(ticket.requester_cedula || ticket.identification_number || ticket.cedula).trim().startsWith('E')
-          ? String(ticket.requester_cedula || ticket.identification_number || ticket.cedula).trim()
-          : `V-${String(ticket.requester_cedula || ticket.identification_number || ticket.cedula).trim()}`)
-      : DEFAULT_STATIC_DATA.requesterIdNumber,
+    department: ticket.department_name || ticket.department || '',
+    extension: ticket.extension ? String(ticket.extension) : '',
+    requesterName: ticket.requester_name || ticket.created_by_name || '',
+    requesterIdNumber: requesterIdNumber,
     requesterPosition: requesterPosition,
-    requestReason: ticket.process_description || ticket.subject || DEFAULT_STATIC_DATA.requestReason,
-    assignedArea: ticket.area_name || DEFAULT_STATIC_DATA.assignedArea,
-    assetConsecutive: assetConsecutive || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.assetConsecutive),
-    requestObservations: ticket.observations || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.requestObservations),
-    assignedTechnician: ticket.technician_name || DEFAULT_STATIC_DATA.assignedTechnician,
+    requestReason: ticket.process_description || ticket.subject || ticket.description || '',
+    assignedArea: assignedArea,
+    assetConsecutive: assetConsecutive,
+    requestObservations: ticket.observations || '',
+    assignedTechnician: assignedTechnician,
     startDate: startDate,
     startTime: startTime,
     startDateTime: startDateTime,
@@ -125,8 +147,8 @@ function mapTicketToPdfData(ticket = {}) {
     closeDate: closeDate,
     closeDateTime: closeDateTime,
     responseTime: responseTime,
-    attentionObservations: ticket.close_observations || ticket.resolution_notes || ticket.observations || (ticket.ticket_code ? '' : DEFAULT_STATIC_DATA.attentionObservations),
-    operator: ticket.operator || DEFAULT_STATIC_DATA.operator,
+    attentionObservations: ticket.close_observations || ticket.resolution_notes || ticket.current_behavior || '',
+    operator: ticket.operator || '',
   };
 }
 
