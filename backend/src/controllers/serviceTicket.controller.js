@@ -150,26 +150,25 @@ async function create(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Generar PDF resumen de atención técnica (con datos estáticos por defecto o datos del ticket)
+// Generar PDF resumen de atención técnica con datos reales del ticket
 async function generateSummaryPdf(req, res, next) {
   try {
-    let ticketData = {};
-    // Solo el id de ruta. Anteriormente se aceptaba también `?ticketId=`, lo que
-    // venía de una ruta pública que se eliminó: sin auth, ese fallback hacía el
-    // endpoint enumerable por query string. El frontend usa el path param.
-    const ticketId = req.params.id;
-    if (ticketId && !isNaN(parseInt(ticketId, 10))) {
-      const ticket = await serviceTicketService.findById(parseInt(ticketId, 10));
-      if (ticket) {
-        ticketData = serviceTicketPdfService.mapTicketToPdfData(ticket);
-      }
+    const ticketId = req.params.id || req.query.ticketId;
+    if (!ticketId || isNaN(parseInt(ticketId, 10))) {
+      return res.status(400).json({ error: 'ID de ticket requerido' });
     }
 
+    const ticket = await serviceTicketService.findById(parseInt(ticketId, 10));
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    const ticketData = serviceTicketPdfService.mapTicketToPdfData(ticket);
     const doc = serviceTicketPdfService.createServiceTicketPdf(ticketData);
 
     const filename = ticketData.ticketNumber
       ? `resumen-atencion-${ticketData.ticketNumber}.pdf`
-      : 'resumen-atencion.pdf';
+      : `resumen-atencion-${ticketId}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
