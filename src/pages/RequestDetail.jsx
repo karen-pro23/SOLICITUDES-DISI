@@ -796,8 +796,8 @@ export default function RequestDetail() {
                 rows={3}
               />
               
-              {/* Adjuntos del comentario */}
-              {(user.role === 'admin' || user.role === 'developer') && (
+              {/* Adjuntos del comentario — todos menos requester (alineado con backend comment.controller) */}
+              {user.role !== 'requester' && (
                 <div 
                   className={`comment-attach-zone ${isDragOver ? 'drag-over' : ''}`}
                   onDragOver={handleDragOver}
