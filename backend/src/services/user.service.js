@@ -12,7 +12,7 @@ function normalizeText(str) {
 
 async function findAll() {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
+    `SELECT u.user_id, u.full_name, u.email, u.username, u.role, u.department_id,
             d.name as department_name, u.area_id, a.name as area_name,
             u.cedula, u.phone, u.position, u.start_date, u.photo_url,
             u.is_active, u.es_jefe, u.created_at
@@ -27,7 +27,7 @@ async function findAll() {
 
 async function findById(userId) {
   const result = await pool.query(
-    `SELECT u.user_id, u.full_name, u.email, u.role, u.department_id,
+    `SELECT u.user_id, u.full_name, u.email, u.username, u.role, u.department_id,
             d.name as department_name, u.area_id, a.name as area_name,
             u.cedula, u.phone, u.position, u.start_date, u.photo_url,
             u.is_active, u.es_jefe, u.created_at
@@ -78,7 +78,7 @@ async function create(data) {
      data.departmentId || null, data.areaId || null, data.cedula || null, data.es_jefe || false,
      data.phone || null, data.position || null, data.startDate || null]
   );
-  return result.rows[0];
+  return findById(result.rows[0].user_id);
 }
 
 async function update(userId, data) {
@@ -109,10 +109,10 @@ async function update(userId, data) {
   values.push(userId);
   const result = await pool.query(
     `UPDATE users SET ${fields.join(', ')} WHERE user_id = $${idx}
-     RETURNING user_id, full_name, email, username, role, department_id, area_id, cedula, es_jefe, phone, position, start_date, is_active, created_at`,
+     RETURNING user_id`,
     values
   );
-  return result.rows[0];
+  return result.rows[0] ? findById(userId) : null;
 }
 
 async function remove(userId) {
