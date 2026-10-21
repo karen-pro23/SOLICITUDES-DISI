@@ -18,6 +18,11 @@ const ROLES = [
 
 const ROLE_MAP = Object.fromEntries(ROLES.map(r => [r.value, r]));
 
+// Un jefe de área siempre es jefe, aunque el flag histórico `es_jefe` haya
+// quedado en false. El flag sigue siendo necesario para solicitantes que
+// también son jefes.
+const isAreaChief = user => user.role === 'jefe_area' || user.es_jefe === true;
+
 const ROLE_LABELS = {
   super_admin: 'Super Admin', director: 'Director', sub_director: 'Sub Director',
   recepcion: 'Recepción', jefe_area: 'Jefe de Área', jefe_st: 'Jefe Serv. Técnico',
@@ -67,7 +72,7 @@ export default function UserManagement() {
   const stats = useMemo(() => ({
     total: users.length,
     active: users.filter(u => u.is_active).length,
-    jefes: users.filter(u => u.es_jefe).length,
+    jefes: users.filter(isAreaChief).length,
     devs: users.filter(u => u.role === 'developer' || u.role === 'tecnico').length,
   }), [users]);
 
@@ -98,7 +103,7 @@ export default function UserManagement() {
     setEditing(user.user_id);
     setForm({
       fullName: user.full_name, email: user.email, username: user.username || '', password: '', cedula: user.cedula || '',
-      role: user.role, departmentId: user.department_id || '', areaId: user.area_id || '', es_jefe: user.es_jefe || false,
+      role: user.role, departmentId: user.department_id || '', areaId: user.area_id || '', es_jefe: isAreaChief(user),
     });
     setShowForm(true);
   }
@@ -107,12 +112,13 @@ export default function UserManagement() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const payload = { ...form, es_jefe: form.role === 'jefe_area' ? true : form.es_jefe };
       if (editing) {
-        const updated = await updateUser(editing, form);
+        const updated = await updateUser(editing, payload);
         setUsers(prev => prev.map(u => u.user_id === editing ? updated : u));
         toast.success('Usuario actualizado');
       } else {
-        const created = await createUser(form);
+        const created = await createUser(payload);
         setUsers(prev => [...prev, created]);
         toast.success('Usuario creado');
       }
@@ -219,7 +225,7 @@ export default function UserManagement() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>{u.full_name}</div>
-                            {u.es_jefe && <span style={{ fontSize: '0.625rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '0.1rem 0.375rem', borderRadius: '4px', marginTop: '0.125rem', display: 'inline-block' }}>JEFE</span>}
+                            {isAreaChief(u) && <span style={{ fontSize: '0.625rem', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '0.1rem 0.375rem', borderRadius: '4px', marginTop: '0.125rem', display: 'inline-block' }}>JEFE</span>}
                           </div>
                         </div>
                       </td>
@@ -285,7 +291,7 @@ export default function UserManagement() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={labelStyle}>Email (para ingresar) *</label>
+                    <label style={labelStyle}>Email *</label>
                     <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required style={inputStyle} />
                   </div>
                   <div>
@@ -296,7 +302,10 @@ export default function UserManagement() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={labelStyle}>Rol *</label>
-                    <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} style={inputStyle}>
+                    <select value={form.role} onChange={e => {
+                      const role = e.target.value;
+                      setForm(f => ({ ...f, role, es_jefe: role === 'jefe_area' ? true : (f.role === 'jefe_area' ? false : f.es_jefe) }));
+                    }} style={inputStyle}>
                       {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
@@ -316,8 +325,10 @@ export default function UserManagement() {
                       {areas.map(a => <option key={a.area_id} value={a.area_id}>{a.name}</option>)}
                     </select>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: '#334155', cursor: 'pointer', padding: '0.625rem 0' }}>
-                    <input type="checkbox" checked={form.es_jefe} onChange={e => setForm({...form, es_jefe: e.target.checked})} style={{ accentColor: '#6366f1', width: '16px', height: '16px' }} />
+                  <label
+                    title={form.role === 'jefe_area' ? 'Se asigna automáticamente con el rol Jefe de Área' : undefined}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: '#334155', cursor: form.role === 'jefe_area' ? 'default' : 'pointer', padding: '0.625rem 0' }}>
+                    <input type="checkbox" checked={form.role === 'jefe_area' || form.es_jefe} disabled={form.role === 'jefe_area'} onChange={e => setForm({...form, es_jefe: e.target.checked})} style={{ accentColor: '#6366f1', width: '16px', height: '16px' }} />
                     Es Jefe de Área
                   </label>
                 </div>
