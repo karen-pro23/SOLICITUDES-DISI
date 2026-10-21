@@ -180,8 +180,8 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 0.8125rem;
 }
 
-/* Touch-friendly inputs */
-input, select, textarea {
+/* Touch-friendly inputs (excluye checkbox/radio para no borrar su render nativo) */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
   min-height: 44px;
   font-size: 16px !important; /* Prevents iOS zoom */
   padding: 0.75rem 1rem;
@@ -191,6 +191,26 @@ input, select, textarea {
   transition: border-color 0.2s ease;
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* Checkbox y radio: se dejan nativos para que el estado marcado sea visible */
+input[type="checkbox"], input[type="radio"] {
+  appearance: auto;
+  -webkit-appearance: auto;
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  border-radius: 4px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:disabled, input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 input:focus, select:focus, textarea:focus {
