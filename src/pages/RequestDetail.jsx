@@ -32,8 +32,10 @@ function parseMarkdown(text) {
   return parts;
 }
 
-export default function RequestDetail() {
-  const { id } = useParams();
+export default function RequestDetail({ requestId: propRequestId, onClose, onUpdated }) {
+  const params = useParams();
+  const id = propRequestId || params.id;
+  const isModal = Boolean(propRequestId || onClose);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
@@ -77,10 +79,30 @@ export default function RequestDetail() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
-    getRequest(id).then(setData).catch(() => navigate('/buscar')).finally(() => setLoading(false));
-  }, [id, navigate]);
+    if (!id) return;
+    setLoading(true);
+    getRequest(id)
+      .then(setData)
+      .catch((err) => {
+        console.error('Error al cargar solicitud:', err);
+        toast.error('No se pudo cargar la información de la solicitud');
+        if (!isModal) {
+          navigate('/buscar');
+        } else {
+          onClose?.();
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [id, navigate, isModal, onClose]);
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '1rem', color: '#64748b' }}>
+        <div style={{ width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ fontWeight: 500, fontSize: '0.95rem' }}>Cargando detalle de la solicitud...</p>
+      </div>
+    );
+  }
   if (!data) return null;
 
   const { request, attachments, history, comments } = data;
@@ -187,6 +209,7 @@ export default function RequestDetail() {
       setActionModal((prev) => ({ ...prev, isOpen: false }));
       const updated = await getRequest(id);
       setData(updated);
+      onUpdated?.();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al cambiar estado');
     } finally {
@@ -203,7 +226,12 @@ export default function RequestDetail() {
     try {
       await deleteRequest(request.request_id);
       toast.success(`Solicitud ${request.ticket_code} eliminada con éxito`);
-      navigate('/dashboard');
+      if (isModal) {
+        onClose?.();
+        onUpdated?.();
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar la solicitud');
     } finally {
@@ -378,9 +406,17 @@ export default function RequestDetail() {
   ];
 
   return (
-    <div className="request-detail">
-      <div className="page-header">
-        <button className="btn btn-outline" onClick={() => navigate(-1)}>← Volver</button>
+    <div className={`request-detail ${isModal ? 'request-detail-in-modal' : ''}`}>
+      <div className="page-header" style={isModal ? { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' } : undefined}>
+        {isModal ? (
+          <button type="button" className="btn btn-outline" onClick={onClose}>
+            ← Volver al listado
+          </button>
+        ) : (
+          <button type="button" className="btn btn-outline" onClick={() => navigate(-1)}>
+            ← Volver
+          </button>
+        )}
       </div>
 
       <div className="detail-grid">
@@ -992,6 +1028,7 @@ export default function RequestDetail() {
         request={request}
         onAssignComplete={() => {
           getRequest(id).then(setData);
+          onUpdated?.();
         }}
       />
 

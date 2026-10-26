@@ -57,17 +57,22 @@ async function seed() {
 
     // Request types
     const types = [
-      { name: 'Corrección de Error', code: 'BUG', ss: true, doc: true },
-      { name: 'Ajuste/Modificación', code: 'ADJUSTMENT', ss: true, doc: true },
-      { name: 'Nueva Funcionalidad', code: 'FEATURE', ss: false, doc: false },
+      { id: 1, name: 'Corrección de Error', code: 'BUG', ss: true, doc: true },
+      { id: 2, name: 'Ajuste/Modificación', code: 'ADJUSTMENT', ss: true, doc: true },
+      { id: 3, name: 'Nueva Funcionalidad', code: 'FEATURE', ss: false, doc: false },
+      { id: 8, name: 'SERVICIO TÉCNICO', code: 'ST', ss: false, doc: false },
     ];
     for (const t of types) {
       await client.query(
-        `INSERT INTO request_types (name, code, requires_screenshot, requires_document)
-         VALUES ($1, $2, $3, $4) ON CONFLICT (code) DO NOTHING`,
-        [t.name, t.code, t.ss, t.doc]
+        `INSERT INTO request_types (request_type_id, name, code, requires_screenshot, requires_document)
+         OVERRIDING SYSTEM VALUE
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (code) DO UPDATE
+           SET name = EXCLUDED.name, requires_screenshot = EXCLUDED.requires_screenshot, requires_document = EXCLUDED.requires_document`,
+        [t.id, t.name, t.code, t.ss, t.doc]
       );
     }
+    await client.query(`SELECT setval(pg_get_serial_sequence('request_types', 'request_type_id'), GREATEST((SELECT MAX(request_type_id) FROM request_types), 8))`);
 
     await client.query('COMMIT');
     console.log('✅ Seed data inserted.');

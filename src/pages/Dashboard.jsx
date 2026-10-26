@@ -16,6 +16,7 @@ import StatusBadge from '../components/StatusBadge';
 import SelectOptionModal from '../components/SelectOptionModal';
 import ConfirmModal from '../components/ConfirmModal';
 import AssignModal from '../components/AssignModal';
+import RequestDetailModal from '../components/RequestDetailModal';
 import PaginationControl from '../components/PaginationControl';
 import {
   STATUS_OPTIONS,
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const [activeAssignReq, setActiveAssignReq] = useState(null); // solicitud a asignar
   const [pendingStatus, setPendingStatus] = useState(null); // estado elegido pendiente de confirmar (nota)
   const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [selectedDetailId, setSelectedDetailId] = useState(null); // solicitud abierta en modal de detalle
 
   // Delete confirmation modal
   const [confirmDeleteReq, setConfirmDeleteReq] = useState(null);
@@ -463,9 +465,15 @@ export default function Dashboard() {
                   return (
                     <tr key={req.request_id} className="request-table-row">
                       <td className="col-ticket">
-                        <Link to={`/requests/${req.request_id}`} className="ticket-badge-link">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailId(req.request_id)}
+                          className="ticket-badge-link"
+                          title="Ver detalle de la solicitud"
+                          style={{ cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
                           <span className="ticket-code-text">{req.ticket_code}</span>
-                        </Link>
+                        </button>
                       </td>
                       <td className="col-user">
                         <div className="user-info-cell">
@@ -495,7 +503,15 @@ export default function Dashboard() {
                             onClick={() => setActiveStatusReq(req)} title="Estado" aria-label="Cambiar estado"><Settings size={14} /></button>
                           <button type="button" className="btn-action-pill btn-action-priority"
                             onClick={() => setActivePriorityReq(req)} title="Prioridad" aria-label="Cambiar prioridad"><Flame size={14} /></button>
-                          <Link to={`/requests/${req.request_id}`} className="btn-action-pill btn-action-detail" title="Ver detalle" aria-label="Ver detalle"><Eye size={14} /></Link>
+                          <button
+                            type="button"
+                            className="btn-action-pill btn-action-detail"
+                            title="Ver detalle"
+                            aria-label="Ver detalle"
+                            onClick={() => setSelectedDetailId(req.request_id)}
+                          >
+                            <Eye size={14} />
+                          </button>
                           {user && (user.role !== 'requester' || user.es_jefe) && (
                             <button type="button" className="btn-action-pill"
                               style={{ background: '#eef2ff', color: '#6366f1' }}
@@ -548,7 +564,20 @@ export default function Dashboard() {
                     <div className="kanban-empty">Sin solicitudes</div>
                   ) : (
                     statusRequests.map(req => (
-                      <Link to={`/requests/${req.request_id}`} key={req.request_id} className="kanban-card">
+                      <div
+                        key={req.request_id}
+                        className="kanban-card"
+                        onClick={() => setSelectedDetailId(req.request_id)}
+                        style={{ cursor: 'pointer' }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedDetailId(req.request_id);
+                          }
+                        }}
+                      >
                         <div className="kanban-card-header">
                           <span className="kanban-card-code">{req.ticket_code}</span>
                           <span className={`priority-pill priority-${req.priority}`} style={{ fontSize: '0.625rem', padding: '0.1rem 0.375rem' }}>
@@ -565,12 +594,12 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="kanban-card-actions">
-                          <button type="button" className="kanban-action-btn" title="Cambiar estado" aria-label="Cambiar estado" onClick={(e) => { e.preventDefault(); setActiveStatusReq(req); }}><Settings size={12} /></button>
+                          <button type="button" className="kanban-action-btn" title="Cambiar estado" aria-label="Cambiar estado" onClick={(e) => { e.stopPropagation(); setActiveStatusReq(req); }}><Settings size={12} /></button>
                           {user && (user.role !== 'requester' || user.es_jefe) && (
-                            <button type="button" className="kanban-action-btn" title="Asignar solicitud" aria-label="Asignar solicitud" onClick={(e) => { e.preventDefault(); setActiveAssignReq(req); }}><UserCheck size={12} /></button>
+                            <button type="button" className="kanban-action-btn" title="Asignar solicitud" aria-label="Asignar solicitud" onClick={(e) => { e.stopPropagation(); setActiveAssignReq(req); }}><UserCheck size={12} /></button>
                           )}
                         </div>
-                      </Link>
+                      </div>
                     ))
                   )}
                 </div>
@@ -635,6 +664,14 @@ export default function Dashboard() {
         onClose={() => setActiveAssignReq(null)} 
         request={activeAssignReq} 
         onAssignComplete={fetchRequests} 
+      />
+
+      {/* Modal de Detalle de Solicitud (Preserva filtros y paginación) */}
+      <RequestDetailModal
+        isOpen={Boolean(selectedDetailId)}
+        requestId={selectedDetailId}
+        onClose={() => setSelectedDetailId(null)}
+        onUpdated={fetchRequests}
       />
     </div>
   );
